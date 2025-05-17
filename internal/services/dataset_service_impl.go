@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"ppo/internal/entities"
@@ -8,95 +10,100 @@ import (
 )
 
 type datasetService struct {
-	datasetRepo  repositories.DatasetRepository
-	versionRepo  repositories.DatasetVersionRepository
-	metadataRepo repositories.MetadataRepository
+	dsRepo  repositories.DatasetRepository
+	verRepo repositories.DatasetVersionRepository
+	mdRepo  repositories.MetadataRepository
 }
 
 func NewDatasetService(
-	datasetRepo repositories.DatasetRepository,
-	versionRepo repositories.DatasetVersionRepository,
-	metadataRepo repositories.MetadataRepository,
+	dsRepo repositories.DatasetRepository,
+	verRepo repositories.DatasetVersionRepository,
+	mdRepo repositories.MetadataRepository,
 ) DatasetService {
-	return &datasetService{
-		datasetRepo:  datasetRepo,
-		versionRepo:  versionRepo,
-		metadataRepo: metadataRepo,
-	}
+	return &datasetService{dsRepo: dsRepo, verRepo: verRepo, mdRepo: mdRepo}
 }
 
-func (s *datasetService) CreateDataset(dataset *entities.Dataset, metadata *entities.Metadata) error {
-	if dataset == nil {
-		return ErrNilDataset
-	}
-
-	if dataset.CreatedAt.IsZero() {
-		dataset.CreatedAt = time.Now()
-	}
-
-	if err := s.datasetRepo.Create(dataset); err != nil {
-		return err
-	}
-
-	initVersion, err := entities.NewDatasetVersion("v0.1", "", "", dataset.ID, time.Now())
-
+func (s *datasetService) CreateDataset(ctx context.Context, cmd CreateDatasetCmd) (uint64, error) {
+	ds, err := entities.NewDataset(cmd.Name, cmd.Description, cmd.ActorID, cmd.CategoryID, cmd.IsPublic, time.Now())
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("invalid dataset: %w", err)
+	}
+	if err := s.dsRepo.Create(ctx, ds); err != nil {
+		return 0, fmt.Errorf("create dataset: %w", err)
 	}
 
-	if err := s.versionRepo.Create(initVersion); err != nil {
-		return err
+	ver, err := entities.NewDatasetVersion("v0.1", "", "", ds.ID, time.Now())
+	if err != nil {
+		return 0, fmt.Errorf("init version: %w", err)
+	}
+	if err := s.verRepo.Create(ctx, ver); err != nil {
+		return 0, fmt.Errorf("create version: %w", err)
 	}
 
-	if metadata != nil {
-		metadata.DatasetVersionID = initVersion.ID
-
-		if err := s.metadataRepo.Create(metadata); err != nil {
-			return err
+	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
+		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
+		if err != nil {
+			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
+		}
+		if err := s.mdRepo.Create(ctx, md); err != nil {
+			return 0, fmt.Errorf("create metadata: %w", err)
 		}
 	}
 
-	return nil
+	return ds.ID, nil
 }
-
-func (s *datasetService) UpdateDataset(dataset *entities.Dataset, changeLog string, filePath string, metadata *entities.Metadata) error {
-	if dataset == nil {
-		return ErrNilDataset
-	}
-
-	if err := s.datasetRepo.Update(dataset); err != nil {
-		return err
-	}
-
-	newVersion, err := entities.NewDatasetVersion(s.generateNextVersionNumber(dataset.ID), filePath, changeLog, dataset.ID, time.Now())
-
+func (s *datasetService) AddDatasetVersion(ctx context.Context, cmd AddVersionCmd) (uint64, error) {
+	ds, err := s.dsRepo.FindByID(ctx, cmd.DatasetID)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("fetch dataset: %w", err)
+	}
+	if ds == nil {
+		return 0, ErrDatasetNotFound
 	}
 
-	if err := s.versionRepo.Create(newVersion); err != nil {
-		return err
+	vers, err := s.verRepo.FindByDatasetID(ctx, cmd.DatasetID)
+	if err != nil {
+		return 0, fmt.Errorf("fetch versions: %w", err)
+	}
+	next := nextVersionNumber(vers)
+
+	ver, err := entities.NewDatasetVersion(next, cmd.FilePath, cmd.ChangeLog, cmd.DatasetID, time.Now())
+	if err != nil {
+		return 0, fmt.Errorf("invalid version data: %w", err)
 	}
 
-	if metadata != nil {
-		metadata.DatasetVersionID = newVersion.ID
-		if err := s.metadataRepo.Create(metadata); err != nil {
-			return err
+	if err := s.verRepo.Create(ctx, ver); err != nil {
+		return 0, fmt.Errorf("create version: %w", err)
+	}
+
+	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
+		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
+		if err != nil {
+			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
+		}
+		if err := s.mdRepo.Create(ctx, md); err != nil {
+			return 0, fmt.Errorf("create metadata: %w", err)
 		}
 	}
 
-	return nil
+	return ver.ID, nil
 }
 
-func (s *datasetService) GetDataset(id uint64) (*entities.Dataset, error) {
-	return s.datasetRepo.FindByID(id)
+func (s *datasetService) GetDataset(ctx context.Context, id uint64) (*entities.Dataset, error) {
+	ds, err := s.dsRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get dataset: %w", err)
+	}
+	if ds == nil {
+		return nil, ErrDatasetNotFound
+	}
+	return ds, nil
 }
 
-func (s *datasetService) generateNextVersionNumber(datasetID uint64) string {
-	versions, err := s.versionRepo.FindByDatasetID(datasetID)
-	if err != nil || len(versions) == 0 {
+func nextVersionNumber(existing []*entities.DatasetVersion) string {
+	if len(existing) == 0 {
 		return "v1.0"
 	}
-	lastVersion := versions[len(versions)-1].Number
-	return lastVersion + "+"
+	last := existing[0].Number
+	return last + ".1"
 }

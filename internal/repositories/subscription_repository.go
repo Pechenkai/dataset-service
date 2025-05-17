@@ -1,9 +1,11 @@
 package repositories
 
-//import "ppo/internal/entities"
+import (
+	"context"
+)
 
 type SubscriptionRepository interface {
-	Subscribe(userID, datasetID uint64) error
-	IsSubscribed(userID, datasetID uint64) (bool, error)
-	GetSubscribers(datasetID uint64) ([]uint64, error)
+	Subscribe(ctx context.Context, userID, datasetID uint64) error
+	IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error)
+	GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error)
 }

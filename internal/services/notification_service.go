@@ -1,9 +1,13 @@
 package services
 
-import "ppo/internal/entities"
+import (
+	"context"
+
+	"ppo/internal/entities"
+)
 
 type NotificationService interface {
-	NotifySubscribers(datasetID uint64, message string) error
-	GetNotificationsByUser(userID uint64) ([]*entities.Notification, error)
-	MarkAsRead(notificationID uint64) error
+	NotifySubscribers(ctx context.Context, datasetID uint64, message string) (int, error)
+	GetNotificationsByUser(ctx context.Context, userID uint64) ([]*entities.Notification, error)
+	MarkAsRead(ctx context.Context, notificationID uint64) error
 }

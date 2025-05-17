@@ -1,19 +1,41 @@
 package services
 
-import "ppo/internal/entities"
+import (
+	"context"
+
+	"ppo/internal/entities"
+)
+
+type CreateReviewCmd struct {
+	UserID    uint64
+	DatasetID uint64
+	Rating    entities.Rating
+	Text      string
+}
+
+type UpdateReviewCmd struct {
+	ReviewID uint64
+	Rating   entities.Rating
+	Text     string
+}
+
+type RatingSummary struct {
+	Average float64
+	Count   int
+}
 
 type ReviewService interface {
-	CreateReview(review *entities.Review) error
+	CreateReview(ctx context.Context, cmd CreateReviewCmd) (uint64, error)
 
-	UpdateReview(review *entities.Review) error
+	UpdateReview(ctx context.Context, cmd UpdateReviewCmd) error
 
-	DeleteReview(id uint64) error
+	DeleteReview(ctx context.Context, id uint64) error
 
-	GetReviewByID(id uint64) (*entities.Review, error)
+	GetReviewByID(ctx context.Context, id uint64) (*entities.Review, error)
 
-	GetReviewsByDataset(datasetID uint64) ([]*entities.Review, error)
+	ListByDataset(ctx context.Context, datasetID uint64) ([]*entities.Review, error)
 
-	GetReviewsByUser(userID uint64) ([]*entities.Review, error)
+	ListByUser(ctx context.Context, userID uint64) ([]*entities.Review, error)
 
-	ComputeAverageRating(datasetID uint64) (float64, error)
+	GetRatingSummary(ctx context.Context, datasetID uint64) (RatingSummary, error)
 }

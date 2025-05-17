@@ -1,15 +1,18 @@
 package repositories
 
-import "ppo/internal/entities"
+import (
+	"context"
+	"ppo/internal/entities"
+)
 
 type NotificationRepository interface {
-	Create(notification *entities.Notification) error
+	Create(ctx context.Context, n *entities.Notification) error
 
-	FindByID(id uint64) (*entities.Notification, error)
+	FindByID(ctx context.Context, id uint64) (*entities.Notification, error)
 
-	FindByUserID(userID uint64) ([]*entities.Notification, error)
+	FindByUserID(ctx context.Context, userID uint64) ([]*entities.Notification, error)
 
-	Update(notification *entities.Notification) error
+	Update(ctx context.Context, n *entities.Notification) error
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 }

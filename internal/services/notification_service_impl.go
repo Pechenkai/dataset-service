@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"ppo/internal/entities"
@@ -8,56 +10,64 @@ import (
 )
 
 type notificationService struct {
-	notificationRepo repositories.NotificationRepository
-	subscriptionRepo repositories.SubscriptionRepository
+	notifRepo repositories.NotificationRepository
+	subRepo   repositories.SubscriptionRepository
 }
 
 func NewNotificationService(
-	notificationRepo repositories.NotificationRepository,
-	subscriptionRepo repositories.SubscriptionRepository,
+	notifRepo repositories.NotificationRepository,
+	subRepo repositories.SubscriptionRepository,
 ) NotificationService {
 	return &notificationService{
-		notificationRepo: notificationRepo,
-		subscriptionRepo: subscriptionRepo,
+		notifRepo: notifRepo,
+		subRepo:   subRepo,
 	}
 }
 
-func (s *notificationService) NotifySubscribers(datasetID uint64, message string) error {
-	subscribers, err := s.getSubscribersForDataset(datasetID)
+func (s *notificationService) NotifySubscribers(ctx context.Context, datasetID uint64, message string) (int, error) {
+	subscribers, err := s.subRepo.GetSubscribers(ctx, datasetID)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("fetch subscribers: %w", err)
+	}
+	if len(subscribers) == 0 {
+		return 0, ErrNoSubscribers
 	}
 
+	count := 0
 	for _, userID := range subscribers {
-		notification, err := entities.NewNotification(userID, datasetID, message, time.Now())
-
+		notif, err := entities.NewNotification(userID, datasetID, message, time.Now().UTC())
 		if err != nil {
-			return err
+			return count, fmt.Errorf("invalid notification for user %d: %w", userID, err)
 		}
 
-		if err := s.notificationRepo.Create(notification); err != nil {
-			return err
+		if err := s.notifRepo.Create(ctx, notif); err != nil {
+			return count, fmt.Errorf("create notification for user %d: %w", userID, err)
 		}
+		count++
+	}
+	return count, nil
+}
+
+func (s *notificationService) GetNotificationsByUser(ctx context.Context, userID uint64) ([]*entities.Notification, error) {
+	notifs, err := s.notifRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list notifications: %w", err)
+	}
+	return notifs, nil
+}
+
+// MarkAsRead sets the IsRead flag to true for a notification.
+func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uint64) error {
+	notif, err := s.notifRepo.FindByID(ctx, notificationID)
+	if err != nil {
+		return fmt.Errorf("fetch notification: %w", err)
+	}
+	if notif == nil {
+		return ErrNotificationNotFound
+	}
+	notif.IsRead = true
+	if err := s.notifRepo.Update(ctx, notif); err != nil {
+		return fmt.Errorf("mark as read: %w", err)
 	}
 	return nil
-}
-
-func (s *notificationService) getSubscribersForDataset(datasetID uint64) ([]uint64, error) {
-	return s.subscriptionRepo.GetSubscribers(datasetID)
-}
-
-func (s *notificationService) GetNotificationsByUser(userID uint64) ([]*entities.Notification, error) {
-	return s.notificationRepo.FindByUserID(userID)
-}
-
-func (s *notificationService) MarkAsRead(notificationID uint64) error {
-	notification, err := s.notificationRepo.FindByID(notificationID)
-	if err != nil {
-		return err
-	}
-	if notification == nil {
-		return ErrNotificationFound
-	}
-	notification.IsRead = true
-	return s.notificationRepo.Update(notification)
 }
