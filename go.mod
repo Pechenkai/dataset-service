@@ -9,6 +9,8 @@ require (
 	golang.org/x/crypto v0.37.0
 )
 
+require github.com/caarlos0/env/v10 v10.0.0
+
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
@@ -52,7 +54,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/yusufpapurcu/wmi v1.2.4 // indirecgithub.com/ebitengine/puregot
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect; indirecgithub.com/ebitengine/puregot
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
