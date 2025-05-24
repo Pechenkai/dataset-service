@@ -12,11 +12,13 @@ import (
 type notificationService struct {
 	notifRepo repositories.NotificationRepository
 	subRepo   repositories.SubscriptionRepository
+	clock     Clock
 }
 
 func NewNotificationService(
 	notifRepo repositories.NotificationRepository,
 	subRepo repositories.SubscriptionRepository,
+	clk Clock,
 ) NotificationService {
 	return &notificationService{
 		notifRepo: notifRepo,
@@ -56,7 +58,6 @@ func (s *notificationService) GetNotificationsByUser(ctx context.Context, userID
 	return notifs, nil
 }
 
-// MarkAsRead sets the IsRead flag to true for a notification.
 func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uint64) error {
 	notif, err := s.notifRepo.FindByID(ctx, notificationID)
 	if err != nil {

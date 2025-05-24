@@ -3,27 +3,33 @@ package services
 import (
 	"context"
 	"fmt"
+	"io"
+	"ppo/internal/storage"
 	"time"
 
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
 )
 
+type Clock interface{ Now() time.Time }
+
 type datasetService struct {
 	dsRepo  repositories.DatasetRepository
 	verRepo repositories.DatasetVersionRepository
 	mdRepo  repositories.MetadataRepository
+	storage storage.Storage
 }
 
 func NewDatasetService(
 	dsRepo repositories.DatasetRepository,
 	verRepo repositories.DatasetVersionRepository,
 	mdRepo repositories.MetadataRepository,
+	storage storage.Storage,
 ) DatasetService {
-	return &datasetService{dsRepo: dsRepo, verRepo: verRepo, mdRepo: mdRepo}
+	return &datasetService{dsRepo: dsRepo, verRepo: verRepo, mdRepo: mdRepo, storage: storage}
 }
 
-func (s *datasetService) CreateDataset(ctx context.Context, cmd CreateDatasetCmd) (uint64, error) {
+func (s *datasetService) CreateDataset(ctx context.Context, cmd CreateDatasetCmd, r io.Reader, size int64) (uint64, error) {
 	ds, err := entities.NewDataset(cmd.Name, cmd.Description, cmd.ActorID, cmd.CategoryID, cmd.IsPublic, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("invalid dataset: %w", err)
@@ -32,10 +38,17 @@ func (s *datasetService) CreateDataset(ctx context.Context, cmd CreateDatasetCmd
 		return 0, fmt.Errorf("create dataset: %w", err)
 	}
 
-	ver, err := entities.NewDatasetVersion("v0.1", "", "", ds.ID, time.Now())
+	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
+	url, err := s.storage.Upload(ctx, key, r, size)
+	if err != nil {
+		return 0, fmt.Errorf("upload file: %w", err)
+	}
+
+	ver, err := entities.NewDatasetVersion("v0.1", url, "", ds.ID, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("init version: %w", err)
 	}
+
 	if err := s.verRepo.Create(ctx, ver); err != nil {
 		return 0, fmt.Errorf("create version: %w", err)
 	}
@@ -52,7 +65,7 @@ func (s *datasetService) CreateDataset(ctx context.Context, cmd CreateDatasetCmd
 
 	return ds.ID, nil
 }
-func (s *datasetService) AddDatasetVersion(ctx context.Context, cmd AddVersionCmd) (uint64, error) {
+func (s *datasetService) AddDatasetVersion(ctx context.Context, cmd AddVersionCmd, r io.Reader, size int64) (uint64, error) {
 	ds, err := s.dsRepo.FindByID(ctx, cmd.DatasetID)
 	if err != nil {
 		return 0, fmt.Errorf("fetch dataset: %w", err)
@@ -67,7 +80,13 @@ func (s *datasetService) AddDatasetVersion(ctx context.Context, cmd AddVersionCm
 	}
 	next := nextVersionNumber(vers)
 
-	ver, err := entities.NewDatasetVersion(next, cmd.FilePath, cmd.ChangeLog, cmd.DatasetID, time.Now())
+	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
+	url, err := s.storage.Upload(ctx, key, r, size)
+	if err != nil {
+		return 0, fmt.Errorf("upload file: %w", err)
+	}
+
+	ver, err := entities.NewDatasetVersion(next, url, cmd.ChangeLog, cmd.DatasetID, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("invalid version data: %w", err)
 	}

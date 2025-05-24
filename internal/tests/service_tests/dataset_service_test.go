@@ -1,124 +1,178 @@
-package services
+package services_test
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"io"
+	"testing"
+	"time"
+
 	"ppo/internal/entities"
 	"ppo/internal/services"
-	"testing"
+	"ppo/internal/tests/mocks"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-type mockDatasetRepo struct {
-	createErr   error
-	updateErr   error
-	byIDRes     *entities.Dataset
-	deleteErr   error
-	findAllRes  []*entities.Dataset
-	byUserIDRes []*entities.Dataset
+func makeReader(content string) io.Reader {
+	return bytes.NewReader([]byte(content))
 }
 
-func (m *mockDatasetRepo) Delete(id int64) error {
-	return m.deleteErr
-}
+var fixedTime = time.Date(2025, 5, 24, 10, 0, 0, 0, time.UTC)
 
-func (m *mockDatasetRepo) FindByUserID(userID int64) ([]*entities.Dataset, error) {
-	return m.byUserIDRes, nil
-}
+func TestDatasetService_CreateDataset_Success_WithMetadata(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	verRepo := new(mocks.DatasetVersionRepository)
+	mdRepo := new(mocks.MetadataRepository)
+	storage := new(mocks.Storage)
 
-func (m *mockDatasetRepo) FindAll() ([]*entities.Dataset, error) {
-	return m.findAllRes, nil
-}
+	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage)
 
-func (m *mockDatasetRepo) Create(d *entities.Dataset) error { return m.createErr }
+	dsRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Dataset")).Run(func(args mock.Arguments) {
+		ds := args.Get(1).(*entities.Dataset)
+		ds.ID = 10
+	}).Return(nil)
 
-func (m *mockDatasetRepo) Update(d *entities.Dataset) error { return m.updateErr }
+	storage.On("Upload", mock.Anything, "datasets/10/myfile.txt", mock.Anything, int64(9)).
+		Return("http://url/to/myfile.txt", nil)
 
-func (m *mockDatasetRepo) FindByID(id int64) (*entities.Dataset, error) {
-	return &entities.Dataset{ID: id}, nil
-}
+	verRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.DatasetVersion")).Run(func(args mock.Arguments) {
+		ver := args.Get(1).(*entities.DatasetVersion)
+		ver.ID = 20
+	}).Return(nil)
 
-type mockVersionRepo struct {
-	createErr error
-	versions  []*entities.DatasetVersion
-	byIDRes   *entities.DatasetVersion
-	deleteErr error
-	updateErr error
-}
+	mdRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Metadata")).Return(nil)
 
-func (m *mockVersionRepo) Delete(id int64) error {
-	return m.deleteErr
-}
-
-func (m *mockVersionRepo) Update(datasetVersion *entities.DatasetVersion) error {
-	return m.updateErr
-}
-
-func (m *mockVersionRepo) FindByID(id int64) (*entities.DatasetVersion, error) {
-	return m.byIDRes, nil
-}
-
-func (m *mockVersionRepo) Create(v *entities.DatasetVersion) error { return m.createErr }
-
-func (m *mockVersionRepo) FindByDatasetID(id int64) ([]*entities.DatasetVersion, error) {
-	return m.versions, nil
-}
-
-type mockMetadataRepo struct {
-	createErr  error
-	updateErr  error
-	byIDRes    *entities.Metadata
-	deleteErr  error
-	findAllRes []*entities.Metadata
-}
-
-func (m *mockMetadataRepo) Update(dataset *entities.Metadata) error {
-	return m.updateErr
-}
-
-func (m *mockMetadataRepo) Delete(id int64) error {
-	return m.deleteErr
-}
-
-func (m *mockMetadataRepo) FindByID(id int64) (*entities.Metadata, error) {
-	return m.byIDRes, nil
-}
-
-func (m *mockMetadataRepo) FindByDatasetID(datasetID int64) ([]*entities.Metadata, error) {
-	return m.findAllRes, nil
-}
-
-func (m *mockMetadataRepo) Create(met *entities.Metadata) error { return m.createErr }
-
-func TestDatasetService_CreateAndUpdate(t *testing.T) {
-	// CreateDataset: nil Dataset
-	svc := services.NewDatasetService(&mockDatasetRepo{}, &mockVersionRepo{}, &mockMetadataRepo{})
-	err := svc.CreateDataset(nil, &entities.Metadata{})
-	if !errors.Is(err, services.ErrNilDataset) {
-		t.Error("ожидается ошибка при передаче nil Dataset в CreateDataset")
+	cmd := services.CreateDatasetCmd{
+		ActorID:     1,
+		Name:        "Test",
+		Description: "Desc",
+		CategoryID:  2,
+		FileName:    "myfile.txt",
+		IsPublic:    true,
+		MetaFormat:  "csv",
+		MetaTags:    "tag1,tag2",
+		MetaSize:    123,
 	}
 
-	// CreateDataset: ошибка создания версии
-	dRepo := &mockDatasetRepo{}
-	vRepoErr := &mockVersionRepo{createErr: errors.New("сбой создания версии")}
-	mRepo := &mockMetadataRepo{}
-	svc = services.NewDatasetService(dRepo, vRepoErr, mRepo)
-	err = svc.CreateDataset(&entities.Dataset{}, &entities.Metadata{})
-	if err == nil {
-		t.Error("ожидается ошибка при создании версии")
-	}
+	id, err := svc.CreateDataset(context.Background(), cmd, makeReader("content!!"), 9)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(10), id)
 
-	// CreateDataset: ошибка создания метаданных
-	vRepoOK := &mockVersionRepo{}
-	mRepoErr := &mockMetadataRepo{createErr: errors.New("сбой создания метаданных")}
-	svc = services.NewDatasetService(dRepo, vRepoOK, mRepoErr)
-	err = svc.CreateDataset(&entities.Dataset{}, &entities.Metadata{})
-	if err == nil {
-		t.Error("ожидается ошибка при создании метаданных")
-	}
+	dsRepo.AssertExpectations(t)
+	storage.AssertExpectations(t)
+	verRepo.AssertExpectations(t)
+	mdRepo.AssertExpectations(t)
+}
 
-	// UpdateDataset: nil Dataset
-	svc = services.NewDatasetService(&mockDatasetRepo{}, &mockVersionRepo{}, &mockMetadataRepo{})
-	err = svc.UpdateDataset(nil, "1.1", "файл", &entities.Metadata{})
-	if !errors.Is(err, services.ErrNilDataset) {
-		t.Error("ожидается ошибка при передаче nil Dataset в UpdateDataset")
-	}
+func TestDatasetService_CreateDataset_ValidationError(t *testing.T) {
+	svc := services.NewDatasetService(nil, nil, nil, nil)
+	_, err := svc.CreateDataset(context.Background(), services.CreateDatasetCmd{
+		ActorID:    1,
+		Name:       "   ",
+		CategoryID: 1,
+		FileName:   "f.txt",
+	}, nil, 0)
+	assert.ErrorIs(t, err, entities.ErrEmptyDatasetName)
+}
+
+func TestDatasetService_CreateDataset_DatasetRepoError(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+
+	dsRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("db error"))
+
+	_, err := svc.CreateDataset(context.Background(), services.CreateDatasetCmd{
+		ActorID:    1,
+		Name:       "Name",
+		CategoryID: 1,
+		FileName:   "f.txt",
+	}, makeReader(""), 0)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "create dataset")
+}
+
+func TestDatasetService_CreateDataset_UploadError(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	storage := new(mocks.Storage)
+
+	dsRepo.On("Create", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		ds := args.Get(1).(*entities.Dataset)
+		ds.ID = 5
+	}).Return(nil)
+
+	storage.On("Upload", mock.Anything, "datasets/5/f.txt", mock.Anything, int64(0)).Return("", errors.New("net err"))
+
+	svc := services.NewDatasetService(dsRepo, nil, nil, storage)
+
+	_, err := svc.CreateDataset(context.Background(), services.CreateDatasetCmd{
+		ActorID:    1,
+		Name:       "Name",
+		CategoryID: 1,
+		FileName:   "f.txt",
+	}, makeReader(""), 0)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "upload file")
+}
+
+func TestDatasetService_AddDatasetVersion_Success_NoMetadata(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	verRepo := new(mocks.DatasetVersionRepository)
+	mdRepo := new(mocks.MetadataRepository)
+	storage := new(mocks.Storage)
+
+	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage)
+
+	dsRepo.On("FindByID", mock.Anything, uint64(99)).Return(&entities.Dataset{ID: 99, Name: "A"}, nil)
+	verRepo.On("FindByDatasetID", mock.Anything, uint64(99)).Return([]*entities.DatasetVersion{}, nil)
+	storage.On("Upload", mock.Anything, "datasets/99/vers.txt", mock.Anything, int64(0)).
+		Return("url", nil)
+	verRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.DatasetVersion")).Run(func(args mock.Arguments) {
+		v := args.Get(1).(*entities.DatasetVersion)
+		v.ID = 77
+	}).Return(nil)
+
+	id, err := svc.AddDatasetVersion(context.Background(), services.AddVersionCmd{
+		ActorID:   1,
+		DatasetID: 99,
+		FileName:  "vers.txt",
+		ChangeLog: "chg",
+	}, makeReader(""), 0)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(77), id)
+}
+
+func TestDatasetService_AddDatasetVersion_DatasetNotFound(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+
+	dsRepo.On("FindByID", mock.Anything, uint64(123)).Return((*entities.Dataset)(nil), nil)
+
+	_, err := svc.AddDatasetVersion(context.Background(), services.AddVersionCmd{DatasetID: 123}, nil, 0)
+	assert.ErrorIs(t, err, services.ErrDatasetNotFound)
+}
+
+func TestDatasetService_GetDataset_Success(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+
+	expected := &entities.Dataset{ID: 5, Name: "OK"}
+	dsRepo.On("FindByID", mock.Anything, uint64(5)).Return(expected, nil)
+
+	ds, err := svc.GetDataset(context.Background(), 5)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, ds)
+}
+
+func TestDatasetService_GetDataset_NotFound(t *testing.T) {
+	dsRepo := new(mocks.DatasetRepository)
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+
+	dsRepo.On("FindByID", mock.Anything, uint64(6)).Return((*entities.Dataset)(nil), nil)
+
+	ds, err := svc.GetDataset(context.Background(), 6)
+	assert.ErrorIs(t, err, services.ErrDatasetNotFound)
+	assert.Nil(t, ds)
 }

@@ -8,8 +8,8 @@ import (
 
 type Database struct {
 	DSN               string        `env:"DB_DSN,required"`
-	MaxConns          int           `env:"DB_MAX_CONNS" envDefault:"20"`
-	MinConns          int           `env:"DB_MIN_CONNS" envDefault:"2"`
+	MaxConns          int32         `env:"DB_MAX_CONNS" envDefault:"20"`
+	MinConns          int32         `env:"DB_MIN_CONNS" envDefault:"2"`
 	MaxConnIdleTime   time.Duration `env:"DB_MAX_CONN_IDLE_TIME" envDefault:"60s"`
 	HealthCheckPeriod time.Duration `env:"DB_HEALTH_CHECK_PERIOD" envDefault:"30s"`
 	ConnectTimeout    time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`

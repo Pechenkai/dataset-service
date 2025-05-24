@@ -20,7 +20,6 @@ func NewCategoryService(repo repositories.CategoryRepository) CategoryService {
 }
 
 func (s *categoryService) CreateCategory(ctx context.Context, name, description string) (uint64, error) {
-	// валидация на уровне домена
 	cat, err := entities.NewCategory(name, description)
 	if err != nil {
 		return 0, fmt.Errorf("invalid category data: %w", err)
@@ -36,7 +35,6 @@ func (s *categoryService) CreateCategory(ctx context.Context, name, description 
 }
 
 func (s *categoryService) UpdateCategory(ctx context.Context, id uint64, name, description string) error {
-	// сначала читаем, чтобы убедиться, что запись есть
 	cat, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("fetch category: %w", err)
@@ -45,7 +43,6 @@ func (s *categoryService) UpdateCategory(ctx context.Context, id uint64, name, d
 		return postgres.ErrCategoryNotFound
 	}
 
-	// валидируем новые поля
 	updated, err := entities.NewCategory(name, description)
 	if err != nil {
 		return fmt.Errorf("invalid category data: %w", err)
@@ -80,8 +77,8 @@ func (s *categoryService) GetCategoryByID(ctx context.Context, id uint64) (*enti
 	if err != nil {
 		return nil, fmt.Errorf("get category: %w", err)
 	}
-	if cat == nil {
-		return nil, postgres.ErrCategoryNotFound
+	if cat == nil || errors.Is(err, postgres.ErrCategoryNotFound) {
+		return nil, ErrCategoryNotFound
 	}
 	return cat, nil
 }

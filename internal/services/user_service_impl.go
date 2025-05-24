@@ -14,10 +14,11 @@ import (
 )
 
 type userService struct {
-	repo repositories.UserRepository
+	repo  repositories.UserRepository
+	clock Clock
 }
 
-func NewUserService(repo repositories.UserRepository) UserService {
+func NewUserService(repo repositories.UserRepository, clk Clock) UserService {
 	return &userService{repo: repo}
 }
 

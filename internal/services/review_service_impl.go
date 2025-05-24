@@ -12,10 +12,11 @@ import (
 )
 
 type reviewService struct {
-	repo repositories.ReviewRepository
+	repo  repositories.ReviewRepository
+	clock Clock
 }
 
-func NewReviewService(repo repositories.ReviewRepository) ReviewService {
+func NewReviewService(repo repositories.ReviewRepository, clk Clock) ReviewService {
 	return &reviewService{repo: repo}
 }
 

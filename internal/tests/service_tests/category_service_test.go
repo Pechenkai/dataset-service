@@ -1,100 +1,150 @@
-package services
+package services_test
 
 import (
-	"errors"
-	"testing"
-
+	"context"
 	"ppo/internal/entities"
 	"ppo/internal/services"
+	"ppo/internal/tests/mocks"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-type mockCategoryRepo struct {
-	createErr    error
-	updateErr    error
-	deleteErr    error
-	findErr      error
-	findAllErr   error
-	findByIDResp *entities.Category
-	findAllResp  []*entities.Category
+func TestCategoryService_CreateCategory_Success(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	repo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Category")).Run(func(args mock.Arguments) {
+		cat := args.Get(1).(*entities.Category)
+		cat.ID = 1
+	}).Return(nil)
+
+	id, err := svc.CreateCategory(context.Background(), "ML", "Machine Learning")
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), id)
+	repo.AssertExpectations(t)
 }
 
-func (m *mockCategoryRepo) Create(c *entities.Category) error { return m.createErr }
-func (m *mockCategoryRepo) Update(c *entities.Category) error { return m.updateErr }
-func (m *mockCategoryRepo) Delete(id int64) error             { return m.deleteErr }
-func (m *mockCategoryRepo) FindByID(id int64) (*entities.Category, error) {
-	return m.findByIDResp, m.findErr
+func TestCategoryService_CreateCategory_ValidationError(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	id, err := svc.CreateCategory(context.Background(), "   ", "description")
+	assert.ErrorIs(t, err, entities.ErrEmptyCategoryName)
+	assert.Equal(t, uint64(0), id)
 }
-func (m *mockCategoryRepo) FindAll() ([]*entities.Category, error) {
-	return m.findAllResp, m.findAllErr
+
+func TestCategoryService_CreateCategory_DuplicateError(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	repo.On("Create", mock.Anything, mock.Anything).Return(services.ErrCategoryExists)
+
+	id, err := svc.CreateCategory(context.Background(), "ML", "description")
+	assert.ErrorIs(t, err, services.ErrCategoryExists)
+	assert.Equal(t, uint64(0), id)
 }
 
-func TestCategoryService(t *testing.T) {
-	// CreateCategory возвращает ошибку при передаче nil
-	svc := services.NewCategoryService(&mockCategoryRepo{})
-	err := svc.CreateCategory(nil)
-	if !errors.Is(err, services.ErrNilCategory) {
-		t.Error("ожидается ошибка при создании nil категории")
-	}
+func TestCategoryService_UpdateCategory_Success(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
 
-	// UpdateCategory возвращает ошибку при передаче nil
-	err = svc.UpdateCategory(nil)
-	if !errors.Is(err, services.ErrNilCategory) {
-		t.Error("ожидается ошибка при обновлении nil категории")
-	}
+	existing := &entities.Category{ID: 1, Name: "Old", Description: "Desc"}
+	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
+	repo.On("Update", mock.Anything, mock.AnythingOfType("*entities.Category")).Return(nil)
 
-	// Ошибка репозитория Create создает ошибку создания категории
-	repoErr := &mockCategoryRepo{createErr: errors.New("ошибка создания")}
-	svc = services.NewCategoryService(repoErr)
-	err = svc.CreateCategory(&entities.Category{})
-	if err == nil || err.Error() != "ошибка создания" {
-		t.Errorf("ожидается 'ошибка создания', получено: %v", err)
-	}
+	err := svc.UpdateCategory(context.Background(), 1, "New", "Updated")
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
 
-	// Ошибка обновления репозитория Update создает ошибку обновления категории
-	repoErr = &mockCategoryRepo{updateErr: errors.New("ошибка обновления")}
-	svc = services.NewCategoryService(repoErr)
-	err = svc.UpdateCategory(&entities.Category{})
-	if err == nil || err.Error() != "ошибка обновления" {
-		t.Errorf("ожидается 'ошибка обновления', получено: %v", err)
-	}
+func TestCategoryService_UpdateCategory_NotFound(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
 
-	// Ошибка удаления репозитория создает ошибку удаления категории
-	repoErr = &mockCategoryRepo{deleteErr: errors.New("ошибка удаления")}
-	svc = services.NewCategoryService(repoErr)
-	err = svc.DeleteCategory(1)
-	if err == nil || err.Error() != "ошибка удаления" {
-		t.Errorf("ожидается 'ошибка удаления', получено: %v", err)
-	}
+	repo.On("FindByID", mock.Anything, uint64(999)).Return((*entities.Category)(nil), nil)
 
-	// Ошибка поиска по ID
-	repoErr = &mockCategoryRepo{findErr: errors.New("ошибка поиска")}
-	svc = services.NewCategoryService(repoErr)
-	_, err = svc.GetCategoryByID(1)
-	if err == nil || err.Error() != "ошибка поиска" {
-		t.Errorf("ожидается 'ошибка поиска', получено: %v", err)
-	}
+	err := svc.UpdateCategory(context.Background(), 999, "New", "Updated")
+	assert.Error(t, err)
+}
 
-	// Проверка поиска по ID
-	cat := &entities.Category{ID: 42, Name: "Тест"}
-	repoSuccess := &mockCategoryRepo{findByIDResp: cat}
-	svc = services.NewCategoryService(repoSuccess)
-	got, err := svc.GetCategoryByID(42)
-	if err != nil {
-		t.Errorf("неожиданная ошибка при GetCategoryByID: %v", err)
-	}
-	if got != cat {
-		t.Errorf("ожидается %v, получено %v", cat, got)
-	}
+func TestCategoryService_UpdateCategory_ValidationError(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
 
-	// Проверка получения всех категорий
-	list := []*entities.Category{{ID: 1}, {ID: 2}}
-	repoList := &mockCategoryRepo{findAllResp: list}
-	svc = services.NewCategoryService(repoList)
-	all, err := svc.GetAllCategories()
-	if err != nil {
-		t.Errorf("неожиданная ошибка при GetAllCategories: %v", err)
+	existing := &entities.Category{ID: 1, Name: "Old", Description: "Desc"}
+	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
+
+	err := svc.UpdateCategory(context.Background(), 1, "", "Updated")
+	assert.ErrorIs(t, err, entities.ErrEmptyCategoryName)
+}
+
+func TestCategoryService_DeleteCategory_Success(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	repo.On("Delete", mock.Anything, uint64(1)).Return(nil)
+
+	err := svc.DeleteCategory(context.Background(), 1)
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestCategoryService_DeleteCategory_NotFound(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	repo.On("Delete", mock.Anything, uint64(2)).Return(services.ErrCategoryNotFound)
+
+	err := svc.DeleteCategory(context.Background(), 2)
+	assert.ErrorIs(t, err, services.ErrCategoryNotFound)
+}
+
+func TestCategoryService_DeleteCategory_NotEmpty(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	repo.On("Delete", mock.Anything, uint64(3)).Return(services.ErrCategoryNotEmpty)
+
+	err := svc.DeleteCategory(context.Background(), 3)
+	assert.ErrorIs(t, err, services.ErrCategoryNotEmpty)
+}
+
+func TestCategoryService_GetCategoryByID_Success(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	expected := &entities.Category{ID: 1, Name: "Test"}
+	repo.On("FindByID", mock.Anything, uint64(1)).Return(expected, nil)
+
+	cat, err := svc.GetCategoryByID(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, cat)
+}
+
+func TestCategoryService_GetCategoryByID_NotFound(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	repo.On("FindByID", mock.Anything, uint64(2)).Return(nil, nil)
+
+	cat, err := svc.GetCategoryByID(context.Background(), 2)
+	assert.Error(t, err)
+	assert.Nil(t, cat)
+}
+
+func TestCategoryService_ListCategories_Success(t *testing.T) {
+	repo := new(mocks.CategoryRepository)
+	svc := services.NewCategoryService(repo)
+
+	expected := []*entities.Category{
+		{ID: 1, Name: "Cat1"},
+		{ID: 2, Name: "Cat2"},
 	}
-	if len(all) != 2 {
-		t.Errorf("ожидается 2 категории, получено %d", len(all))
-	}
+	repo.On("FindAll", mock.Anything).Return(expected, nil)
+
+	result, err := svc.ListCategories(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
 }

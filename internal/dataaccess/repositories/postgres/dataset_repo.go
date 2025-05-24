@@ -79,7 +79,6 @@ func (r *DatasetRepo) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// FindByID возвращает один датасет или ErrDatasetNotFound, если не найден.
 func (r *DatasetRepo) FindByID(ctx context.Context, id uint64) (*entities.Dataset, error) {
 	const sql = `
 	SELECT id, name, description, owner_id, category_id, is_public, created_at

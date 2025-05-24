@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"io"
 
 	"ppo/internal/entities"
 )
@@ -11,6 +12,7 @@ type CreateDatasetCmd struct {
 	Name        string
 	Description string
 	CategoryID  uint64
+	FileName    string
 	IsPublic    bool
 
 	MetaFormat string
@@ -22,7 +24,7 @@ type AddVersionCmd struct {
 	ActorID   uint64
 	DatasetID uint64
 	ChangeLog string
-	FilePath  string
+	FileName  string
 
 	MetaFormat string
 	MetaTags   string
@@ -30,7 +32,7 @@ type AddVersionCmd struct {
 }
 
 type DatasetService interface {
-	CreateDataset(ctx context.Context, cmd CreateDatasetCmd) (uint64, error)
-	AddDatasetVersion(ctx context.Context, cmd AddVersionCmd) (uint64, error)
+	CreateDataset(ctx context.Context, cmd CreateDatasetCmd, r io.Reader, size int64) (uint64, error)
+	AddDatasetVersion(ctx context.Context, cmd AddVersionCmd, r io.Reader, size int64) (uint64, error)
 	GetDataset(ctx context.Context, id uint64) (*entities.Dataset, error)
 }
