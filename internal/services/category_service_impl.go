@@ -19,8 +19,8 @@ func NewCategoryService(repo repositories.CategoryRepository) CategoryService {
 	return &categoryService{repo: repo}
 }
 
-func (s *categoryService) CreateCategory(ctx context.Context, name, description string) (uint64, error) {
-	cat, err := entities.NewCategory(name, description)
+func (s *categoryService) CreateCategory(ctx context.Context, cmd CreateCategoryCmd) (uint64, error) {
+	cat, err := entities.NewCategory(cmd.Name, cmd.Description)
 	if err != nil {
 		return 0, fmt.Errorf("invalid category data: %w", err)
 	}
@@ -34,8 +34,8 @@ func (s *categoryService) CreateCategory(ctx context.Context, name, description 
 	return cat.ID, nil
 }
 
-func (s *categoryService) UpdateCategory(ctx context.Context, id uint64, name, description string) error {
-	cat, err := s.repo.FindByID(ctx, id)
+func (s *categoryService) UpdateCategory(ctx context.Context, cmd UpdateCategoryCmd) error {
+	cat, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return fmt.Errorf("fetch category: %w", err)
 	}
@@ -43,11 +43,11 @@ func (s *categoryService) UpdateCategory(ctx context.Context, id uint64, name, d
 		return postgres.ErrCategoryNotFound
 	}
 
-	updated, err := entities.NewCategory(name, description)
+	updated, err := entities.NewCategory(cmd.Name, cmd.Description)
 	if err != nil {
 		return fmt.Errorf("invalid category data: %w", err)
 	}
-	updated.ID = id
+	updated.ID = cmd.ID
 
 	if err := s.repo.Update(ctx, updated); err != nil {
 		if errors.Is(err, postgres.ErrCategoryAlreadyExists) {

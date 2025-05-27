@@ -47,7 +47,7 @@ func Build(ctx context.Context) (*App, error) {
 	userRepo := postgres.NewUserRepo(dbPool)
 
 	catSvc := services.NewCategoryService(catRepo)
-	dsSvc := services.NewDatasetService(dsRepo, verRepo, mdRepo)
+	dsSvc := services.NewDatasetService(dsRepo, verRepo, mdRepo, s3)
 	notifSvc := services.NewNotificationService(notifRepo, subRepo)
 	revSvc := services.NewReviewService(revRepo)
 	userSvc := services.NewUserService(userRepo)

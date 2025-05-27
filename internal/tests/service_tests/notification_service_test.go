@@ -3,26 +3,19 @@ package services_test
 import (
 	"context"
 	"errors"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"ppo/internal/entities"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
+	"testing"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (f fakeClock) Now() time.Time { return f.now }
 
 func TestNotifySubscribers_Success(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	clk := fakeClock{now: time.Date(2025, 5, 24, 12, 0, 0, 0, time.UTC)}
 
-	svc := services.NewNotificationService(notifRepo, subRepo, clk)
+	svc := services.NewNotificationService(notifRepo, subRepo)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(7)).
 		Return([]uint64{11, 22, 33}, nil)
@@ -44,9 +37,8 @@ func TestNotifySubscribers_Success(t *testing.T) {
 func TestNotifySubscribers_NoSubscribers(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	clk := fakeClock{now: time.Now()}
 
-	svc := services.NewNotificationService(notifRepo, subRepo, clk)
+	svc := services.NewNotificationService(notifRepo, subRepo)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(5)).
 		Return([]uint64{}, nil)
@@ -59,7 +51,7 @@ func TestNotifySubscribers_NoSubscribers(t *testing.T) {
 func TestNotifySubscribers_FetchSubsError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	svc := services.NewNotificationService(notifRepo, subRepo, fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, subRepo)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(99)).
 		Return(nil, errors.New("db fail"))
@@ -72,7 +64,7 @@ func TestNotifySubscribers_FetchSubsError(t *testing.T) {
 func TestNotifySubscribers_InvalidMessage(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	svc := services.NewNotificationService(notifRepo, subRepo, fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, subRepo)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(1)).
 		Return([]uint64{1}, nil)
@@ -85,9 +77,8 @@ func TestNotifySubscribers_InvalidMessage(t *testing.T) {
 func TestNotifySubscribers_CreateError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	clk := fakeClock{now: time.Now()}
 
-	svc := services.NewNotificationService(notifRepo, subRepo, clk)
+	svc := services.NewNotificationService(notifRepo, subRepo)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(2)).
 		Return([]uint64{2, 3}, nil)
@@ -105,7 +96,7 @@ func TestGetNotificationsByUser_Success(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
 
-	svc := services.NewNotificationService(notifRepo, subRepo, fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, subRepo)
 
 	expected := []*entities.Notification{
 		{ID: 1, UserID: 5, Message: "X"},
@@ -120,7 +111,7 @@ func TestGetNotificationsByUser_Success(t *testing.T) {
 
 func TestGetNotificationsByUser_Error(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
 
 	notifRepo.On("FindByUserID", mock.Anything, uint64(6)).
 		Return(nil, errors.New("db err"))
@@ -132,7 +123,7 @@ func TestGetNotificationsByUser_Error(t *testing.T) {
 
 func TestMarkAsRead_Success(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
 
 	n := &entities.Notification{ID: 9, IsRead: false}
 	notifRepo.On("FindByID", mock.Anything, uint64(9)).Return(n, nil)
@@ -146,7 +137,7 @@ func TestMarkAsRead_Success(t *testing.T) {
 
 func TestMarkAsRead_NotFound(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
 
 	notifRepo.On("FindByID", mock.Anything, uint64(10)).Return((*entities.Notification)(nil), nil)
 
@@ -156,7 +147,7 @@ func TestMarkAsRead_NotFound(t *testing.T) {
 
 func TestMarkAsRead_FetchError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
 
 	notifRepo.On("FindByID", mock.Anything, uint64(11)).Return(nil, errors.New("db fail"))
 
@@ -167,7 +158,7 @@ func TestMarkAsRead_FetchError(t *testing.T) {
 
 func TestMarkAsRead_UpdateError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), fakeClock{now: time.Now()})
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
 
 	n := &entities.Notification{ID: 12}
 	notifRepo.On("FindByID", mock.Anything, uint64(12)).Return(n, nil)

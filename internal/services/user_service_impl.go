@@ -18,7 +18,7 @@ type userService struct {
 	clock Clock
 }
 
-func NewUserService(repo repositories.UserRepository, clk Clock) UserService {
+func NewUserService(repo repositories.UserRepository) UserService {
 	return &userService{repo: repo}
 }
 

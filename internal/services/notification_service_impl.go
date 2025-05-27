@@ -18,7 +18,6 @@ type notificationService struct {
 func NewNotificationService(
 	notifRepo repositories.NotificationRepository,
 	subRepo repositories.SubscriptionRepository,
-	clk Clock,
 ) NotificationService {
 	return &notificationService{
 		notifRepo: notifRepo,

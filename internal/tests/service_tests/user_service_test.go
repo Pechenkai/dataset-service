@@ -15,16 +15,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type fakeClock struct{ now time.Time }
-
-func (f fakeClock) Now() time.Time { return f.now }
-
-// === Register ===
-
 func TestRegister_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	clk := fakeClock{now: time.Date(2025, 5, 24, 10, 0, 0, 0, time.UTC)}
-	svc := services.NewUserService(repo, clk)
+	svc := services.NewUserService(repo)
 
 	cmd := services.RegisterUserCmd{
 		Username: "alice",
@@ -58,7 +51,7 @@ func TestRegister_Success(t *testing.T) {
 
 func TestRegister_EmptyUsername(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	_, err := svc.Register(context.Background(), services.RegisterUserCmd{
 		Username: "   ",
@@ -72,7 +65,7 @@ func TestRegister_EmptyUsername(t *testing.T) {
 
 func TestRegister_DuplicateEmail(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	repo.On("FindByEmail", mock.Anything, "dup@em.com").
 		Return(&entities.User{ID: 1}, nil)
@@ -95,7 +88,7 @@ func TestAuthenticate_Success(t *testing.T) {
 	stored := &entities.User{ID: 5, Email: "x@y", Password: string(hash)}
 
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	repo.On("FindByEmail", mock.Anything, "x@y").Return(stored, nil)
 
@@ -110,7 +103,7 @@ func TestAuthenticate_Success(t *testing.T) {
 func TestAuthenticate_WrongPassword(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("right"), bcrypt.DefaultCost)
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 	repo.On("FindByEmail", mock.Anything, "x@y").Return(&entities.User{Password: string(hash)}, nil)
 
 	_, err := svc.Authenticate(context.Background(), services.AuthenticateUserCmd{
@@ -122,7 +115,7 @@ func TestAuthenticate_WrongPassword(t *testing.T) {
 
 func TestAuthenticate_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 	repo.On("FindByEmail", mock.Anything, "none@x").Return(nil, nil)
 
 	_, err := svc.Authenticate(context.Background(), services.AuthenticateUserCmd{
@@ -136,7 +129,7 @@ func TestAuthenticate_NotFound(t *testing.T) {
 
 func TestUpdateUser_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	existing := &entities.User{
 		ID:               10,
@@ -170,7 +163,7 @@ func TestUpdateUser_Success(t *testing.T) {
 
 func TestUpdateUser_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 	repo.On("FindByID", mock.Anything, uint64(99)).Return(nil, nil)
 
 	err := svc.UpdateUser(context.Background(), services.UpdateUserCmd{ID: 99})
@@ -179,7 +172,7 @@ func TestUpdateUser_NotFound(t *testing.T) {
 
 func TestUpdateUser_DuplicateEmail(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	existing := &entities.User{ID: 1, Email: "old@e"}
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
@@ -196,7 +189,7 @@ func TestUpdateUser_DuplicateEmail(t *testing.T) {
 
 func TestDeleteUser_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	repo.On("Delete", mock.Anything, uint64(3)).Return(nil)
 	err := svc.DeleteUser(context.Background(), 3)
@@ -205,7 +198,7 @@ func TestDeleteUser_Success(t *testing.T) {
 
 func TestDeleteUser_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	repo.On("Delete", mock.Anything, uint64(4)).Return(postgres.ErrUserNotFound)
 	err := svc.DeleteUser(context.Background(), 4)
@@ -216,7 +209,7 @@ func TestDeleteUser_NotFound(t *testing.T) {
 
 func TestGetUserByID_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	expected := &entities.User{ID: 5}
 	repo.On("FindByID", mock.Anything, uint64(5)).Return(expected, nil)
@@ -228,7 +221,7 @@ func TestGetUserByID_Success(t *testing.T) {
 
 func TestGetUserByID_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo, fakeClock{now: time.Now()})
+	svc := services.NewUserService(repo)
 
 	repo.On("FindByID", mock.Anything, uint64(6)).Return(nil, nil)
 

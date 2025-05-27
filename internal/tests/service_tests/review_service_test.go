@@ -4,25 +4,18 @@ import (
 	"context"
 	"errors"
 	"ppo/internal/dataaccess/repositories/postgres"
-	"testing"
-	"time"
-
 	"ppo/internal/entities"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-type fakeClock struct{ now time.Time }
-
-func (f fakeClock) Now() time.Time { return f.now }
-
 func TestCreateReview_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	clk := fakeClock{now: time.Date(2025, 5, 24, 10, 0, 0, 0, time.UTC)}
-	svc := services.NewReviewService(repo, clk)
+	svc := services.NewReviewService(repo)
 
 	cmd := services.CreateReviewCmd{
 		UserID:    1,
@@ -46,8 +39,7 @@ func TestCreateReview_Success(t *testing.T) {
 
 func TestCreateReview_InvalidRating(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	clk := fakeClock{now: time.Now()}
-	svc := services.NewReviewService(repo, clk)
+	svc := services.NewReviewService(repo)
 
 	_, err := svc.CreateReview(context.Background(), services.CreateReviewCmd{
 		UserID:    1,
@@ -60,7 +52,7 @@ func TestCreateReview_InvalidRating(t *testing.T) {
 
 func TestUpdateReview_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	existing := &entities.Review{ID: 5, UserID: 1, DatasetID: 2, Rating: entities.Rating3}
 	repo.On("FindByID", mock.Anything, uint64(5)).Return(existing, nil)
@@ -79,7 +71,7 @@ func TestUpdateReview_Success(t *testing.T) {
 
 func TestUpdateReview_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	repo.On("FindByID", mock.Anything, uint64(9)).Return(nil, nil)
 
@@ -96,7 +88,7 @@ func TestUpdateReview_InvalidRating(t *testing.T) {
 	existing := &entities.Review{ID: 7, UserID: 1, DatasetID: 2, Rating: entities.Rating2}
 	repo.On("FindByID", mock.Anything, uint64(7)).Return(existing, nil)
 
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 	err := svc.UpdateReview(context.Background(), services.UpdateReviewCmd{
 		ReviewID: 7,
 		Rating:   entities.Rating(9),
@@ -107,7 +99,7 @@ func TestUpdateReview_InvalidRating(t *testing.T) {
 
 func TestDeleteReview_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	repo.On("Delete", mock.Anything, uint64(3)).Return(nil)
 	err := svc.DeleteReview(context.Background(), 3)
@@ -116,9 +108,8 @@ func TestDeleteReview_Success(t *testing.T) {
 
 func TestDeleteReview_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
-	// симулируем ErrReviewNotFound из postgres
 	repo.On("Delete", mock.Anything, uint64(4)).Return(postgres.ErrReviewNotFound)
 	err := svc.DeleteReview(context.Background(), 4)
 	assert.ErrorIs(t, err, services.ErrReviewNotFound)
@@ -126,7 +117,7 @@ func TestDeleteReview_NotFound(t *testing.T) {
 
 func TestGetReviewByID_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	expected := &entities.Review{ID: 10}
 	repo.On("FindByID", mock.Anything, uint64(10)).Return(expected, nil)
@@ -138,7 +129,7 @@ func TestGetReviewByID_Success(t *testing.T) {
 
 func TestGetReviewByID_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	repo.On("FindByID", mock.Anything, uint64(11)).Return(nil, nil)
 	_, err := svc.GetReviewByID(context.Background(), 11)
@@ -147,7 +138,7 @@ func TestGetReviewByID_NotFound(t *testing.T) {
 
 func TestListByDataset_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	list := []*entities.Review{{ID: 1}, {ID: 2}}
 	repo.On("FindByDatasetID", mock.Anything, uint64(2)).Return(list, nil)
@@ -159,7 +150,7 @@ func TestListByDataset_Success(t *testing.T) {
 
 func TestListByUser_Error(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	repo.On("FindByUserID", mock.Anything, uint64(3)).Return(nil, errors.New("fail"))
 	_, err := svc.ListByUser(context.Background(), 3)
@@ -168,7 +159,7 @@ func TestListByUser_Error(t *testing.T) {
 
 func TestGetRatingSummary_Empty(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	repo.On("FindByDatasetID", mock.Anything, uint64(5)).Return([]*entities.Review{}, nil)
 	sum, err := svc.GetRatingSummary(context.Background(), 5)
@@ -179,7 +170,7 @@ func TestGetRatingSummary_Empty(t *testing.T) {
 
 func TestGetRatingSummary_Calc(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo, fakeClock{now: time.Now()})
+	svc := services.NewReviewService(repo)
 
 	reviews := []*entities.Review{
 		{Rating: entities.Rating1},
