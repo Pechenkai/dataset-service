@@ -29,7 +29,6 @@ func NewS3Storage(cfg config.Storage) (*S3Storage, error) {
 }
 
 func (s *S3Storage) Upload(ctx context.Context, key string, r io.Reader, size int64) (string, error) {
-	// PutObject умеет читать из io.Reader без полной буферизации
 	_, err := s.client.PutObject(ctx, s.bucket, key, r, size, minio.PutObjectOptions{})
 	if err != nil {
 		return "", err
