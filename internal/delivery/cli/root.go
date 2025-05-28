@@ -16,6 +16,7 @@ func NewRootCommand(
 	notifSvc services.NotificationService,
 	revSvc services.ReviewService,
 	userSvc services.UserService,
+	subSvc services.SubscriptionService,
 ) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "techui",
@@ -28,6 +29,7 @@ func NewRootCommand(
 		commands.NewNotificationCommand(notifSvc),
 		commands.NewReviewCommand(revSvc),
 		commands.NewUserCommand(userSvc),
+		commands.NewSubscriptionCommand(subSvc),
 	)
 
 	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
