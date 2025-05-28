@@ -19,7 +19,8 @@ var (
 	ErrReviewNotFound = errors.New("review not found")
 
 	// Subscription errors
-	ErrAlreadySubscribed = errors.New("already subscribed")
+	ErrAlreadySubscribed    = errors.New("already subscribed")
+	ErrSubscriptionNotFound = errors.New("subscription not found")
 
 	// Use errors
 	ErrUserNotFound = errors.New("user not found")

@@ -28,12 +28,24 @@ func (r *SubscriptionRepo) Subscribe(ctx context.Context, userID, datasetID uint
 	t := time.Now().UTC()
 	_, err := r.db.Exec(ctx, sql, userID, datasetID, t)
 	if err != nil {
-		// уникальное ограничение (user_id, dataset_id)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return ErrAlreadySubscribed
 		}
 		return fmt.Errorf("subscribe: %w", err)
+	}
+	return nil
+}
+
+func (r *SubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {
+	const sql = `DELETE FROM subscriptions WHERE user_id = $1 AND dataset_id = $2`
+
+	cmdTag, err := r.db.Exec(ctx, sql, userID, datasetID)
+	if err != nil {
+		return fmt.Errorf("unsubscribe: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return ErrSubscriptionNotFound
 	}
 	return nil
 }
@@ -79,4 +91,23 @@ func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64)
 		return nil, fmt.Errorf("iterate subscriber rows: %w", err)
 	}
 	return list, nil
+}
+
+func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT dataset_id FROM subscriptions WHERE user_id = $1`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get_subscriptions_by_user: %w", err)
+	}
+	defer rows.Close()
+
+	var datasets []uint64
+	for rows.Next() {
+		var dsid uint64
+		if err := rows.Scan(&dsid); err != nil {
+			return nil, fmt.Errorf("scan subscription: %w", err)
+		}
+		datasets = append(datasets, dsid)
+	}
+	return datasets, rows.Err()
 }
