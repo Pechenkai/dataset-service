@@ -1,22 +1,21 @@
-package postgres
+package minio
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"testing"
-	"time"
-
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
-
+	"log"
+	"net/http"
+	"os"
 	"ppo/internal/config"
+	"testing"
+	"time"
+
 	"ppo/internal/storage"
 )
 

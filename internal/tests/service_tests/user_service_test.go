@@ -205,8 +205,6 @@ func TestDeleteUser_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, services.ErrUserNotFound)
 }
 
-// === GetUserByID ===
-
 func TestGetUserByID_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
 	svc := services.NewUserService(repo)

@@ -1,0 +1,139 @@
+package postgres_test
+
+import (
+	"context"
+	"testing"
+
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/stretchr/testify/assert"
+
+	"ppo/internal/dataaccess/repositories/postgres"
+	"ppo/internal/entities"
+)
+
+//var dbPool *pgxpool.Pool
+//
+//func TestMain(m *testing.M) {
+//	p, err := dockertest.NewPool("")
+//	if err != nil {
+//		fmt.Fprintf(os.Stderr, "docker pool error: %v\n", err)
+//		os.Exit(1)
+//	}
+//	resource, err := p.RunWithOptions(&dockertest.RunOptions{
+//		Repository: "postgres",
+//		Tag:        "15-alpine",
+//		Env: []string{
+//			"POSTGRES_USER=postgres",
+//			"POSTGRES_PASSWORD=secret",
+//			"POSTGRES_DB=testdb",
+//		},
+//	}, func(cfg *docker.HostConfig) {
+//		cfg.AutoRemove = true
+//		cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
+//	})
+//	if err != nil {
+//		fmt.Fprintf(os.Stderr, "docker run error: %v\n", err)
+//		os.Exit(1)
+//	}
+//	defer p.Purge(resource)
+//
+//	var pool *pgxpool.Pool
+//	if err := p.Retry(func() error {
+//		dsn := fmt.Sprintf(
+//			"postgres://postgres:secret@localhost:%s/testdb?sslmode=disable",
+//			resource.GetPort("5432/tcp"),
+//		)
+//		pool, err = pgxpool.New(context.Background(), dsn)
+//		if err != nil {
+//			return err
+//		}
+//		return pool.Ping(context.Background())
+//	}); err != nil {
+//		fmt.Fprintf(os.Stderr, "could not connect to Postgres: %v\n", err)
+//		os.Exit(1)
+//	}
+//
+//	abs, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
+//	if err != nil {
+//		panic(err)
+//	}
+//	migrationsURL := "file://" + filepath.ToSlash(abs)
+//	fmt.Println("Using migrationsURL:", migrationsURL)
+//
+//	pgURL := fmt.Sprintf(
+//		"postgres://postgres:secret@localhost:%s/testdb?sslmode=disable",
+//		resource.GetPort("5432/tcp"),
+//	)
+//
+//	migrator, err := migrate.New(migrationsURL, pgURL)
+//	if err != nil {
+//		fmt.Fprintf(os.Stderr, "migrate.New error: %v\n", err)
+//		os.Exit(1)
+//	}
+//
+//	if err := migrator.Up(); err != nil && err != migrate.ErrNoChange {
+//		fmt.Fprintf(os.Stderr, "migrate up error: %v\n", err)
+//		os.Exit(1)
+//	}
+//
+//	dbPool = pool
+//
+//	code := m.Run()
+//
+//	dbPool.Close()
+//	os.Exit(code)
+//}
+
+func TestCategoryRepo_CRUD_Integration(t *testing.T) {
+	repo := postgres.NewCategoryRepo(dbPool)
+	ctx := context.Background()
+
+	c := &entities.Category{Name: "Dogs", Description: "All about dogs"}
+	err := repo.Create(ctx, c)
+	assert.NoError(t, err)
+	assert.NotZero(t, c.ID)
+
+	fetched, err := repo.FindByID(ctx, c.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, "Dogs", fetched.Name)
+	assert.Equal(t, "All about dogs", fetched.Description)
+
+	fetched.Description = "Dogs & Puppies"
+	err = repo.Update(ctx, fetched)
+	assert.NoError(t, err)
+
+	updated, err := repo.FindByID(ctx, c.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, "Dogs & Puppies", updated.Description)
+
+	all, err := repo.FindAll(ctx)
+	assert.NoError(t, err)
+	found := false
+	for _, cat := range all {
+		if cat.ID == c.ID {
+			found = true
+		}
+	}
+	assert.True(t, found)
+
+	err = repo.Delete(ctx, c.ID)
+	assert.NoError(t, err)
+
+	_, err = repo.FindByID(ctx, c.ID)
+	assert.ErrorIs(t, err, postgres.ErrCategoryNotFound)
+}
+
+func TestCreateDuplicateCategory_Integration(t *testing.T) {
+	repo := postgres.NewCategoryRepo(dbPool)
+	ctx := context.Background()
+
+	c1 := &entities.Category{Name: "Unique", Description: ""}
+	assert.NoError(t, repo.Create(ctx, c1))
+
+	c2 := &entities.Category{Name: "Unique", Description: "dup"}
+	err := repo.Create(ctx, c2)
+	assert.ErrorIs(t, err, postgres.ErrCategoryAlreadyExists)
+
+	assert.NoError(t, repo.Delete(ctx, c1.ID))
+}

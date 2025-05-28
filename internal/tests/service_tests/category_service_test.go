@@ -20,7 +20,12 @@ func TestCategoryService_CreateCategory_Success(t *testing.T) {
 		cat.ID = 1
 	}).Return(nil)
 
-	id, err := svc.CreateCategory(context.Background(), "ML", "Machine Learning")
+	cmd := services.CreateCategoryCmd{
+		Name:        "ML",
+		Description: "Machine Learning",
+	}
+
+	id, err := svc.CreateCategory(context.Background(), cmd)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), id)
 	repo.AssertExpectations(t)
@@ -30,7 +35,12 @@ func TestCategoryService_CreateCategory_ValidationError(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
 	svc := services.NewCategoryService(repo)
 
-	id, err := svc.CreateCategory(context.Background(), "   ", "description")
+	cmd := services.CreateCategoryCmd{
+		Name:        "   ",
+		Description: "description",
+	}
+
+	id, err := svc.CreateCategory(context.Background(), cmd)
 	assert.ErrorIs(t, err, entities.ErrEmptyCategoryName)
 	assert.Equal(t, uint64(0), id)
 }
@@ -41,7 +51,12 @@ func TestCategoryService_CreateCategory_DuplicateError(t *testing.T) {
 
 	repo.On("Create", mock.Anything, mock.Anything).Return(services.ErrCategoryExists)
 
-	id, err := svc.CreateCategory(context.Background(), "ML", "description")
+	cmd := services.CreateCategoryCmd{
+		Name:        "ML",
+		Description: "description",
+	}
+
+	id, err := svc.CreateCategory(context.Background(), cmd)
 	assert.ErrorIs(t, err, services.ErrCategoryExists)
 	assert.Equal(t, uint64(0), id)
 }
@@ -54,7 +69,12 @@ func TestCategoryService_UpdateCategory_Success(t *testing.T) {
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
 	repo.On("Update", mock.Anything, mock.AnythingOfType("*entities.Category")).Return(nil)
 
-	err := svc.UpdateCategory(context.Background(), 1, "New", "Updated")
+	cmd := services.UpdateCategoryCmd{
+		ID:          1,
+		Name:        "New",
+		Description: "Updated",
+	}
+	err := svc.UpdateCategory(context.Background(), cmd)
 	assert.NoError(t, err)
 	repo.AssertExpectations(t)
 }
@@ -65,7 +85,13 @@ func TestCategoryService_UpdateCategory_NotFound(t *testing.T) {
 
 	repo.On("FindByID", mock.Anything, uint64(999)).Return((*entities.Category)(nil), nil)
 
-	err := svc.UpdateCategory(context.Background(), 999, "New", "Updated")
+	cmd := services.UpdateCategoryCmd{
+		ID:          999,
+		Name:        "New",
+		Description: "Updated",
+	}
+
+	err := svc.UpdateCategory(context.Background(), cmd)
 	assert.Error(t, err)
 }
 
@@ -76,7 +102,12 @@ func TestCategoryService_UpdateCategory_ValidationError(t *testing.T) {
 	existing := &entities.Category{ID: 1, Name: "Old", Description: "Desc"}
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
 
-	err := svc.UpdateCategory(context.Background(), 1, "", "Updated")
+	cmd := services.UpdateCategoryCmd{
+		ID:          1,
+		Name:        "",
+		Description: "Updated",
+	}
+	err := svc.UpdateCategory(context.Background(), cmd)
 	assert.ErrorIs(t, err, entities.ErrEmptyCategoryName)
 }
 

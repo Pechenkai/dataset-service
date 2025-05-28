@@ -49,6 +49,19 @@ type SubscriptionRepository struct {
 	mock.Mock
 }
 
+func (m *SubscriptionRepository) Create(ctx context.Context, s *entities.Subscription) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *SubscriptionRepository) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {
+	panic("implement me")
+}
+
+func (m *SubscriptionRepository) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
+	panic("implement me")
+}
+
 func (m *SubscriptionRepository) Subscribe(ctx context.Context, userID, datasetID uint64) error {
 	//TODO implement me
 	panic("implement me")

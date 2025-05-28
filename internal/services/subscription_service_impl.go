@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
+	"ppo/internal/entities"
+	"time"
 
 	"ppo/internal/repositories"
 )
@@ -26,7 +28,12 @@ func (s *subscriptionService) Subscribe(ctx context.Context, userID, datasetID u
 	if exists {
 		return ErrAlreadySubscribed
 	}
-	return s.repo.Subscribe(ctx, userID, datasetID)
+
+	sub, err := entities.NewSubscription(userID, datasetID, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	return s.repo.Create(ctx, sub)
 }
 
 func (s *subscriptionService) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {

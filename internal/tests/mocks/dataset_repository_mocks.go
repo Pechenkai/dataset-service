@@ -13,6 +13,10 @@ type DatasetRepository struct {
 	mock.Mock
 }
 
+func (m *DatasetRepository) FindPublic(ctx context.Context) ([]*entities.Dataset, error) {
+	panic("implement me")
+}
+
 func (m *DatasetRepository) FindAll(ctx context.Context) ([]*entities.Dataset, error) {
 	//TODO implement me
 	panic("implement me")
@@ -86,8 +90,6 @@ func (m *DatasetVersionRepository) FindByDatasetID(ctx context.Context, datasetI
 	return result.([]*entities.DatasetVersion), args.Error(1)
 }
 
-// ---- Metadata ----
-
 type MetadataRepository struct {
 	mock.Mock
 }
@@ -103,12 +105,10 @@ func (m2 *MetadataRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (m2 *MetadataRepository) FindByID(ctx context.Context, id uint64) (*entities.Metadata, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m2 *MetadataRepository) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.Metadata, error) {
-	//TODO implement me
 	panic("implement me")
 }
 

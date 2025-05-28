@@ -10,13 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/stretchr/testify/assert"
-
-	"ppo/internal/dataaccess/repositories/postgres"
-	"ppo/internal/entities"
 )
 
 var dbPool *pgxpool.Pool
@@ -61,7 +54,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	abs, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
+	abs, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "migrations"))
 	if err != nil {
 		panic(err)
 	}
@@ -90,57 +83,4 @@ func TestMain(m *testing.M) {
 
 	dbPool.Close()
 	os.Exit(code)
-}
-
-func TestCategoryRepo_CRUD_Integration(t *testing.T) {
-	repo := postgres.NewCategoryRepo(dbPool)
-	ctx := context.Background()
-
-	c := &entities.Category{Name: "Dogs", Description: "All about dogs"}
-	err := repo.Create(ctx, c)
-	assert.NoError(t, err)
-	assert.NotZero(t, c.ID)
-
-	fetched, err := repo.FindByID(ctx, c.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, "Dogs", fetched.Name)
-	assert.Equal(t, "All about dogs", fetched.Description)
-
-	fetched.Description = "Dogs & Puppies"
-	err = repo.Update(ctx, fetched)
-	assert.NoError(t, err)
-
-	updated, err := repo.FindByID(ctx, c.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, "Dogs & Puppies", updated.Description)
-
-	all, err := repo.FindAll(ctx)
-	assert.NoError(t, err)
-	found := false
-	for _, cat := range all {
-		if cat.ID == c.ID {
-			found = true
-		}
-	}
-	assert.True(t, found)
-
-	err = repo.Delete(ctx, c.ID)
-	assert.NoError(t, err)
-
-	_, err = repo.FindByID(ctx, c.ID)
-	assert.ErrorIs(t, err, postgres.ErrCategoryNotFound)
-}
-
-func TestCreateDuplicateCategory_Integration(t *testing.T) {
-	repo := postgres.NewCategoryRepo(dbPool)
-	ctx := context.Background()
-
-	c1 := &entities.Category{Name: "Unique", Description: ""}
-	assert.NoError(t, repo.Create(ctx, c1))
-
-	c2 := &entities.Category{Name: "Unique", Description: "dup"}
-	err := repo.Create(ctx, c2)
-	assert.ErrorIs(t, err, postgres.ErrCategoryAlreadyExists)
-
-	assert.NoError(t, repo.Delete(ctx, c1.ID))
 }

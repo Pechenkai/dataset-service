@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"ppo/internal/entities"
 )
 
 type SubscriptionRepo struct {
@@ -19,14 +18,13 @@ func NewSubscriptionRepo(pool *pgxpool.Pool) *SubscriptionRepo {
 	return &SubscriptionRepo{db: pool}
 }
 
-func (r *SubscriptionRepo) Subscribe(ctx context.Context, userID, datasetID uint64) error {
+func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
 	const sql = `
 	INSERT INTO subscriptions
 	  (user_id, dataset_id, created_at)
 	VALUES ($1, $2, $3)
 	`
-	t := time.Now().UTC()
-	_, err := r.db.Exec(ctx, sql, userID, datasetID, t)
+	_, err := r.db.Exec(ctx, sql, s.UserID, s.DatasetID, s.CreatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
