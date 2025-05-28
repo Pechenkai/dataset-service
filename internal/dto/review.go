@@ -20,7 +20,6 @@ func (r *CreateReviewRequest) ToCommand(userID uint64) services.CreateReviewCmd 
 	}
 }
 
-// ReviewResponse
 type ReviewResponse struct {
 	ID        uint64 `json:"id"`
 	UserID    uint64 `json:"user_id"`
@@ -30,12 +29,10 @@ type ReviewResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// ListReviewsResponse
 type ListReviewsResponse struct {
 	Reviews []ReviewResponse `json:"reviews"`
 }
 
-// RatingSummaryResponse
 type RatingSummaryResponse struct {
 	Average float64 `json:"average"`
 	Count   int     `json:"count"`

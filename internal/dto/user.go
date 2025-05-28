@@ -20,7 +20,6 @@ func (r *RegisterUserRequest) ToCommand() services.RegisterUserCmd {
 	}
 }
 
-// AuthenticateUserRequest — POST /api/v1/users/login
 type AuthenticateUserRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
@@ -33,7 +32,6 @@ func (r *AuthenticateUserRequest) ToCommand() services.AuthenticateUserCmd {
 	}
 }
 
-// UpdateUserRequest — PUT /api/v1/users/{id}
 type UpdateUserRequest struct {
 	Username  string `json:"username"`
 	Email     string `json:"email" validate:"omitempty,email"`
@@ -55,7 +53,6 @@ func (r *UpdateUserRequest) ToCommand(id uint64) services.UpdateUserCmd {
 	}
 }
 
-// UserResponse
 type UserResponse struct {
 	ID        uint64 `json:"id"`
 	Username  string `json:"username"`

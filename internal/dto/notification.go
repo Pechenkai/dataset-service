@@ -1,6 +1,5 @@
 package dto
 
-// NotificationResponse — для GET /api/v1/notifications
 type NotificationResponse struct {
 	ID        uint64 `json:"id"`
 	DatasetID uint64 `json:"dataset_id"`
@@ -9,7 +8,6 @@ type NotificationResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// ListNotificationsResponse
 type ListNotificationsResponse struct {
 	Notifications []NotificationResponse `json:"notifications"`
 }

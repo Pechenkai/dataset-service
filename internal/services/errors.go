@@ -30,4 +30,7 @@ var (
 	// Notification errors
 	ErrNotificationNotFound = errors.New("notification not found")
 	ErrNoSubscribers        = errors.New("no subscribers found")
+
+	ErrAlreadySubscribed = errors.New("user already subscribed to dataset")
+	ErrNotSubscribed     = errors.New("subscription not found")
 )

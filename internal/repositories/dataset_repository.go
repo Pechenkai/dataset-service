@@ -12,4 +12,5 @@ type DatasetRepository interface {
 	FindByID(ctx context.Context, id uint64) (*entities.Dataset, error)
 	FindByUserID(ctx context.Context, userID uint64) ([]*entities.Dataset, error)
 	FindAll(ctx context.Context) ([]*entities.Dataset, error)
+	FindPublic(ctx context.Context) ([]*entities.Dataset, error)
 }

@@ -172,3 +172,22 @@ func (r *DatasetRepo) FindAll(ctx context.Context) ([]*entities.Dataset, error) 
 	}
 	return list, nil
 }
+
+func (r *DatasetRepo) FindPublic(ctx context.Context) ([]*entities.Dataset, error) {
+	rows, err := r.db.Query(ctx, `SELECT id, name, description, owner_id, created_at, category_id, is_public FROM datasets WHERE is_public = true`)
+	if err != nil {
+		return nil, fmt.Errorf("query public datasets: %w", err)
+	}
+	defer rows.Close()
+
+	var list []*entities.Dataset
+	for rows.Next() {
+		var d entities.Dataset
+		err := rows.Scan(&d.ID, &d.Name, &d.Description, &d.OwnerID, &d.CreatedAt, &d.CategoryID, &d.IsPublic)
+		if err != nil {
+			return nil, fmt.Errorf("scan public dataset: %w", err)
+		}
+		list = append(list, &d)
+	}
+	return list, nil
+}

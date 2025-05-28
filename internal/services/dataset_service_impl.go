@@ -126,3 +126,13 @@ func nextVersionNumber(existing []*entities.DatasetVersion) string {
 	last := existing[0].Number
 	return last + ".1"
 }
+
+func (s *datasetService) ListDatasets(ctx context.Context, onlyPublic bool, ownerID *uint64) ([]*entities.Dataset, error) {
+	if onlyPublic && ownerID == nil {
+		return s.dsRepo.FindPublic(ctx)
+	}
+	if ownerID != nil {
+		return s.dsRepo.FindByUserID(ctx, *ownerID)
+	}
+	return s.dsRepo.FindAll(ctx)
+}

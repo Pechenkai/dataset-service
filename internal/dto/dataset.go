@@ -5,7 +5,6 @@ import (
 	"ppo/internal/services"
 )
 
-// CreateDatasetRequest — POST /api/v1/datasets (multipart/form-data)
 type CreateDatasetRequest struct {
 	Name        string    `json:"name" form:"name" validate:"required,max=100"`
 	Description string    `json:"description" form:"description"`
@@ -32,7 +31,6 @@ func (r *CreateDatasetRequest) ToCommand() services.CreateDatasetCmd {
 	}
 }
 
-// DatasetResponse — модель возврата GET /api/v1/datasets/{id}
 type DatasetResponse struct {
 	ID          uint64 `json:"id"`
 	Name        string `json:"name"`
@@ -43,7 +41,6 @@ type DatasetResponse struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// ListDatasetsResponse — список для GET /api/v1/datasets
 type ListDatasetsResponse struct {
 	Datasets []DatasetResponse `json:"datasets"`
 }
