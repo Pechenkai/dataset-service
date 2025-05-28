@@ -12,7 +12,6 @@ import (
 type notificationService struct {
 	notifRepo repositories.NotificationRepository
 	subRepo   repositories.SubscriptionRepository
-	clock     Clock
 }
 
 func NewNotificationService(

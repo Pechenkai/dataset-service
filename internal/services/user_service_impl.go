@@ -14,8 +14,7 @@ import (
 )
 
 type userService struct {
-	repo  repositories.UserRepository
-	clock Clock
+	repo repositories.UserRepository
 }
 
 func NewUserService(repo repositories.UserRepository) UserService {

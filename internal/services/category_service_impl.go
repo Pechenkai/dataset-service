@@ -8,7 +8,6 @@ import (
 
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
-	//"ppo/internal/dataaccess/repositories/postgres"
 )
 
 type categoryService struct {

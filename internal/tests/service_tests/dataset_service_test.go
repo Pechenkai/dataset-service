@@ -104,6 +104,7 @@ func TestDatasetService_CreateDataset_UploadError(t *testing.T) {
 	}).Return(nil)
 
 	storage.On("Upload", mock.Anything, "datasets/5/f.txt", mock.Anything, int64(0)).Return("", errors.New("net err"))
+	dsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 
 	svc := services.NewDatasetService(dsRepo, nil, nil, storage)
 

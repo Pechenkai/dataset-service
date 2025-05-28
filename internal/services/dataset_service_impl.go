@@ -11,7 +11,7 @@ import (
 	"ppo/internal/repositories"
 )
 
-type Clock interface{ Now() time.Time }
+//type Clock interface{ Now() time.Time }
 
 type datasetService struct {
 	dsRepo  repositories.DatasetRepository
@@ -41,30 +41,42 @@ func (s *datasetService) CreateDataset(ctx context.Context, cmd CreateDatasetCmd
 	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
 	url, err := s.storage.Upload(ctx, key, r, size)
 	if err != nil {
+		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("upload file: %w", err)
 	}
 
 	ver, err := entities.NewDatasetVersion("v0.1", url, "", ds.ID, time.Now())
 	if err != nil {
-		return 0, fmt.Errorf("init version: %w", err)
+		_ = s.storage.Delete(ctx, key)
+		_ = s.dsRepo.Delete(ctx, ds.ID)
+		return 0, fmt.Errorf("invalid version: %w", err)
 	}
 
 	if err := s.verRepo.Create(ctx, ver); err != nil {
-		return 0, fmt.Errorf("create version: %w", err)
+		_ = s.storage.Delete(ctx, key)
+		_ = s.dsRepo.Delete(ctx, ds.ID)
+		return 0, fmt.Errorf("create version failed: %w", err)
 	}
 
 	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
 		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
 		if err != nil {
+			_ = s.storage.Delete(ctx, key)
+			_ = s.dsRepo.Delete(ctx, ds.ID)
+			_ = s.verRepo.Delete(ctx, ver.ID)
 			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
 		}
 		if err := s.mdRepo.Create(ctx, md); err != nil {
+			_ = s.storage.Delete(ctx, key)
+			_ = s.dsRepo.Delete(ctx, ds.ID)
+			_ = s.verRepo.Delete(ctx, ver.ID)
 			return 0, fmt.Errorf("create metadata: %w", err)
 		}
 	}
 
 	return ds.ID, nil
 }
+
 func (s *datasetService) AddDatasetVersion(ctx context.Context, cmd AddVersionCmd, r io.Reader, size int64) (uint64, error) {
 	ds, err := s.dsRepo.FindByID(ctx, cmd.DatasetID)
 	if err != nil {
@@ -83,24 +95,35 @@ func (s *datasetService) AddDatasetVersion(ctx context.Context, cmd AddVersionCm
 	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
 	url, err := s.storage.Upload(ctx, key, r, size)
 	if err != nil {
+		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("upload file: %w", err)
 	}
 
 	ver, err := entities.NewDatasetVersion(next, url, cmd.ChangeLog, cmd.DatasetID, time.Now())
 	if err != nil {
+		_ = s.storage.Delete(ctx, key)
+		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("invalid version data: %w", err)
 	}
 
 	if err := s.verRepo.Create(ctx, ver); err != nil {
+		_ = s.storage.Delete(ctx, key)
+		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("create version: %w", err)
 	}
 
 	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
 		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
 		if err != nil {
+			_ = s.storage.Delete(ctx, key)
+			_ = s.dsRepo.Delete(ctx, ds.ID)
+			_ = s.verRepo.Delete(ctx, ver.ID)
 			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
 		}
 		if err := s.mdRepo.Create(ctx, md); err != nil {
+			_ = s.storage.Delete(ctx, key)
+			_ = s.dsRepo.Delete(ctx, ds.ID)
+			_ = s.verRepo.Delete(ctx, ver.ID)
 			return 0, fmt.Errorf("create metadata: %w", err)
 		}
 	}
