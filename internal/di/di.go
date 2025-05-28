@@ -10,14 +10,14 @@ import (
 	"ppo/internal/config"
 	"ppo/internal/dataaccess/repositories/postgres"
 	"ppo/internal/delivery/cli"
-	httpdelivery "ppo/internal/delivery/http"
+	//httpdelivery "ppo/internal/delivery/http"
 	"ppo/internal/services"
 )
 
 type App struct {
-	Config      *config.Config
-	DB          *pgxpool.Pool
-	HTTPHandler httpdelivery.Router
+	Config *config.Config
+	DB     *pgxpool.Pool
+	//HTTPHandler httpdelivery.Router
 	RootCommand *cobra.Command
 }
 
@@ -51,14 +51,15 @@ func Build(ctx context.Context) (*App, error) {
 	notifSvc := services.NewNotificationService(notifRepo, subRepo)
 	revSvc := services.NewReviewService(revRepo)
 	userSvc := services.NewUserService(userRepo)
+	subSvc := services.NewSubscriptionService(subRepo)
 
-	router := httpdelivery.NewRouter(
-		catSvc,
-		dsSvc,
-		notifSvc,
-		revSvc,
-		userSvc,
-	)
+	//router := httpdelivery.NewRouter(
+	//	catSvc,
+	//	dsSvc,
+	//	notifSvc,
+	//	revSvc,
+	//	userSvc,
+	//)
 
 	rootCmd := cli.NewRootCommand(
 		catSvc,
@@ -66,12 +67,13 @@ func Build(ctx context.Context) (*App, error) {
 		notifSvc,
 		revSvc,
 		userSvc,
+		subSvc,
 	)
 
 	return &App{
-		Config:      cfg,
-		DB:          dbPool,
-		HTTPHandler: router,
+		Config: cfg,
+		DB:     dbPool,
+		//HTTPHandler: router,
 		RootCommand: rootCmd,
 	}, nil
 }
