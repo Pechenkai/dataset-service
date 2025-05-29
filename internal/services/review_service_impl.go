@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"ppo/internal/dataaccess/repositories/postgres"
 	"time"
 
 	"ppo/internal/entities"
@@ -55,7 +54,7 @@ func (s *reviewService) UpdateReview(ctx context.Context, cmd UpdateReviewCmd) e
 
 func (s *reviewService) DeleteReview(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, postgres.ErrReviewNotFound) {
+		if errors.Is(err, repositories.ErrReviewNotFound) {
 			return ErrReviewNotFound
 		}
 		return fmt.Errorf("delete review: %w", err)

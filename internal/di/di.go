@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"ppo/internal/config"
-	"ppo/internal/dataaccess/repositories/postgres"
+	"ppo/internal/dataaccess/repositories/postqbuild"
 	"ppo/internal/delivery/cli"
 	//httpdelivery "ppo/internal/delivery/http"
 	"ppo/internal/services"
@@ -27,7 +27,7 @@ func Build(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	dbPool, err := postgres.NewPool(ctx, cfg.Database)
+	dbPool, err := postqbuild.NewPool(ctx, cfg.Database)
 	if err != nil {
 		return nil, err
 	}
@@ -37,14 +37,14 @@ func Build(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	catRepo := postgres.NewCategoryRepo(dbPool)
-	dsRepo := postgres.NewDatasetRepo(dbPool)
-	verRepo := postgres.NewVersionRepo(dbPool)
-	mdRepo := postgres.NewMetadataRepo(dbPool)
-	notifRepo := postgres.NewNotificationRepo(dbPool)
-	subRepo := postgres.NewSubscriptionRepo(dbPool)
-	revRepo := postgres.NewReviewRepo(dbPool)
-	userRepo := postgres.NewUserRepo(dbPool)
+	catRepo := postqbuild.NewCategoryRepo(dbPool)
+	dsRepo := postqbuild.NewDatasetRepo(dbPool)
+	verRepo := postqbuild.NewVersionRepo(dbPool)
+	mdRepo := postqbuild.NewMetadataRepo(dbPool)
+	notifRepo := postqbuild.NewNotificationRepo(dbPool)
+	subRepo := postqbuild.NewSubscriptionRepo(dbPool)
+	revRepo := postqbuild.NewReviewRepo(dbPool)
+	userRepo := postqbuild.NewUserRepo(dbPool)
 
 	catSvc := services.NewCategoryService(catRepo)
 	dsSvc := services.NewDatasetService(dsRepo, verRepo, mdRepo, s3)

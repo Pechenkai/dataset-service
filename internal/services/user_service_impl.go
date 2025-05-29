@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"ppo/internal/dataaccess/repositories/postgres"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -91,7 +90,7 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 	user.Role = cmd.Role
 
 	if err := s.repo.Update(ctx, user); err != nil {
-		if errors.Is(err, postgres.ErrUserNotFound) {
+		if errors.Is(err, repositories.ErrUserNotFound) {
 			return ErrUserNotFound
 		}
 		return fmt.Errorf("update user: %w", err)
@@ -101,7 +100,7 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 
 func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		if errors.Is(err, postgres.ErrUserNotFound) {
+		if errors.Is(err, repositories.ErrUserNotFound) {
 			return ErrUserNotFound
 		}
 		return fmt.Errorf("delete user: %w", err)

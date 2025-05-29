@@ -1,4 +1,4 @@
-package postgres
+package postqbuild
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"ppo/internal/repositories"
 
 	"ppo/internal/entities"
 )
@@ -56,7 +57,7 @@ func (r *MetadataRepo) Update(ctx context.Context, m *entities.Metadata) error {
 		return fmt.Errorf("update metadata: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return ErrMetadataNotFound
+		return repositories.ErrMetadataNotFound
 	}
 	return nil
 }
@@ -68,7 +69,7 @@ func (r *MetadataRepo) Delete(ctx context.Context, id uint64) error {
 		return fmt.Errorf("delete metadata: %w", err)
 	}
 	if exec.RowsAffected() == 0 {
-		return ErrMetadataNotFound
+		return repositories.ErrMetadataNotFound
 	}
 	return nil
 }
@@ -89,7 +90,7 @@ func (r *MetadataRepo) FindByID(ctx context.Context, id uint64) (*entities.Metad
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrMetadataNotFound
+			return nil, repositories.ErrMetadataNotFound
 		}
 		return nil, fmt.Errorf("find metadata by id: %w", err)
 	}

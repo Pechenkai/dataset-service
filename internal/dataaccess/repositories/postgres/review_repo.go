@@ -1,4 +1,4 @@
-package postgres
+package postqbuild
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"ppo/internal/repositories"
 
 	"ppo/internal/entities"
 )
@@ -59,7 +60,7 @@ func (r *ReviewRepo) Update(ctx context.Context, rv *entities.Review) error {
 		return fmt.Errorf("update review: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return ErrReviewNotFound
+		return repositories.ErrReviewNotFound
 	}
 	return nil
 }
@@ -71,7 +72,7 @@ func (r *ReviewRepo) Delete(ctx context.Context, id uint64) error {
 		return fmt.Errorf("delete review: %w", err)
 	}
 	if exec.RowsAffected() == 0 {
-		return ErrReviewNotFound
+		return repositories.ErrReviewNotFound
 	}
 	return nil
 }
@@ -93,7 +94,7 @@ func (r *ReviewRepo) FindByID(ctx context.Context, id uint64) (*entities.Review,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrReviewNotFound
+			return nil, repositories.ErrReviewNotFound
 		}
 		return nil, fmt.Errorf("find review by id: %w", err)
 	}

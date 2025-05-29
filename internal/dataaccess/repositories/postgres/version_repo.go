@@ -1,4 +1,4 @@
-package postgres
+package postqbuild
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"ppo/internal/entities"
+	"ppo/internal/repositories"
 	"time"
 )
 
@@ -61,7 +62,7 @@ func (r *VersionRepo) Update(ctx context.Context, v *entities.DatasetVersion) er
 		return fmt.Errorf("update version: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return ErrVersionNotFound
+		return repositories.ErrVersionNotFound
 	}
 	return nil
 }
@@ -73,7 +74,7 @@ func (r *VersionRepo) Delete(ctx context.Context, id uint64) error {
 		return fmt.Errorf("delete version: %w", err)
 	}
 	if exec.RowsAffected() == 0 {
-		return ErrVersionNotFound
+		return repositories.ErrVersionNotFound
 	}
 	return nil
 }
@@ -95,7 +96,7 @@ func (r *VersionRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrVersionNotFound
+			return nil, repositories.ErrVersionNotFound
 		}
 		return nil, fmt.Errorf("find version by id: %w", err)
 	}

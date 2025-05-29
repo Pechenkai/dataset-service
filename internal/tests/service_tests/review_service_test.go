@@ -3,8 +3,8 @@ package services_test
 import (
 	"context"
 	"errors"
-	"ppo/internal/dataaccess/repositories/postgres"
 	"ppo/internal/entities"
+	"ppo/internal/repositories"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
 	"testing"
@@ -110,7 +110,7 @@ func TestDeleteReview_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
 	svc := services.NewReviewService(repo)
 
-	repo.On("Delete", mock.Anything, uint64(4)).Return(postgres.ErrReviewNotFound)
+	repo.On("Delete", mock.Anything, uint64(4)).Return(repositories.ErrReviewNotFound)
 	err := svc.DeleteReview(context.Background(), 4)
 	assert.ErrorIs(t, err, services.ErrReviewNotFound)
 }

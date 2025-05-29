@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"ppo/internal/dataaccess/repositories/postgres"
-
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
 )
@@ -25,7 +23,7 @@ func (s *categoryService) CreateCategory(ctx context.Context, cmd CreateCategory
 	}
 
 	if err := s.repo.Create(ctx, cat); err != nil {
-		if errors.Is(err, postgres.ErrCategoryAlreadyExists) {
+		if errors.Is(err, repositories.ErrCategoryAlreadyExists) {
 			return 0, ErrCategoryExists
 		}
 		return 0, fmt.Errorf("create category: %w", err)
@@ -39,7 +37,7 @@ func (s *categoryService) UpdateCategory(ctx context.Context, cmd UpdateCategory
 		return fmt.Errorf("fetch category: %w", err)
 	}
 	if cat == nil {
-		return postgres.ErrCategoryNotFound
+		return repositories.ErrCategoryNotFound
 	}
 
 	updated, err := entities.NewCategory(cmd.Name, cmd.Description)
@@ -49,7 +47,7 @@ func (s *categoryService) UpdateCategory(ctx context.Context, cmd UpdateCategory
 	updated.ID = cmd.ID
 
 	if err := s.repo.Update(ctx, updated); err != nil {
-		if errors.Is(err, postgres.ErrCategoryAlreadyExists) {
+		if errors.Is(err, repositories.ErrCategoryAlreadyExists) {
 			return ErrCategoryExists
 		}
 		return fmt.Errorf("update category: %w", err)
@@ -60,10 +58,10 @@ func (s *categoryService) UpdateCategory(ctx context.Context, cmd UpdateCategory
 func (s *categoryService) DeleteCategory(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
 		switch {
-		case errors.Is(err, postgres.ErrCategoryNotEmpty):
+		case errors.Is(err, repositories.ErrCategoryNotEmpty):
 			return ErrCategoryNotEmpty
-		case errors.Is(err, postgres.ErrCategoryNotFound):
-			return postgres.ErrCategoryNotFound
+		case errors.Is(err, repositories.ErrCategoryNotFound):
+			return repositories.ErrCategoryNotFound
 		default:
 			return fmt.Errorf("delete category: %w", err)
 		}
@@ -76,7 +74,7 @@ func (s *categoryService) GetCategoryByID(ctx context.Context, id uint64) (*enti
 	if err != nil {
 		return nil, fmt.Errorf("get category: %w", err)
 	}
-	if cat == nil || errors.Is(err, postgres.ErrCategoryNotFound) {
+	if cat == nil || errors.Is(err, repositories.ErrCategoryNotFound) {
 		return nil, ErrCategoryNotFound
 	}
 	return cat, nil

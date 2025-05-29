@@ -1,4 +1,4 @@
-package postgres
+package postqbuild
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"ppo/internal/repositories"
 
 	"ppo/internal/entities"
 )
@@ -76,7 +77,7 @@ func (r *UserRepo) Update(ctx context.Context, u *entities.User) error {
 		return fmt.Errorf("update user: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return ErrUserNotFound
+		return repositories.ErrUserNotFound
 	}
 	return nil
 }
@@ -88,7 +89,7 @@ func (r *UserRepo) Delete(ctx context.Context, id uint64) error {
 		return fmt.Errorf("delete user: %w", err)
 	}
 	if exec.RowsAffected() == 0 {
-		return ErrUserNotFound
+		return repositories.ErrUserNotFound
 	}
 	return nil
 }
@@ -112,7 +113,7 @@ func (r *UserRepo) FindByID(ctx context.Context, id uint64) (*entities.User, err
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, repositories.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("find user by id: %w", err)
 	}
@@ -138,7 +139,7 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*entities.Use
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, repositories.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("find user by email: %w", err)
 	}

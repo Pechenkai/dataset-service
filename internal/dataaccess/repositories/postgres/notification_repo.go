@@ -1,4 +1,4 @@
-package postgres
+package postqbuild
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"ppo/internal/repositories"
 
 	"ppo/internal/entities"
 )
@@ -60,7 +61,7 @@ func (r *NotificationRepo) FindByID(ctx context.Context, id uint64) (*entities.N
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotificationNotFound
+			return nil, repositories.ErrNotificationNotFound
 		}
 		return nil, fmt.Errorf("find notification by id: %w", err)
 	}
@@ -116,7 +117,7 @@ func (r *NotificationRepo) Update(ctx context.Context, n *entities.Notification)
 		return fmt.Errorf("update notification: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return ErrNotificationNotFound
+		return repositories.ErrNotificationNotFound
 	}
 	return nil
 }
@@ -128,7 +129,7 @@ func (r *NotificationRepo) Delete(ctx context.Context, id uint64) error {
 		return fmt.Errorf("delete notification: %w", err)
 	}
 	if exec.RowsAffected() == 0 {
-		return ErrNotificationNotFound
+		return repositories.ErrNotificationNotFound
 	}
 	return nil
 }

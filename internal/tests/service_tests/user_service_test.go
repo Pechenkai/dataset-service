@@ -2,12 +2,12 @@ package services_test
 
 import (
 	"context"
-	"ppo/internal/dataaccess/repositories/postgres"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"ppo/internal/entities"
+	"ppo/internal/repositories"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
 
@@ -200,7 +200,7 @@ func TestDeleteUser_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
 	svc := services.NewUserService(repo)
 
-	repo.On("Delete", mock.Anything, uint64(4)).Return(postgres.ErrUserNotFound)
+	repo.On("Delete", mock.Anything, uint64(4)).Return(repositories.ErrUserNotFound)
 	err := svc.DeleteUser(context.Background(), 4)
 	assert.ErrorIs(t, err, services.ErrUserNotFound)
 }

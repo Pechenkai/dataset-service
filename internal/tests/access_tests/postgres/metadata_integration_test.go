@@ -1,4 +1,4 @@
-package postgres_test
+package postqbuild_test
 
 import (
 	"context"
@@ -9,8 +9,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/assert"
 
-	"ppo/internal/dataaccess/repositories/postgres"
+	"ppo/internal/dataaccess/repositories/postqbuild"
 	"ppo/internal/entities"
+	"ppo/internal/repositories"
 )
 
 //var dbPool *pgxpool.Pool
@@ -22,12 +23,12 @@ import (
 //		os.Exit(1)
 //	}
 //	resource, err := p.RunWithOptions(&dockertest.RunOptions{
-//		Repository: "postgres",
+//		Repository: "postqbuild",
 //		Tag:        "15-alpine",
 //		Env: []string{
-//			"POSTGRES_USER=postgres",
-//			"POSTGRES_PASSWORD=secret",
-//			"POSTGRES_DB=testdb",
+//			"postqbuild_USER=postqbuild",
+//			"postqbuild_PASSWORD=secret",
+//			"postqbuild_DB=testdb",
 //		},
 //	}, func(cfg *docker.HostConfig) {
 //		cfg.AutoRemove = true
@@ -42,7 +43,7 @@ import (
 //	var pool *pgxpool.Pool
 //	if err := p.Retry(func() error {
 //		dsn := fmt.Sprintf(
-//			"postgres://postgres:secret@localhost:%s/testdb?sslmode=disable",
+//			"postqbuild://postqbuild:secret@localhost:%s/testdb?sslmode=disable",
 //			resource.GetPort("5432/tcp"),
 //		)
 //		pool, err = pgxpool.New(context.Background(), dsn)
@@ -51,7 +52,7 @@ import (
 //		}
 //		return pool.Ping(context.Background())
 //	}); err != nil {
-//		fmt.Fprintf(os.Stderr, "could not connect to Postgres: %v\n", err)
+//		fmt.Fprintf(os.Stderr, "could not connect to postqbuild: %v\n", err)
 //		os.Exit(1)
 //	}
 //
@@ -63,7 +64,7 @@ import (
 //	fmt.Println("Using migrationsURL:", migrationsURL)
 //
 //	pgURL := fmt.Sprintf(
-//		"postgres://postgres:secret@localhost:%s/testdb?sslmode=disable",
+//		"postqbuild://postqbuild:secret@localhost:%s/testdb?sslmode=disable",
 //		resource.GetPort("5432/tcp"),
 //	)
 //
@@ -88,9 +89,9 @@ import (
 
 func TestMetadataRepo_CRUD(t *testing.T) {
 	ctx := context.Background()
-	metaRepo := postgres.NewMetadataRepo(dbPool)
-	dsRepo := postgres.NewDatasetRepo(dbPool)
-	verRepo := postgres.NewVersionRepo(dbPool)
+	metaRepo := postqbuild.NewMetadataRepo(dbPool)
+	dsRepo := postqbuild.NewDatasetRepo(dbPool)
+	verRepo := postqbuild.NewVersionRepo(dbPool)
 
 	var userID uint64
 	err := dbPool.QueryRow(ctx,
@@ -152,6 +153,6 @@ func TestMetadataRepo_CRUD(t *testing.T) {
 	assert.NoError(t, err)
 
 	missing, err := metaRepo.FindByID(ctx, mdEnt.ID)
-	assert.ErrorIs(t, err, postgres.ErrMetadataNotFound)
+	assert.ErrorIs(t, err, repositories.ErrMetadataNotFound)
 	assert.Nil(t, missing)
 }

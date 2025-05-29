@@ -1,4 +1,4 @@
-package postgres_test
+package postqbuild_test
 
 import (
 	"context"
@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 		}
 		return pool.Ping(context.Background())
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "could not connect to Postgres: %v\n", err)
+		fmt.Fprintf(os.Stderr, "could not connect to postgres: %v\n", err)
 		os.Exit(1)
 	}
 

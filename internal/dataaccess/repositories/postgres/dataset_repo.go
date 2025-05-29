@@ -1,4 +1,4 @@
-package postgres
+package postqbuild
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"ppo/internal/entities"
+	"ppo/internal/repositories"
 	"time"
 )
 
@@ -62,7 +63,7 @@ func (r *DatasetRepo) Update(ctx context.Context, d *entities.Dataset) error {
 		return fmt.Errorf("update dataset: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return ErrDatasetNotFound
+		return repositories.ErrDatasetNotFound
 	}
 	return nil
 }
@@ -74,7 +75,7 @@ func (r *DatasetRepo) Delete(ctx context.Context, id uint64) error {
 		return fmt.Errorf("delete dataset: %w", err)
 	}
 	if exec.RowsAffected() == 0 {
-		return ErrDatasetNotFound
+		return repositories.ErrDatasetNotFound
 	}
 	return nil
 }
@@ -97,7 +98,7 @@ func (r *DatasetRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrDatasetNotFound
+			return nil, repositories.ErrDatasetNotFound
 		}
 		return nil, fmt.Errorf("find dataset by id: %w", err)
 	}

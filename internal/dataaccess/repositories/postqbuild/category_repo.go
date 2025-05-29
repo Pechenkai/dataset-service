@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
 )
@@ -22,12 +22,18 @@ func NewCategoryRepo(pool *pgxpool.Pool) *CategoryRepo {
 }
 
 func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
-	const sql = `
-	INSERT INTO categories (name, description)
-	VALUES ($1, $2)
-	RETURNING id
-	`
-	err := r.db.QueryRow(ctx, sql, c.Name, c.Description).Scan(&c.ID)
+	query := psql.
+		Insert("categories").
+		Columns("name", "description").
+		Values(c.Name, c.Description).
+		Suffix("RETURNING id")
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("build insert category sql: %w", err)
+	}
+
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&c.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -39,13 +45,18 @@ func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
 }
 
 func (r *CategoryRepo) Update(ctx context.Context, c *entities.Category) error {
-	const sql = `
-	UPDATE categories
-	SET name = $1,
-	    description = $2
-	WHERE id = $3
-	`
-	cmd, err := r.db.Exec(ctx, sql, c.Name, c.Description, c.ID)
+	query := psql.
+		Update("categories").
+		Set("name", c.Name).
+		Set("description", c.Description).
+		Where(sq.Eq{"id": c.ID})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("build update category sql: %w", err)
+	}
+
+	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -60,8 +71,14 @@ func (r *CategoryRepo) Update(ctx context.Context, c *entities.Category) error {
 }
 
 func (r *CategoryRepo) Delete(ctx context.Context, id uint64) error {
-	const sql = `DELETE FROM categories WHERE id = $1`
-	exec, err := r.db.Exec(ctx, sql, id)
+	query := psql.Delete("categories").Where(sq.Eq{"id": id})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("build delete category sql: %w", err)
+	}
+
+	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
@@ -69,20 +86,25 @@ func (r *CategoryRepo) Delete(ctx context.Context, id uint64) error {
 		}
 		return fmt.Errorf("delete category: %w", err)
 	}
-	if exec.RowsAffected() == 0 {
+	if cmd.RowsAffected() == 0 {
 		return repositories.ErrCategoryNotFound
 	}
 	return nil
 }
 
 func (r *CategoryRepo) FindByID(ctx context.Context, id uint64) (*entities.Category, error) {
-	const sql = `
-	SELECT id, name, description
-	FROM categories
-	WHERE id = $1
-	`
+	query := psql.
+		Select("id", "name", "description").
+		From("categories").
+		Where(sq.Eq{"id": id})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build find category by id sql: %w", err)
+	}
+
 	c := &entities.Category{}
-	err := r.db.QueryRow(ctx, sql, id).Scan(&c.ID, &c.Name, &c.Description)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&c.ID, &c.Name, &c.Description)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repositories.ErrCategoryNotFound
@@ -93,12 +115,17 @@ func (r *CategoryRepo) FindByID(ctx context.Context, id uint64) (*entities.Categ
 }
 
 func (r *CategoryRepo) FindAll(ctx context.Context) ([]*entities.Category, error) {
-	const sql = `
-	SELECT id, name, description
-	FROM categories
-	ORDER BY name ASC
-	`
-	rows, err := r.db.Query(ctx, sql)
+	query := psql.
+		Select("id", "name", "description").
+		From("categories").
+		OrderBy("name ASC")
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build find all categories sql: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query all categories: %w", err)
 	}

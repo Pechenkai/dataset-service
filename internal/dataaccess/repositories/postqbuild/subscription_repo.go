@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
+	"time"
 )
 
 type SubscriptionRepo struct {
@@ -20,12 +22,20 @@ func NewSubscriptionRepo(pool *pgxpool.Pool) *SubscriptionRepo {
 }
 
 func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
-	const sql = `
-	INSERT INTO subscriptions
-	  (user_id, dataset_id, created_at)
-	VALUES ($1, $2, $3)
-	`
-	_, err := r.db.Exec(ctx, sql, s.UserID, s.DatasetID, s.CreatedAt)
+	if s.CreatedAt.IsZero() {
+		s.CreatedAt = time.Now().UTC()
+	}
+	query := psql.
+		Insert("subscriptions").
+		Columns("user_id", "dataset_id", "created_at").
+		Values(s.UserID, s.DatasetID, s.CreatedAt)
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("build insert subscription sql: %w", err)
+	}
+
+	_, err = r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -37,27 +47,37 @@ func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription)
 }
 
 func (r *SubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {
-	const sql = `DELETE FROM subscriptions WHERE user_id = $1 AND dataset_id = $2`
+	query := psql.Delete("subscriptions").Where(sq.Eq{"user_id": userID, "dataset_id": datasetID})
 
-	cmdTag, err := r.db.Exec(ctx, sql, userID, datasetID)
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("build delete subscription sql: %w", err)
+	}
+
+	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		return fmt.Errorf("unsubscribe: %w", err)
 	}
-	if cmdTag.RowsAffected() == 0 {
+	if cmd.RowsAffected() == 0 {
 		return repositories.ErrSubscriptionNotFound
 	}
 	return nil
 }
 
 func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error) {
-	const sql = `
-	SELECT 1 FROM subscriptions
-	WHERE user_id = $1 AND dataset_id = $2
-	LIMIT 1
-	`
-	row := r.db.QueryRow(ctx, sql, userID, datasetID)
+	query := psql.
+		Select("1").
+		From("subscriptions").
+		Where(sq.Eq{"user_id": userID, "dataset_id": datasetID}).
+		Limit(1)
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return false, fmt.Errorf("build is_subscribed sql: %w", err)
+	}
+
 	var dummy int
-	err := row.Scan(&dummy)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&dummy)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
@@ -68,11 +88,17 @@ func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID u
 }
 
 func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
-	const sql = `
-	SELECT user_id FROM subscriptions
-	WHERE dataset_id = $1
-	`
-	rows, err := r.db.Query(ctx, sql, datasetID)
+	query := psql.
+		Select("user_id").
+		From("subscriptions").
+		Where(sq.Eq{"dataset_id": datasetID})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build get subscribers sql: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get subscribers: %w", err)
 	}
@@ -93,8 +119,17 @@ func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64)
 }
 
 func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT dataset_id FROM subscriptions WHERE user_id = $1`, userID)
+	query := psql.
+		Select("dataset_id").
+		From("subscriptions").
+		Where(sq.Eq{"user_id": userID})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build get subscriptions by user sql: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get_subscriptions_by_user: %w", err)
 	}
@@ -108,5 +143,8 @@ func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint
 		}
 		datasets = append(datasets, dsid)
 	}
-	return datasets, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate subscription rows: %w", err)
+	}
+	return datasets, nil
 }

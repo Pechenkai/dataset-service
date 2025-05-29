@@ -5,12 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
-	"testing"
-	"time"
-
 	"ppo/internal/entities"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,8 +17,6 @@ import (
 func makeReader(content string) io.Reader {
 	return bytes.NewReader([]byte(content))
 }
-
-var fixedTime = time.Date(2025, 5, 24, 10, 0, 0, 0, time.UTC)
 
 func TestDatasetService_CreateDataset_Success_WithMetadata(t *testing.T) {
 	dsRepo := new(mocks.DatasetRepository)
