@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"ppo/internal/delivery/http/dto"
+	"ppo/internal/delivery/http/middleware"
 	"ppo/internal/services"
 )
 
@@ -20,18 +21,22 @@ import (
 // @Failure      404  {object}  dto.ErrorResponse
 // @Failure      409  {object}  dto.ErrorResponse
 // @Router       /subscriptions [post]
-func SubscribeHandler(svc services.SubscriptionService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func SubscribeHandler(svc services.SubscriptionService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// 1) Считаем JSON-структуру
 		var req dto.SubscribeRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // mapErrorToStatus ⇒ 400 или 500
 		}
+
+		// 2) Вызов бизнес-логики
 		if err := svc.Subscribe(r.Context(), req.UserID, req.DatasetID); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrAlreadySubscribed ⇒ 409, ErrNotSubscribed не ожидается здесь, иначе 500
 		}
+
+		// 3) Если всё успешно, возвращаем 204 No Content
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -45,18 +50,22 @@ func SubscribeHandler(svc services.SubscriptionService) http.HandlerFunc {
 // @Failure      400  {object}  dto.ErrorResponse
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /subscriptions [delete]
-func UnsubscribeHandler(svc services.SubscriptionService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UnsubscribeHandler(svc services.SubscriptionService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// 1) Считаем JSON-структуру с userID и datasetID
 		var req dto.SubscribeRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // неверный JSON => 400
 		}
+
+		// 2) Вызов бизнес-логики
 		if err := svc.Unsubscribe(r.Context(), req.UserID, req.DatasetID); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrNotSubscribed ⇒ 404, иначе 500
 		}
+
+		// 3) Если ок, 204 No Content
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -69,23 +78,25 @@ func UnsubscribeHandler(svc services.SubscriptionService) http.HandlerFunc {
 // @Failure      400  {object}  dto.ErrorResponse
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /datasets/{id}/subscribers [get]
-func ListSubscribersHandler(svc services.SubscriptionService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ListSubscribersHandler(svc services.SubscriptionService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// 1) Парсим dataset ID из URL
 		idParam := chi.URLParam(r, "id")
 		datasetID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, &dto.BadRequestError{Message: "invalid dataset ID"})
-			return
+			return &dto.BadRequestError{Message: "invalid dataset ID"}
 		}
 
+		// 2) Вызов сервиса
 		subs, err := svc.ListSubscribers(r.Context(), datasetID)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // Возможны ошибки 404 (например, dataset не найден) или 500
 		}
 
+		// 3) Формирование JSON‐ответа
 		resp := dto.ListSubscribersResponse{Subscribers: subs}
 		dto.WriteJSON(w, http.StatusOK, resp)
+		return nil
 	}
 }
 
@@ -98,22 +109,24 @@ func ListSubscribersHandler(svc services.SubscriptionService) http.HandlerFunc {
 // @Failure      400  {object}  dto.ErrorResponse
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /users/{id}/subscriptions [get]
-func ListSubscriptionsHandler(svc services.SubscriptionService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ListSubscriptionsHandler(svc services.SubscriptionService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// 1) Парсим user ID
 		idParam := chi.URLParam(r, "id")
 		userID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, &dto.BadRequestError{Message: "invalid user ID"})
-			return
+			return &dto.BadRequestError{Message: "invalid user ID"}
 		}
 
+		// 2) Вызов сервиса
 		datasets, err := svc.ListSubscriptions(r.Context(), userID)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // 404 если юзер не найден, либо 500
 		}
 
+		// 3) JSON‐ответ
 		resp := dto.ListSubscriptionsResponse{Subscriptions: datasets}
 		dto.WriteJSON(w, http.StatusOK, resp)
+		return nil
 	}
 }

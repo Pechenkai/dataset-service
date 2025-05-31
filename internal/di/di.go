@@ -2,8 +2,11 @@ package di
 
 import (
 	"context"
+	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	httpdelivery "ppo/internal/delivery/http"
+	"ppo/internal/logger"
 	"ppo/internal/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +23,7 @@ type App struct {
 	DB          *pgxpool.Pool
 	HTTPHandler http.Handler
 	RootCommand *cobra.Command
+	Logger      *zap.Logger
 }
 
 func Build(ctx context.Context) (*App, error) {
@@ -28,10 +32,19 @@ func Build(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
+	zapLogger, closeLog, err := logger.NewLogger(cfg.LogCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init logger: %w", err)
+	}
+
+	_ = closeLog
+
 	dbPool, err := postqbuild.NewPool(ctx, cfg.Database)
 	if err != nil {
-		return nil, err
+		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
+
+	zapLogger.Info("database pool created")
 
 	s3, err := storage.NewS3Storage(cfg.Storage)
 	if err != nil {
@@ -82,5 +95,5 @@ func Build(ctx context.Context) (*App, error) {
 
 func (a *App) Shutdown(ctx context.Context) error {
 	a.DB.Close()
-	return nil
+	return a.Logger.Sync()
 }

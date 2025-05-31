@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/caarlos0/env/v10"
@@ -32,20 +31,26 @@ type Storage struct {
 	Bucket    string `env:"S3_BUCKET,required"`
 }
 
+type LogConfig struct {
+	Level      string `env:"LOG_LEVEL" envDefault:"info"`
+	Format     string `env:"LOG_FORMAT" envDefault:"console"` // "console" или "json"
+	TimeFormat string `env:"LOG_TIME_FORMAT" envDefault:"2006-01-02T15:04:05.000Z07:00"`
+}
 type Config struct {
 	Database Database
 	HTTP     HTTP
 	Storage  Storage
+	LogCfg   LogConfig
 }
 
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{}
+
 	if err := env.Parse(cfg); err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("HEALTH_CHECK_PERIOD: %v\n", cfg.Database.HealthCheckPeriod)
 	return cfg, nil
 }

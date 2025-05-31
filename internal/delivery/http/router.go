@@ -1,7 +1,9 @@
-package http
+package delivhttp
 
 import (
+	"go.uber.org/zap"
 	"net/http"
+	"ppo/internal/delivery/http/middleware"
 
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -18,8 +20,11 @@ func NewRouter(
 	revSvc services.ReviewService,
 	userSvc services.UserService,
 	subSvc services.SubscriptionService,
+	logger *zap.Logger,
 ) http.Handler {
 	r := chi.NewRouter()
+
+	r.Use(middleware.LoggingMiddleware(logger))
 
 	docs.SwaggerInfo.BasePath = "/"
 
@@ -28,69 +33,69 @@ func NewRouter(
 	))
 
 	r.Route("/categories", func(r chi.Router) {
-		r.Get("/", handlers.ListCategories(catSvc))
+		r.Get("/", middleware.WrapHandler(handlers.ListCategories(catSvc)))
 
-		r.Post("/", handlers.CreateCategory(catSvc))
+		r.Post("/", middleware.WrapHandler(handlers.CreateCategory(catSvc)))
 
-		r.Get("/{id}", handlers.GetCategory(catSvc))
+		r.Get("/{id}", middleware.WrapHandler(handlers.GetCategory(catSvc)))
 
-		r.Put("/{id}", handlers.UpdateCategory(catSvc))
+		r.Put("/{id}", middleware.WrapHandler(handlers.UpdateCategory(catSvc)))
 
-		r.Delete("/{id}", handlers.DeleteCategory(catSvc))
+		r.Delete("/{id}", middleware.WrapHandler(handlers.DeleteCategory(catSvc)))
 	})
 
 	r.Route("/datasets", func(r chi.Router) {
-		r.Get("/", handlers.ListDatasets(dsSvc))
+		r.Get("/", middleware.WrapHandler(handlers.ListDatasets(dsSvc)))
 
-		r.Post("/", handlers.CreateDataset(dsSvc))
+		r.Post("/", middleware.WrapHandler(handlers.CreateDataset(dsSvc)))
 
-		r.Get("/{id}", handlers.GetDataset(dsSvc))
+		r.Get("/{id}", middleware.WrapHandler(handlers.GetDataset(dsSvc)))
 
-		r.Post("/{id}/versions", handlers.AddVersion(dsSvc))
+		r.Post("/{id}/versions", middleware.WrapHandler(handlers.AddVersion(dsSvc)))
 
-		r.Get("/{id}/versions", handlers.ListVersions(dsSvc))
+		r.Get("/{id}/versions", middleware.WrapHandler(handlers.ListVersions(dsSvc)))
 
-		r.Get("/{id}/subscribers", handlers.ListSubscribersHandler(subSvc))
+		r.Get("/{id}/subscribers", middleware.WrapHandler(handlers.ListSubscribersHandler(subSvc)))
 
-		r.Post("/{id}/notifications", handlers.NotifySubscribersHandler(notifSvc))
+		r.Post("/{id}/notifications", middleware.WrapHandler(handlers.NotifySubscribersHandler(notifSvc)))
 
-		r.Get("/{id}/reviews", handlers.ListReviewsByDatasetHandler(revSvc))
+		r.Get("/{id}/reviews", middleware.WrapHandler(handlers.ListReviewsByDatasetHandler(revSvc)))
 
-		r.Get("/{id}/reviews/summary", handlers.GetRatingSummaryHandler(revSvc))
+		r.Get("/{id}/reviews/summary", middleware.WrapHandler(handlers.GetRatingSummaryHandler(revSvc)))
 	})
 
 	r.Route("/subscriptions", func(r chi.Router) {
-		r.Post("/", handlers.SubscribeHandler(subSvc))
+		r.Post("/", middleware.WrapHandler(handlers.SubscribeHandler(subSvc)))
 
-		r.Delete("/", handlers.UnsubscribeHandler(subSvc))
+		r.Delete("/", middleware.WrapHandler(handlers.UnsubscribeHandler(subSvc)))
 	})
 
 	r.Route("/users", func(r chi.Router) {
-		r.Post("/register", handlers.RegisterUserHandler(userSvc))
+		r.Post("/register", middleware.WrapHandler(handlers.RegisterUserHandler(userSvc)))
 
-		r.Post("/authenticate", handlers.AuthenticateUserHandler(userSvc))
+		r.Post("/authenticate", middleware.WrapHandler(handlers.AuthenticateUserHandler(userSvc)))
 
-		r.Get("/{id}", handlers.GetUserHandler(userSvc))
+		r.Get("/{id}", middleware.WrapHandler(handlers.GetUserHandler(userSvc)))
 
-		r.Put("/{id}", handlers.UpdateUserHandler(userSvc))
+		r.Put("/{id}", middleware.WrapHandler(handlers.UpdateUserHandler(userSvc)))
 
-		r.Delete("/{id}", handlers.DeleteUserHandler(userSvc))
+		r.Delete("/{id}", middleware.WrapHandler(handlers.DeleteUserHandler(userSvc)))
 
-		r.Get("/{id}/notifications", handlers.GetUserNotificationsHandler(notifSvc))
+		r.Get("/{id}/notifications", middleware.WrapHandler(handlers.GetUserNotificationsHandler(notifSvc)))
 
-		r.Get("/{id}/subscriptions", handlers.ListSubscriptionsHandler(subSvc))
+		r.Get("/{id}/subscriptions", middleware.WrapHandler(handlers.ListSubscriptionsHandler(subSvc)))
 
-		r.Get("/{id}/reviews", handlers.ListReviewsByUserHandler(revSvc))
+		r.Get("/{id}/reviews", middleware.WrapHandler(handlers.ListReviewsByUserHandler(revSvc)))
 	})
 
 	r.Route("/reviews", func(r chi.Router) {
-		r.Post("/", handlers.CreateReviewHandler(revSvc))
+		r.Post("/", middleware.WrapHandler(handlers.CreateReviewHandler(revSvc)))
 
-		r.Get("/{id}", handlers.GetReviewByIDHandler(revSvc))
+		r.Get("/{id}", middleware.WrapHandler(handlers.GetReviewByIDHandler(revSvc)))
 
-		r.Put("/{id}", handlers.UpdateReviewHandler(revSvc))
+		r.Put("/{id}", middleware.WrapHandler(handlers.UpdateReviewHandler(revSvc)))
 
-		r.Delete("/{id}", handlers.DeleteReviewHandler(revSvc))
+		r.Delete("/{id}", middleware.WrapHandler(handlers.DeleteReviewHandler(revSvc)))
 	})
 
 	return r

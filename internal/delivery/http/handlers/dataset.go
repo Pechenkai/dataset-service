@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"ppo/internal/delivery/http/dto"
+	"ppo/internal/delivery/http/middleware"
 	"ppo/internal/services"
 )
 
@@ -19,13 +20,17 @@ import (
 // @Success      200     {object}  dto.DatasetsResponse
 // @Failure      500     {object}  dto.ErrorResponse
 // @Router       /datasets [get]
-func ListDatasets(svc services.DatasetService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ListDatasets(svc services.DatasetService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.URL.Query()
+
+		// Определяем publicOnly
 		publicOnly := false
 		if p := q.Get("public"); p != "" {
 			publicOnly, _ = strconv.ParseBool(p)
 		}
+
+		// Определяем ownerID
 		var ownerID *uint64
 		if u := q.Get("user"); u != "" {
 			id, err := strconv.ParseUint(u, 10, 64)
@@ -34,12 +39,15 @@ func ListDatasets(svc services.DatasetService) http.HandlerFunc {
 			}
 		}
 
+		// Вызываем сервис
 		list, err := svc.ListDatasets(r.Context(), publicOnly, ownerID)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+
+		// Строим DTO и пишем в JSON
 		dto.WriteJSON(w, http.StatusOK, dto.FromDatasetList(list))
+		return nil
 	}
 }
 
@@ -51,21 +59,26 @@ func ListDatasets(svc services.DatasetService) http.HandlerFunc {
 // @Success      200  {object}  dto.DatasetResponse
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /datasets/{id} [get]
-func GetDataset(svc services.DatasetService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func GetDataset(svc services.DatasetService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			// Неправильный формат ID → 400 Bad Request (mapErrorToStatus вернёт 400 для парсинга)
+			return err
 		}
 
 		d, err := svc.GetDataset(r.Context(), id)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+		if d == nil {
+			// Если, по каким-то причинам, сервис вернул nil без ошибки, приводим к ErrDatasetNotFound
+			return services.ErrDatasetNotFound
+		}
+
 		dto.WriteJSON(w, http.StatusOK, dto.FromDataset(d))
+		return nil
 	}
 }
 
@@ -86,25 +99,27 @@ func GetDataset(svc services.DatasetService) http.HandlerFunc {
 // @Failure      400         {object}  dto.ErrorResponse
 // @Failure      500         {object}  dto.ErrorResponse
 // @Router       /datasets [post]
-func CreateDataset(svc services.DatasetService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func CreateDataset(svc services.DatasetService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// Разбираем multipart form
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+
 		name := r.FormValue("name")
 		desc := r.FormValue("description")
+
 		catID, _ := strconv.ParseUint(r.FormValue("category"), 10, 64)
 		isPub, _ := strconv.ParseBool(r.FormValue("public"))
+
 		metaFmt := r.FormValue("metaFormat")
 		tags := r.FormValue("metaTags")
 		sz, _ := strconv.ParseUint(r.FormValue("metaSize"), 10, 64)
 
-		// file
+		// Получаем файл
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 		defer file.Close()
 		size := header.Size
@@ -118,20 +133,22 @@ func CreateDataset(svc services.DatasetService) http.HandlerFunc {
 			MetaFormat:  metaFmt,
 			MetaTags:    tags,
 			MetaSize:    sz,
+			// ActorID обычно из контекста / JWT, но в примере берём из cmd.ActorID
 		}
 
-		id, err := svc.CreateDataset(r.Context(), cmd, file.(io.Reader), size)
+		id, err := svc.CreateDataset(r.Context(), cmd, io.Reader(file), size)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
+		// Получаем только что созданный датасет
 		d, err := svc.GetDataset(r.Context(), id)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+
 		dto.WriteJSON(w, http.StatusCreated, dto.FromDataset(d))
+		return nil
 	}
 }
 
@@ -150,27 +167,25 @@ func CreateDataset(svc services.DatasetService) http.HandlerFunc {
 // @Failure      400         {object}  dto.ErrorResponse
 // @Failure      500         {object}  dto.ErrorResponse
 // @Router       /datasets/{id}/versions [post]
-func AddVersion(svc services.DatasetService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func AddVersion(svc services.DatasetService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		dsID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 		defer file.Close()
-
 		size := header.Size
+
 		chLog := r.FormValue("changeLog")
 		metaFmt := r.FormValue("metaFormat")
 		tags := r.FormValue("metaTags")
@@ -183,21 +198,21 @@ func AddVersion(svc services.DatasetService) http.HandlerFunc {
 			MetaFormat: metaFmt,
 			MetaTags:   tags,
 			MetaSize:   sz,
+			// ActorID тоже может быть в cmd, если надо
 		}
 
-		vid, err := svc.AddDatasetVersion(r.Context(), cmd, file.(io.Reader), size)
+		vid, err := svc.AddDatasetVersion(r.Context(), cmd, io.Reader(file), size)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		ver, err := svc.GetVersion(r.Context(), vid)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		dto.WriteJSON(w, http.StatusCreated, dto.FromVersion(ver))
+		return nil
 	}
 }
 
@@ -211,23 +226,21 @@ func AddVersion(svc services.DatasetService) http.HandlerFunc {
 // @Failure      404  {object}  dto.ErrorResponse
 // @Failure      500  {object}  dto.ErrorResponse
 // @Router       /datasets/{id}/versions [get]
-func ListVersions(svc services.DatasetService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ListVersions(svc services.DatasetService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		datasetID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, &dto.BadRequestError{Message: "invalid dataset ID"})
-			return
+			// Неправильный формат ID → превратится в 400 Bad Request
+			return err
 		}
 
 		versions, err := svc.ListVersions(r.Context(), datasetID)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
-		resp := dto.FromVersionList(versions)
-
-		dto.WriteJSON(w, http.StatusOK, resp)
+		dto.WriteJSON(w, http.StatusOK, dto.FromVersionList(versions))
+		return nil
 	}
 }

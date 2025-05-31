@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"ppo/internal/delivery/http/dto"
+	"ppo/internal/delivery/http/middleware"
 	"ppo/internal/services"
 )
 
@@ -20,27 +21,29 @@ import (
 // @Failure      409   {object}  dto.ErrorResponse  "email already exists"
 // @Failure      500   {object}  dto.ErrorResponse
 // @Router       /users/register [post]
-func RegisterUserHandler(svc services.UserService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func RegisterUserHandler(svc services.UserService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// 1) Распарсить JSON‐тело
 		var req dto.RegisterUserRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return &dto.BadRequestError{Message: "invalid JSON payload"}
 		}
 
+		// 2) Вызов бизнес‐логики
 		id, err := svc.Register(r.Context(), req.ToCommand())
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrUserExists ⇒ 409, ErrInvalidPassword ⇒ 400, др. ⇒ 500
 		}
 
+		// 3) Получить пользователя по ID, чтобы вернуть его данные
 		user, err := svc.GetUserByID(r.Context(), id)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // обычно не случится, но маппинг на 500, если что
 		}
 
+		// 4) Записать ответ 201 и JSON
 		dto.WriteJSON(w, http.StatusCreated, dto.FromEntityUser(user))
+		return nil
 	}
 }
 
@@ -55,22 +58,24 @@ func RegisterUserHandler(svc services.UserService) http.HandlerFunc {
 // @Failure      401   {object}  dto.ErrorResponse  "invalid credentials"
 // @Failure      500   {object}  dto.ErrorResponse
 // @Router       /users/authenticate [post]
-func AuthenticateUserHandler(svc services.UserService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func AuthenticateUserHandler(svc services.UserService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req dto.AuthenticateUserRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return &dto.BadRequestError{Message: "invalid JSON payload"}
 		}
 
 		user, err := svc.Authenticate(r.Context(), req.ToCommand())
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrInvalidCredentials ⇒ 401, ErrUserNotFound ⇒ 404? (в зависимости от mapErrorToStatus)
 		}
 
-		resp := dto.AuthenticateResponse{User: dto.FromEntityUser(user), Token: ""} // токен можно добавить позже
+		resp := dto.AuthenticateResponse{
+			User:  dto.FromEntityUser(user),
+			Token: "", // Токен можно сгенерировать позже
+		}
 		dto.WriteJSON(w, http.StatusOK, resp)
+		return nil
 	}
 }
 
@@ -84,22 +89,21 @@ func AuthenticateUserHandler(svc services.UserService) http.HandlerFunc {
 // @Failure      404  {object}  dto.ErrorResponse
 // @Failure      500  {object}  dto.ErrorResponse
 // @Router       /users/{id} [get]
-func GetUserHandler(svc services.UserService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func GetUserHandler(svc services.UserService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, &dto.BadRequestError{Message: "invalid user ID"})
-			return
+			return &dto.BadRequestError{Message: "invalid user ID"}
 		}
 
 		user, err := svc.GetUserByID(r.Context(), id)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrUserNotFound ⇒ 404, иначе 500
 		}
 
 		dto.WriteJSON(w, http.StatusOK, dto.FromEntityUser(user))
+		return nil
 	}
 }
 
@@ -115,27 +119,26 @@ func GetUserHandler(svc services.UserService) http.HandlerFunc {
 // @Failure      404   {object}  dto.ErrorResponse
 // @Failure      500   {object}  dto.ErrorResponse
 // @Router       /users/{id} [put]
-func UpdateUserHandler(svc services.UserService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UpdateUserHandler(svc services.UserService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, &dto.BadRequestError{Message: "invalid user ID"})
-			return
+			return &dto.BadRequestError{Message: "invalid user ID"}
 		}
 
 		var req dto.UpdateUserRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return &dto.BadRequestError{Message: "invalid JSON payload"}
 		}
 
+		// Вызов бизнес‐логики
 		if err := svc.UpdateUser(r.Context(), req.ToCommand(id)); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrUserNotFound ⇒ 404, ErrUserExists ⇒ 409, и т. д.
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -149,20 +152,19 @@ func UpdateUserHandler(svc services.UserService) http.HandlerFunc {
 // @Failure      404  {object}  dto.ErrorResponse
 // @Failure      500  {object}  dto.ErrorResponse
 // @Router       /users/{id} [delete]
-func DeleteUserHandler(svc services.UserService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func DeleteUserHandler(svc services.UserService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, &dto.BadRequestError{Message: "invalid user ID"})
-			return
+			return &dto.BadRequestError{Message: "invalid user ID"}
 		}
 
 		if err := svc.DeleteUser(r.Context(), id); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err // ErrUserNotFound ⇒ 404, иначе 500
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }

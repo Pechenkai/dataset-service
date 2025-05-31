@@ -1,8 +1,10 @@
-package http
+package middleware
 
 import (
 	"errors"
+	"go.uber.org/zap"
 	"net/http"
+	"time"
 
 	"ppo/internal/delivery/http/dto"
 	"ppo/internal/services"
@@ -63,6 +65,7 @@ func mapErrorToStatus(err error) int {
 		return http.StatusInternalServerError
 	}
 }
+
 func WrapHandler(h HandlerWithError) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := h(w, r); err != nil {
@@ -70,4 +73,35 @@ func WrapHandler(h HandlerWithError) http.HandlerFunc {
 			dto.WriteStatusError(w, status, err)
 		}
 	}
+}
+
+func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			// Можно обернуть w, чтобы узнать точный статус-код ответа
+			ww := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+
+			next.ServeHTTP(ww, r)
+
+			duration := time.Since(start)
+			logger.Info("http request",
+				zap.String("method", r.Method),
+				zap.String("path", r.URL.Path),
+				zap.Int("status", ww.status),
+				zap.Duration("duration", duration),
+				zap.String("remote", r.RemoteAddr),
+			)
+		})
+	}
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (rec *statusRecorder) WriteHeader(code int) {
+	rec.status = code
+	rec.ResponseWriter.WriteHeader(code)
 }

@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
+	"ppo/internal/delivery/http/middleware"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -17,15 +17,16 @@ import (
 // @Success      200  {array}   dto.CategoryResponse
 // @Failure      500  {object}  dto.ErrorResponse
 // @Router       /categories [get]
-func ListCategories(svc services.CategoryService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ListCategories(svc services.CategoryService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		cats, err := svc.ListCategories(r.Context())
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			// Ошибка пойдёт наверх и будет обработана WrapHandler
+			return err
 		}
 		resp := dto.FromEntities(cats)
 		dto.WriteJSON(w, http.StatusOK, resp)
+		return nil
 	}
 }
 
@@ -39,30 +40,26 @@ func ListCategories(svc services.CategoryService) http.HandlerFunc {
 // @Failure      400   {object}  dto.ErrorResponse
 // @Failure      409   {object}  dto.ErrorResponse  "category exists"
 // @Router       /categories [post]
-func CreateCategory(svc services.CategoryService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func CreateCategory(svc services.CategoryService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req dto.CreateCategoryRequest
-
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		cmd := req.ToCommand()
-
 		id, err := svc.CreateCategory(r.Context(), cmd)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		cat, err := svc.GetCategoryByID(r.Context(), id)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		dto.WriteJSON(w, http.StatusCreated, dto.FromEntity(cat))
+		return nil
 	}
 }
 
@@ -74,21 +71,25 @@ func CreateCategory(svc services.CategoryService) http.HandlerFunc {
 // @Success      200  {object}  dto.CategoryResponse
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /categories/{id} [get]
-func GetCategory(svc services.CategoryService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func GetCategory(svc services.CategoryService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+
 		cat, err := svc.GetCategoryByID(r.Context(), id)
-		if errors.Is(err, services.ErrCategoryNotFound) {
-			dto.WriteStatusError(w, http.StatusNotFound, err)
-		} else {
-			dto.WriteError(w, err)
+		if err != nil {
+			return err
 		}
+
+		if cat == nil {
+			return services.ErrCategoryNotFound
+		}
+
 		dto.WriteJSON(w, http.StatusOK, dto.FromEntity(cat))
+		return nil
 	}
 }
 
@@ -103,29 +104,27 @@ func GetCategory(svc services.CategoryService) http.HandlerFunc {
 // @Failure      400  {object}  dto.ErrorResponse
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /categories/{id} [put]
-func UpdateCategory(svc services.CategoryService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UpdateCategory(svc services.CategoryService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		var req dto.UpdateCategoryRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 
 		cmd := req.ToCommand(id)
-
 		cmd.ID = id
 		if err := svc.UpdateCategory(r.Context(), cmd); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
+
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -137,18 +136,17 @@ func UpdateCategory(svc services.CategoryService) http.HandlerFunc {
 // @Success      204  {object}  nil
 // @Failure      404  {object}  dto.ErrorResponse
 // @Router       /categories/{id} [delete]
-func DeleteCategory(svc services.CategoryService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func DeleteCategory(svc services.CategoryService) middleware.HandlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		idParam := chi.URLParam(r, "id")
 		id, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 		if err := svc.DeleteCategory(r.Context(), id); err != nil {
-			dto.WriteError(w, err)
-			return
+			return err
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }

@@ -1,0 +1,12 @@
+log:
+  level: debug
+  file: logs/app.log
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 5s
+  write_timeout: 10s
+
+db:
+  dsn: "postgres://user:pass@localhost:5432/ppo?sslmode=disable"
