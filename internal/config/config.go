@@ -38,7 +38,6 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{}
-	// parse environment variables into cfg
 	if err := env.Parse(&cfg.Database); err != nil {
 		return nil, err
 	}

@@ -1,0 +1,1215 @@
+definitions:
+  dto.AuthenticateResponse:
+    properties:
+      token:
+        description: если планируется JWT, иначе пустое
+        type: string
+      user:
+        $ref: '#/definitions/ppo_internal_delivery_http_dto.UserResponse'
+    type: object
+  dto.DatasetsResponse:
+    properties:
+      datasets:
+        items:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.DatasetResponse'
+        type: array
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.ListSubscribersResponse:
+    properties:
+      subscribers:
+        items:
+          type: integer
+        type: array
+    type: object
+  dto.ListSubscriptionsResponse:
+    properties:
+      subscriptions:
+        items:
+          type: integer
+        type: array
+    type: object
+  dto.NotificationsResponse:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.NotificationResponse'
+        type: array
+    type: object
+  dto.NotifyRequest:
+    properties:
+      message:
+        type: string
+    required:
+    - message
+    type: object
+  dto.NotifyResponse:
+    properties:
+      sent:
+        type: integer
+    type: object
+  dto.ReviewsResponse:
+    properties:
+      reviews:
+        items:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.ReviewResponse'
+        type: array
+    type: object
+  dto.SubscribeRequest:
+    properties:
+      dataset_id:
+        type: integer
+      user_id:
+        type: integer
+    required:
+    - dataset_id
+    - user_id
+    type: object
+  dto.UpdateReviewRequest:
+    properties:
+      rating:
+        allOf:
+        - $ref: '#/definitions/entities.Rating'
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+      text:
+        maxLength: 1000
+        type: string
+    required:
+    - rating
+    type: object
+  dto.VersionResponse:
+    properties:
+      change_log:
+        type: string
+      filepath:
+        type: string
+      id:
+        type: integer
+      number:
+        type: string
+      upload_date:
+        type: string
+    type: object
+  dto.VersionsResponse:
+    properties:
+      versions:
+        items:
+          $ref: '#/definitions/dto.VersionResponse'
+        type: array
+    type: object
+  entities.Rating:
+    enum:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    type: integer
+    x-enum-varnames:
+    - Rating1
+    - Rating2
+    - Rating3
+    - Rating4
+    - Rating5
+  ppo_internal_delivery_http_dto.AuthenticateUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  ppo_internal_delivery_http_dto.CategoryResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  ppo_internal_delivery_http_dto.CreateCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
+        maxLength: 50
+        type: string
+    required:
+    - name
+    type: object
+  ppo_internal_delivery_http_dto.CreateReviewRequest:
+    properties:
+      dataset_id:
+        type: integer
+      rating:
+        allOf:
+        - $ref: '#/definitions/entities.Rating'
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+      text:
+        maxLength: 1000
+        type: string
+      user_id:
+        type: integer
+    required:
+    - dataset_id
+    - rating
+    - user_id
+    type: object
+  ppo_internal_delivery_http_dto.DatasetResponse:
+    properties:
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      name:
+        type: string
+      owner_id:
+        type: integer
+    type: object
+  ppo_internal_delivery_http_dto.NotificationResponse:
+    properties:
+      created_at:
+        type: string
+      dataset_id:
+        type: integer
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      message:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  ppo_internal_delivery_http_dto.RatingSummaryResponse:
+    properties:
+      average:
+        type: number
+      count:
+        type: integer
+    type: object
+  ppo_internal_delivery_http_dto.RegisterUserRequest:
+    properties:
+      country:
+        type: string
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      role:
+        enum:
+        - guest
+        - user
+        - admin
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - country
+    - email
+    - password
+    - role
+    - username
+    type: object
+  ppo_internal_delivery_http_dto.ReviewResponse:
+    properties:
+      created_at:
+        type: string
+      dataset_id:
+        type: integer
+      id:
+        type: integer
+      rating:
+        $ref: '#/definitions/entities.Rating'
+      text:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  ppo_internal_delivery_http_dto.UpdateCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
+        maxLength: 50
+        type: string
+    required:
+    - name
+    type: object
+  ppo_internal_delivery_http_dto.UpdateUserRequest:
+    properties:
+      country:
+        type: string
+      email:
+        type: string
+      is_blocked:
+        description: optional
+        type: boolean
+      password:
+        minLength: 6
+        type: string
+      role:
+        enum:
+        - guest
+        - user
+        - admin
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    type: object
+  ppo_internal_delivery_http_dto.UserResponse:
+    properties:
+      country:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_blocked:
+        type: boolean
+      registration_date:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /categories:
+    get:
+      description: Returns all categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ppo_internal_delivery_http_dto.CategoryResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Create a new category
+      parameters:
+      - description: Name and description
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.CategoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: category exists
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create category
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      description: Delete a category by its ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete category
+      tags:
+      - categories
+    get:
+      description: Returns a category by its ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.CategoryResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get category by ID
+      tags:
+      - categories
+    put:
+      consumes:
+      - application/json
+      description: Update a category by its ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated name and description
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Update category
+      tags:
+      - categories
+  /datasets:
+    get:
+      description: Returns datasets, optionally filtering by public or owner
+      parameters:
+      - description: Only public
+        in: query
+        name: public
+        type: boolean
+      - description: Owner user ID
+        in: query
+        name: user
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DatasetsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List datasets
+      tags:
+      - datasets
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads dataset and initial version
+      parameters:
+      - description: Dataset name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Dataset description
+        in: formData
+        name: description
+        type: string
+      - description: Category ID
+        in: formData
+        name: category
+        required: true
+        type: integer
+      - description: Is public
+        in: formData
+        name: public
+        type: boolean
+      - description: Data file to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Metadata format
+        in: formData
+        name: metaFormat
+        type: string
+      - description: Metadata tags
+        in: formData
+        name: metaTags
+        type: string
+      - description: Metadata size
+        in: formData
+        name: metaSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.DatasetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create a new dataset
+      tags:
+      - datasets
+  /datasets/{id}:
+    get:
+      description: Returns a single dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.DatasetResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get dataset by ID
+      tags:
+      - datasets
+  /datasets/{id}/notifications:
+    post:
+      consumes:
+      - application/json
+      description: Send a message to all subscribers of a dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Notification message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.NotifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NotifyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Notify subscribers
+      tags:
+      - notifications
+  /datasets/{id}/reviews:
+    get:
+      description: Возвращает все отзывы для указанного датасета
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ReviewsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List reviews by dataset
+      tags:
+      - reviews
+  /datasets/{id}/reviews/summary:
+    get:
+      description: Возвращает средний рейтинг и количество отзывов для датасета
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.RatingSummaryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get rating summary
+      tags:
+      - reviews
+  /datasets/{id}/subscribers:
+    get:
+      description: Возвращает список user_id, подписанных на датасет
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListSubscribersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List subscribers for a dataset
+      tags:
+      - subscriptions
+  /datasets/{id}/versions:
+    get:
+      description: Returns all versions for a given dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.VersionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List dataset versions
+      tags:
+      - datasets
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads a new version file for a dataset
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Data file to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Change log
+        in: formData
+        name: changeLog
+        type: string
+      - description: Metadata format
+        in: formData
+        name: metaFormat
+        type: string
+      - description: Metadata tags
+        in: formData
+        name: metaTags
+        type: string
+      - description: Metadata size
+        in: formData
+        name: metaSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.VersionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Add dataset version
+      tags:
+      - datasets
+  /notifications/{id}/read:
+    put:
+      description: Mark a notification as read by its ID
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Mark notification as read
+      tags:
+      - notifications
+  /reviews:
+    post:
+      consumes:
+      - application/json
+      description: Создает новый отзыв (rating + text) от пользователя для датасета.
+      parameters:
+      - description: UserID, DatasetID, Rating, Text
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.CreateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.ReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create review
+      tags:
+      - reviews
+  /reviews/{id}:
+    delete:
+      description: Удаляет отзыв по ID.
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete review
+      tags:
+      - reviews
+    get:
+      description: Возвращает отзыв по его ID
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.ReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get review by ID
+      tags:
+      - reviews
+    put:
+      consumes:
+      - application/json
+      description: Обновляет рейтинг и текст существующего отзыва.
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New rating & text
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Update review
+      tags:
+      - reviews
+  /subscriptions:
+    delete:
+      consumes:
+      - application/json
+      description: Отписывает пользователя от обновлений датасета
+      parameters:
+      - description: UserID & DatasetID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SubscribeRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Unsubscribe user from dataset
+      tags:
+      - subscriptions
+    post:
+      consumes:
+      - application/json
+      description: Подписывает пользователя на обновления датасета
+      parameters:
+      - description: UserID & DatasetID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SubscribeRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Subscribe user to dataset
+      tags:
+      - subscriptions
+  /users/{id}:
+    delete:
+      description: Удаляет пользователя по ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete user
+      tags:
+      - users
+    get:
+      description: Возвращает данные пользователя по ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные пользователя
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Новые данные пользователя
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Update user
+      tags:
+      - users
+  /users/{id}/notifications:
+    get:
+      description: Returns all notifications for a given user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NotificationsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List user notifications
+      tags:
+      - notifications
+  /users/{id}/reviews:
+    get:
+      description: Возвращает все отзывы, созданные указанным пользователем
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ReviewsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List reviews by user
+      tags:
+      - reviews
+  /users/{id}/subscriptions:
+    get:
+      description: Возвращает список dataset_id, на которые подписан пользователь
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListSubscriptionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: List subscriptions for a user
+      tags:
+      - subscriptions
+  /users/authenticate:
+    post:
+      consumes:
+      - application/json
+      description: 'Аутентификация: email + password'
+      parameters:
+      - description: Email and Password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.AuthenticateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthenticateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: invalid credentials
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Authenticate user
+      tags:
+      - users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Регистрация нового пользователя
+      parameters:
+      - description: Username, Email, Password, Country, Role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ppo_internal_delivery_http_dto.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ppo_internal_delivery_http_dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: email already exists
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Register new user
+      tags:
+      - users
+swagger: "2.0"
