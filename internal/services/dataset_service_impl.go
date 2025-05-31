@@ -157,3 +157,22 @@ func (s *datasetService) ListDatasets(ctx context.Context, onlyPublic bool, owne
 	}
 	return s.dsRepo.FindAll(ctx)
 }
+
+func (s *datasetService) GetVersion(ctx context.Context, versionID uint64) (*entities.DatasetVersion, error) {
+	v, err := s.verRepo.FindByID(ctx, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("get version: %w", err)
+	}
+	if v == nil {
+		return nil, ErrVersionNotFound
+	}
+	return v, nil
+}
+
+func (s *datasetService) ListVersions(ctx context.Context, datasetID uint64) ([]*entities.DatasetVersion, error) {
+	vers, err := s.verRepo.FindByDatasetID(ctx, datasetID)
+	if err != nil {
+		return nil, fmt.Errorf("list versions: %w", err)
+	}
+	return vers, nil
+}

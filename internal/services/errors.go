@@ -20,6 +20,7 @@ var (
 	ErrVersionFail     = errors.New("failed to create version")
 	ErrInvalidMetadata = errors.New("invalid metadata")
 	ErrDatasetNotFound = errors.New("dataset not found")
+	ErrVersionNotFound = errors.New("version not found")
 
 	// Category errors
 	ErrNilCategory      = errors.New("category is nil")

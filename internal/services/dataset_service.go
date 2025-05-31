@@ -36,4 +36,6 @@ type DatasetService interface {
 	AddDatasetVersion(ctx context.Context, cmd AddVersionCmd, r io.Reader, size int64) (uint64, error)
 	GetDataset(ctx context.Context, id uint64) (*entities.Dataset, error)
 	ListDatasets(ctx context.Context, onlyPublic bool, ownerID *uint64) ([]*entities.Dataset, error)
+	GetVersion(ctx context.Context, versionID uint64) (*entities.DatasetVersion, error)
+	ListVersions(ctx context.Context, datasetID uint64) ([]*entities.DatasetVersion, error)
 }

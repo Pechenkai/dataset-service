@@ -11,6 +11,7 @@ require (
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/caarlos0/env/v10 v10.0.0
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/minio/minio-go/v7 v7.0.92
 	github.com/ory/dockertest/v3 v3.12.0

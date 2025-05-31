@@ -24,8 +24,8 @@ func NewNotificationService(
 	}
 }
 
-func (s *notificationService) NotifySubscribers(ctx context.Context, datasetID uint64, message string) (int, error) {
-	subscribers, err := s.subRepo.GetSubscribers(ctx, datasetID)
+func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifySubscribersCmd) (int, error) {
+	subscribers, err := s.subRepo.GetSubscribers(ctx, cmd.DatasetID)
 	if err != nil {
 		return 0, fmt.Errorf("fetch subscribers: %w", err)
 	}
@@ -35,7 +35,7 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, datasetID u
 
 	count := 0
 	for _, userID := range subscribers {
-		notif, err := entities.NewNotification(userID, datasetID, message, time.Now().UTC())
+		notif, err := entities.NewNotification(userID, cmd.DatasetID, cmd.Message, time.Now().UTC())
 		if err != nil {
 			return count, fmt.Errorf("invalid notification for user %d: %w", userID, err)
 		}
