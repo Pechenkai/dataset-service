@@ -62,3 +62,11 @@ func isNotFound(err error) bool {
 func isConflict(err error) bool {
 	return errorsIs(err, services.ErrInvalidRating)
 }
+
+func WriteStatusError(w http.ResponseWriter, status int, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
+		Error: err.Error(),
+	})
+}

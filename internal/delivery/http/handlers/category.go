@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -82,9 +83,10 @@ func GetCategory(svc services.CategoryService) http.HandlerFunc {
 			return
 		}
 		cat, err := svc.GetCategoryByID(r.Context(), id)
-		if err != nil {
+		if errors.Is(err, services.ErrCategoryNotFound) {
+			dto.WriteStatusError(w, http.StatusNotFound, err)
+		} else {
 			dto.WriteError(w, err)
-			return
 		}
 		dto.WriteJSON(w, http.StatusOK, dto.FromEntity(cat))
 	}

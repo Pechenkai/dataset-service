@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	docs "ppo/internal/delivery/http/docs"
 	"ppo/internal/delivery/http/handlers"
 	"ppo/internal/services"
 )
@@ -19,6 +20,8 @@ func NewRouter(
 	subSvc services.SubscriptionService,
 ) http.Handler {
 	r := chi.NewRouter()
+
+	docs.SwaggerInfo.BasePath = "/"
 
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),

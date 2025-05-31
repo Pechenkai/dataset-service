@@ -1,9 +1,10 @@
-package techui
+package main
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"ppo/internal/di"
@@ -18,12 +19,22 @@ func main() {
 	}
 	defer func() {
 		if err := app.Shutdown(ctx); err != nil {
-			log.Printf("error during shutdown: %v", err)
+			log.Printf("shutdown error: %v", err)
 		}
 	}()
 
-	if err := app.RootCommand.ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if os.Getenv("CLI") == "1" {
+		if err := app.RootCommand.ExecuteContext(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	port := app.Config.HTTP.Port
+	addr := fmt.Sprintf(":%d", port)
+	log.Printf("HTTP server running on %s", addr)
+	if err := http.ListenAndServe(addr, app.HTTPHandler); err != nil {
+		log.Fatalf("server error: %v", err)
 	}
 }

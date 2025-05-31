@@ -1,9 +1,6 @@
 package dto
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"regexp"
 	"time"
 

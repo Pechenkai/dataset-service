@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/caarlos0/env/v10"
+	"github.com/joho/godotenv"
 )
 
 type Database struct {
@@ -37,15 +39,13 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	_ = godotenv.Load()
+
 	cfg := &Config{}
-	if err := env.Parse(&cfg.Database); err != nil {
+	if err := env.Parse(cfg); err != nil {
 		return nil, err
 	}
-	if err := env.Parse(&cfg.HTTP); err != nil {
-		return nil, err
-	}
-	if err := env.Parse(&cfg.Storage); err != nil {
-		return nil, err
-	}
+
+	fmt.Printf("HEALTH_CHECK_PERIOD: %v\n", cfg.Database.HealthCheckPeriod)
 	return cfg, nil
 }

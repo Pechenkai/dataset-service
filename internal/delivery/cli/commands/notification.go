@@ -21,7 +21,11 @@ func NewNotificationCommand(svc services.NotificationService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dsID, _ := cmd.Flags().GetUint64("dataset")
 			message, _ := cmd.Flags().GetString("message")
-			count, err := svc.NotifySubscribers(context.Background(), dsID, message)
+			notifcmd := services.NotifySubscribersCmd{
+				dsID,
+				message,
+			}
+			count, err := svc.NotifySubscribers(context.Background(), notifcmd)
 			if err != nil {
 				return err
 			}
