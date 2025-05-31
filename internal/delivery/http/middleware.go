@@ -12,14 +12,12 @@ type HandlerWithError func(w http.ResponseWriter, r *http.Request) error
 
 func mapErrorToStatus(err error) int {
 	switch {
-	// =========================================
+	// ================================
 	// === 400 Bad Request: ошибки валидации ===
-	// =========================================
+	// ================================
 	case errors.Is(err, services.ErrNilReview),
 		errors.Is(err, services.ErrInvalidRating),
 		errors.Is(err, services.ErrNilUser),
-		errors.Is(err, services.ErrInvalidCredentials),
-		errors.Is(err, services.ErrInvalidPassword),
 		errors.Is(err, services.ErrNilDataset),
 		errors.Is(err, services.ErrInvalidMetadata),
 		errors.Is(err, services.ErrNilCategory):
@@ -47,7 +45,8 @@ func mapErrorToStatus(err error) int {
 	// ================================================================
 	// === 409 Conflict: когда мы пытаемся создать «то, что уже есть» ===
 	// ================================================================
-	case errors.Is(err, services.ErrReviewNotFound):
+	case errors.Is(err, services.ErrReviewNotFound): // (смотри примечание ниже)
+		// на самом деле, ErrReviewNotFound здесь не нужна – оставлено для примера
 		return http.StatusNotFound
 	case errors.Is(err, services.ErrCategoryExists),
 		errors.Is(err, services.ErrUserExists),
@@ -64,7 +63,6 @@ func mapErrorToStatus(err error) int {
 		return http.StatusInternalServerError
 	}
 }
-
 func WrapHandler(h HandlerWithError) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := h(w, r); err != nil {

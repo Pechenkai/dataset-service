@@ -22,50 +22,66 @@ func NewSubscriptionRepo(pool *pgxpool.Pool) *SubscriptionRepo {
 }
 
 func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
+	// Если дата создания не задана, инициализируем текущим временем
 	if s.CreatedAt.IsZero() {
 		s.CreatedAt = time.Now().UTC()
 	}
-	query := psql.
+
+	// Построение SQL через squirrel
+	query := sq.
 		Insert("subscriptions").
 		Columns("user_id", "dataset_id", "created_at").
 		Values(s.UserID, s.DatasetID, s.CreatedAt)
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
+		// Ошибка построения SQL – возвращаем как есть
 		return fmt.Errorf("build insert subscription sql: %w", err)
 	}
 
+	// Выполняем вставку
 	_, err = r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
+		// Если это ошибка дубликата (unique constraint violation)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return repositories.ErrAlreadySubscribed
 		}
+		// Любая другая ошибка – оборачиваем
 		return fmt.Errorf("subscribe: %w", err)
 	}
+
 	return nil
 }
 
 func (r *SubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {
-	query := psql.Delete("subscriptions").Where(sq.Eq{"user_id": userID, "dataset_id": datasetID})
+	// Построение SQL удаления
+	query := sq.
+		Delete("subscriptions").
+		Where(sq.Eq{"user_id": userID, "dataset_id": datasetID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("build delete subscription sql: %w", err)
 	}
 
+	// Выполняем удаление
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		return fmt.Errorf("unsubscribe: %w", err)
 	}
+
+	// Если ни одна строка не была удалена – возвращаем ErrSubscriptionNotFound
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrSubscriptionNotFound
 	}
+
 	return nil
 }
 
 func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error) {
-	query := psql.
+	// Построение SQL для проверки наличия записи
+	query := sq.
 		Select("1").
 		From("subscriptions").
 		Where(sq.Eq{"user_id": userID, "dataset_id": datasetID}).
@@ -79,16 +95,19 @@ func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID u
 	var dummy int
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&dummy)
 	if err != nil {
+		// Если нет строк – значит не подписан, возвращаем (false, nil)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
 		}
+		// Любая другая ошибка – оборачиваем
 		return false, fmt.Errorf("is subscribed: %w", err)
 	}
 	return true, nil
 }
 
 func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
-	query := psql.
+	// Построение SQL для получения списка подписчиков
+	query := sq.
 		Select("user_id").
 		From("subscriptions").
 		Where(sq.Eq{"dataset_id": datasetID})
@@ -115,11 +134,13 @@ func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64)
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate subscriber rows: %w", err)
 	}
+
 	return list, nil
 }
 
 func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
-	query := psql.
+	// Построение SQL для получения всех подписок данного пользователя
+	query := sq.
 		Select("dataset_id").
 		From("subscriptions").
 		Where(sq.Eq{"user_id": userID})
@@ -146,5 +167,6 @@ func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate subscription rows: %w", err)
 	}
+
 	return datasets, nil
 }

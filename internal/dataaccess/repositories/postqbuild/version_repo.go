@@ -3,7 +3,6 @@ package postqbuild
 import (
 	"context"
 	"errors"
-	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,6 +23,7 @@ func (r *VersionRepo) Create(ctx context.Context, v *entities.DatasetVersion) er
 	if v.UploadDate.IsZero() {
 		v.UploadDate = time.Now().UTC()
 	}
+
 	query := psql.
 		Insert("dataset_versions").
 		Columns("number", "upload_date", "filepath", "dataset_id", "change_log").
@@ -32,12 +32,12 @@ func (r *VersionRepo) Create(ctx context.Context, v *entities.DatasetVersion) er
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build insert version sql: %w", err)
+		return repositories.ErrVersionQueryBuild
 	}
 
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&v.ID)
 	if err != nil {
-		return fmt.Errorf("create version: %w", err)
+		return repositories.ErrVersionCreate
 	}
 	return nil
 }
@@ -46,6 +46,7 @@ func (r *VersionRepo) Update(ctx context.Context, v *entities.DatasetVersion) er
 	if v.UploadDate.IsZero() {
 		v.UploadDate = time.Now().UTC()
 	}
+
 	query := psql.
 		Update("dataset_versions").
 		Set("number", v.Number).
@@ -56,12 +57,12 @@ func (r *VersionRepo) Update(ctx context.Context, v *entities.DatasetVersion) er
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build update version sql: %w", err)
+		return repositories.ErrVersionQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("update version: %w", err)
+		return repositories.ErrVersionUpdate
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrVersionNotFound
@@ -70,16 +71,18 @@ func (r *VersionRepo) Update(ctx context.Context, v *entities.DatasetVersion) er
 }
 
 func (r *VersionRepo) Delete(ctx context.Context, id uint64) error {
-	query := psql.Delete("dataset_versions").Where(sq.Eq{"id": id})
+	query := psql.
+		Delete("dataset_versions").
+		Where(sq.Eq{"id": id})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build delete version sql: %w", err)
+		return repositories.ErrVersionQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("delete version: %w", err)
+		return repositories.ErrVersionDelete
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrVersionNotFound
@@ -95,18 +98,23 @@ func (r *VersionRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find version by id sql: %w", err)
+		return nil, repositories.ErrVersionQueryBuild
 	}
 
 	v := &entities.DatasetVersion{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&v.ID, &v.Number, &v.UploadDate, &v.Filepath, &v.DatasetID, &v.ChangeLog,
+		&v.ID,
+		&v.Number,
+		&v.UploadDate,
+		&v.Filepath,
+		&v.DatasetID,
+		&v.ChangeLog,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repositories.ErrVersionNotFound
 		}
-		return nil, fmt.Errorf("find version by id: %w", err)
+		return nil, repositories.ErrVersionScan
 	}
 	return v, nil
 }
@@ -120,12 +128,12 @@ func (r *VersionRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find versions by dataset sql: %w", err)
+		return nil, repositories.ErrVersionQueryBuild
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query versions by dataset id: %w", err)
+		return nil, repositories.ErrVersionList
 	}
 	defer rows.Close()
 
@@ -133,14 +141,19 @@ func (r *VersionRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]
 	for rows.Next() {
 		v := &entities.DatasetVersion{}
 		if err := rows.Scan(
-			&v.ID, &v.Number, &v.UploadDate, &v.Filepath, &v.DatasetID, &v.ChangeLog,
+			&v.ID,
+			&v.Number,
+			&v.UploadDate,
+			&v.Filepath,
+			&v.DatasetID,
+			&v.ChangeLog,
 		); err != nil {
-			return nil, fmt.Errorf("scan version row: %w", err)
+			return nil, repositories.ErrVersionScan
 		}
 		list = append(list, v)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate version rows: %w", err)
+		return nil, repositories.ErrVersionList
 	}
 	return list, nil
 }

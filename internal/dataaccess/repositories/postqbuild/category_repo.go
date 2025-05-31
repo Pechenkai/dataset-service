@@ -30,7 +30,7 @@ func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build insert category sql: %w", err)
+		return fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&c.ID)
@@ -39,7 +39,7 @@ func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return repositories.ErrCategoryAlreadyExists
 		}
-		return fmt.Errorf("create category: %w", err)
+		return fmt.Errorf("%w: %v", repositories.ErrCategoryCreate, err)
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (r *CategoryRepo) Update(ctx context.Context, c *entities.Category) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build update category sql: %w", err)
+		return fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
@@ -62,7 +62,7 @@ func (r *CategoryRepo) Update(ctx context.Context, c *entities.Category) error {
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return repositories.ErrCategoryAlreadyExists
 		}
-		return fmt.Errorf("update category: %w", err)
+		return fmt.Errorf("%w: %v", repositories.ErrCategoryUpdate, err)
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrCategoryNotFound
@@ -75,7 +75,7 @@ func (r *CategoryRepo) Delete(ctx context.Context, id uint64) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build delete category sql: %w", err)
+		return fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
@@ -84,7 +84,7 @@ func (r *CategoryRepo) Delete(ctx context.Context, id uint64) error {
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 			return repositories.ErrCategoryNotEmpty
 		}
-		return fmt.Errorf("delete category: %w", err)
+		return fmt.Errorf("%w: %v", repositories.ErrCategoryDelete, err)
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrCategoryNotFound
@@ -100,7 +100,7 @@ func (r *CategoryRepo) FindByID(ctx context.Context, id uint64) (*entities.Categ
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find category by id sql: %w", err)
+		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
 	c := &entities.Category{}
@@ -109,7 +109,7 @@ func (r *CategoryRepo) FindByID(ctx context.Context, id uint64) (*entities.Categ
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repositories.ErrCategoryNotFound
 		}
-		return nil, fmt.Errorf("find category by id: %w", err)
+		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryFind, err)
 	}
 	return c, nil
 }
@@ -122,12 +122,12 @@ func (r *CategoryRepo) FindAll(ctx context.Context) ([]*entities.Category, error
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find all categories sql: %w", err)
+		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query all categories: %w", err)
+		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryFind, err)
 	}
 	defer rows.Close()
 
@@ -135,12 +135,12 @@ func (r *CategoryRepo) FindAll(ctx context.Context) ([]*entities.Category, error
 	for rows.Next() {
 		c := &entities.Category{}
 		if err := rows.Scan(&c.ID, &c.Name, &c.Description); err != nil {
-			return nil, fmt.Errorf("scan category row: %w", err)
+			return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryScan, err)
 		}
 		list = append(list, c)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate category rows: %w", err)
+		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryIterate, err)
 	}
 	return list, nil
 }

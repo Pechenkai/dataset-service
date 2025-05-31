@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5/pgconn"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -26,6 +27,7 @@ func (r *NotificationRepo) Create(ctx context.Context, n *entities.Notification)
 	if n.CreatedAt.IsZero() {
 		n.CreatedAt = time.Now().UTC()
 	}
+
 	query := psql.
 		Insert("notifications").
 		Columns("user_id", "dataset_id", "message", "is_read", "created_at").
@@ -34,12 +36,16 @@ func (r *NotificationRepo) Create(ctx context.Context, n *entities.Notification)
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build insert notification sql: %w", err)
+		return repositories.ErrNotificationQueryBuild
 	}
 
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&n.ID)
 	if err != nil {
-		return fmt.Errorf("create notification: %w", err)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			return repositories.ErrNotificationCreate
+		}
+		return repositories.ErrNotificationCreate
 	}
 	return nil
 }
@@ -52,18 +58,23 @@ func (r *NotificationRepo) FindByID(ctx context.Context, id uint64) (*entities.N
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find notification by id sql: %w", err)
+		return nil, repositories.ErrNotificationQueryBuild
 	}
 
 	n := &entities.Notification{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&n.ID, &n.UserID, &n.DatasetID, &n.Message, &n.IsRead, &n.CreatedAt,
+		&n.ID,
+		&n.UserID,
+		&n.DatasetID,
+		&n.Message,
+		&n.IsRead,
+		&n.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repositories.ErrNotificationNotFound
 		}
-		return nil, fmt.Errorf("find notification by id: %w", err)
+		return nil, repositories.ErrNotificationCreate
 	}
 	return n, nil
 }
@@ -77,12 +88,12 @@ func (r *NotificationRepo) FindByUserID(ctx context.Context, userID uint64) ([]*
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find notifications by user sql: %w", err)
+		return nil, repositories.ErrNotificationQueryBuild
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query notifications by user: %w", err)
+		return nil, fmt.Errorf("%w: %s", repositories.ErrNotificationUpdateFail, err.Error())
 	}
 	defer rows.Close()
 
@@ -90,14 +101,19 @@ func (r *NotificationRepo) FindByUserID(ctx context.Context, userID uint64) ([]*
 	for rows.Next() {
 		n := &entities.Notification{}
 		if err := rows.Scan(
-			&n.ID, &n.UserID, &n.DatasetID, &n.Message, &n.IsRead, &n.CreatedAt,
+			&n.ID,
+			&n.UserID,
+			&n.DatasetID,
+			&n.Message,
+			&n.IsRead,
+			&n.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan notification row: %w", err)
+			return nil, repositories.ErrNotificationScanRow
 		}
 		list = append(list, n)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate notification rows: %w", err)
+		return nil, repositories.ErrNotificationIterateRows
 	}
 	return list, nil
 }
@@ -111,12 +127,12 @@ func (r *NotificationRepo) Update(ctx context.Context, n *entities.Notification)
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build update notification sql: %w", err)
+		return repositories.ErrNotificationQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("update notification: %w", err)
+		return repositories.ErrNotificationUpdateFail
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrNotificationNotFound
@@ -129,12 +145,12 @@ func (r *NotificationRepo) Delete(ctx context.Context, id uint64) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build delete notification sql: %w", err)
+		return repositories.ErrNotificationQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("delete notification: %w", err)
+		return repositories.ErrNotificationDeleteFail
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrNotificationNotFound

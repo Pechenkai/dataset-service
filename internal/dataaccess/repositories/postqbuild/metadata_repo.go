@@ -3,7 +3,6 @@ package postqbuild
 import (
 	"context"
 	"errors"
-	"fmt"
 	sq "github.com/Masterminds/squirrel"
 
 	"github.com/jackc/pgx/v5"
@@ -30,12 +29,12 @@ func (r *MetadataRepo) Create(ctx context.Context, m *entities.Metadata) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build insert metadata sql: %w", err)
+		return repositories.ErrMetadataQueryBuild
 	}
 
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&m.ID)
 	if err != nil {
-		return fmt.Errorf("create metadata: %w", err)
+		return repositories.ErrMetadataCreate
 	}
 	return nil
 }
@@ -50,12 +49,12 @@ func (r *MetadataRepo) Update(ctx context.Context, m *entities.Metadata) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build update metadata sql: %w", err)
+		return repositories.ErrMetadataQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("update metadata: %w", err)
+		return repositories.ErrMetadataUpdate
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrMetadataNotFound
@@ -68,12 +67,12 @@ func (r *MetadataRepo) Delete(ctx context.Context, id uint64) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build delete metadata sql: %w", err)
+		return repositories.ErrMetadataQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("delete metadata: %w", err)
+		return repositories.ErrMetadataDelete
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrMetadataNotFound
@@ -89,18 +88,22 @@ func (r *MetadataRepo) FindByID(ctx context.Context, id uint64) (*entities.Metad
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find metadata by id sql: %w", err)
+		return nil, repositories.ErrMetadataQueryBuild
 	}
 
 	m := &entities.Metadata{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&m.ID, &m.Format, &m.Size, &m.Tags, &m.DatasetVersionID,
+		&m.ID,
+		&m.Format,
+		&m.Size,
+		&m.Tags,
+		&m.DatasetVersionID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repositories.ErrMetadataNotFound
 		}
-		return nil, fmt.Errorf("find metadata by id: %w", err)
+		return nil, repositories.ErrMetadataScan
 	}
 	return m, nil
 }
@@ -114,12 +117,12 @@ func (r *MetadataRepo) FindByDatasetID(ctx context.Context, datasetVersionID uin
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find metadata by dataset id sql: %w", err)
+		return nil, repositories.ErrMetadataQueryBuild
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query metadata by dataset version id: %w", err)
+		return nil, repositories.ErrMetadataList
 	}
 	defer rows.Close()
 
@@ -127,14 +130,18 @@ func (r *MetadataRepo) FindByDatasetID(ctx context.Context, datasetVersionID uin
 	for rows.Next() {
 		m := &entities.Metadata{}
 		if err := rows.Scan(
-			&m.ID, &m.Format, &m.Size, &m.Tags, &m.DatasetVersionID,
+			&m.ID,
+			&m.Format,
+			&m.Size,
+			&m.Tags,
+			&m.DatasetVersionID,
 		); err != nil {
-			return nil, fmt.Errorf("scan metadata row: %w", err)
+			return nil, repositories.ErrMetadataScan
 		}
 		list = append(list, m)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate metadata rows: %w", err)
+		return nil, repositories.ErrMetadataList
 	}
 	return list, nil
 }

@@ -3,7 +3,6 @@ package postqbuild
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -33,12 +32,12 @@ func (r *DatasetRepo) Create(ctx context.Context, d *entities.Dataset) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build insert dataset sql: %w", err)
+		return repositories.ErrDatasetQueryBuild
 	}
 
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&d.ID)
 	if err != nil {
-		return fmt.Errorf("create dataset: %w", err)
+		return repositories.ErrDatasetCreate
 	}
 	return nil
 }
@@ -54,12 +53,12 @@ func (r *DatasetRepo) Update(ctx context.Context, d *entities.Dataset) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build update dataset sql: %w", err)
+		return repositories.ErrDatasetQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("update dataset: %w", err)
+		return repositories.ErrDatasetUpdate
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrDatasetNotFound
@@ -72,12 +71,12 @@ func (r *DatasetRepo) Delete(ctx context.Context, id uint64) error {
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("build delete dataset sql: %w", err)
+		return repositories.ErrDatasetQueryBuild
 	}
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		return fmt.Errorf("delete dataset: %w", err)
+		return repositories.ErrDatasetDelete
 	}
 	if cmd.RowsAffected() == 0 {
 		return repositories.ErrDatasetNotFound
@@ -93,7 +92,7 @@ func (r *DatasetRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find dataset by id sql: %w", err)
+		return nil, repositories.ErrDatasetQueryBuild
 	}
 
 	d := &entities.Dataset{}
@@ -106,7 +105,7 @@ func (r *DatasetRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repositories.ErrDatasetNotFound
 		}
-		return nil, fmt.Errorf("find dataset by id: %w", err)
+		return nil, repositories.ErrDatasetScan
 	}
 	return d, nil
 }
@@ -120,12 +119,12 @@ func (r *DatasetRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entit
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find by user sql: %w", err)
+		return nil, repositories.ErrDatasetQueryBuild
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query datasets by user id: %w", err)
+		return nil, repositories.ErrDatasetScan
 	}
 	defer rows.Close()
 
@@ -137,12 +136,12 @@ func (r *DatasetRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entit
 			&d.OwnerID, &d.CategoryID, &d.IsPublic,
 			&d.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan dataset row: %w", err)
+			return nil, repositories.ErrDatasetScan
 		}
 		list = append(list, d)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate dataset rows: %w", err)
+		return nil, repositories.ErrDatasetScan
 	}
 	return list, nil
 }
@@ -155,12 +154,12 @@ func (r *DatasetRepo) FindAll(ctx context.Context) ([]*entities.Dataset, error) 
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find all sql: %w", err)
+		return nil, repositories.ErrDatasetQueryBuild
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query all datasets: %w", err)
+		return nil, repositories.ErrDatasetList
 	}
 	defer rows.Close()
 
@@ -172,12 +171,12 @@ func (r *DatasetRepo) FindAll(ctx context.Context) ([]*entities.Dataset, error) 
 			&d.OwnerID, &d.CategoryID, &d.IsPublic,
 			&d.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan dataset row: %w", err)
+			return nil, repositories.ErrDatasetList
 		}
 		list = append(list, d)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate dataset rows: %w", err)
+		return nil, repositories.ErrDatasetList
 	}
 	return list, nil
 }
@@ -190,14 +189,13 @@ func (r *DatasetRepo) FindPublic(ctx context.Context) ([]*entities.Dataset, erro
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("build find public sql: %w", err)
+		return nil, repositories.ErrDatasetQueryBuild
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query public datasets: %w", err)
+		return nil, repositories.ErrDatasetScan
 	}
-	defer rows.Close()
 
 	var list []*entities.Dataset
 	for rows.Next() {
@@ -207,12 +205,12 @@ func (r *DatasetRepo) FindPublic(ctx context.Context) ([]*entities.Dataset, erro
 			&d.OwnerID, &d.CategoryID, &d.IsPublic,
 			&d.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan public dataset row: %w", err)
+			return nil, repositories.ErrDatasetScan
 		}
 		list = append(list, d)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate public dataset rows: %w", err)
+		return nil, repositories.ErrDatasetScan
 	}
 	return list, nil
 }

@@ -26,26 +26,43 @@ func (r *ReviewRepo) Create(ctx context.Context, rv *entities.Review) error {
 	if rv.CreatedAt.IsZero() {
 		rv.CreatedAt = time.Now().UTC()
 	}
-	query := psql.
+
+	// Формируем SQL с помощью Squirrel
+	query := sq.
 		Insert("reviews").
-		Columns("user_id", "dataset_id", "rating", "created_at", "text").
-		Values(rv.UserID, rv.DatasetID, rv.Rating, rv.CreatedAt, rv.Text).
+		Columns(
+			"user_id",
+			"dataset_id",
+			"rating",
+			"created_at",
+			"text",
+		).
+		Values(
+			rv.UserID,
+			rv.DatasetID,
+			rv.Rating,
+			rv.CreatedAt,
+			rv.Text,
+		).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
+		// Не получилось собрать SQL-запрос
 		return fmt.Errorf("build insert review sql: %w", err)
 	}
 
+	// Выполняем INSERT и сразу считываем сгенерированный ID
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&rv.ID)
 	if err != nil {
+		// Любая ошибка на этом этапе считается «ошибкой создания»
 		return fmt.Errorf("create review: %w", err)
 	}
 	return nil
 }
 
 func (r *ReviewRepo) Update(ctx context.Context, rv *entities.Review) error {
-	query := psql.
+	query := sq.
 		Update("reviews").
 		Set("rating", rv.Rating).
 		Set("text", rv.Text).
@@ -58,16 +75,18 @@ func (r *ReviewRepo) Update(ctx context.Context, rv *entities.Review) error {
 
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
+		// Если PostgreSQL вернул ошибку «нарушение ограничений» или что-то ещё, мы просто оборачиваем
 		return fmt.Errorf("update review: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
+		// Если не было ни одной строки, значит review с таким ID не найден
 		return repositories.ErrReviewNotFound
 	}
 	return nil
 }
 
 func (r *ReviewRepo) Delete(ctx context.Context, id uint64) error {
-	query := psql.Delete("reviews").Where(sq.Eq{"id": id})
+	query := sq.Delete("reviews").Where(sq.Eq{"id": id})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
@@ -85,7 +104,7 @@ func (r *ReviewRepo) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *ReviewRepo) FindByID(ctx context.Context, id uint64) (*entities.Review, error) {
-	query := psql.
+	query := sq.
 		Select("id", "user_id", "dataset_id", "rating", "created_at", "text").
 		From("reviews").
 		Where(sq.Eq{"id": id})
@@ -97,7 +116,12 @@ func (r *ReviewRepo) FindByID(ctx context.Context, id uint64) (*entities.Review,
 
 	rv := &entities.Review{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&rv.ID, &rv.UserID, &rv.DatasetID, &rv.Rating, &rv.CreatedAt, &rv.Text,
+		&rv.ID,
+		&rv.UserID,
+		&rv.DatasetID,
+		&rv.Rating,
+		&rv.CreatedAt,
+		&rv.Text,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -109,7 +133,7 @@ func (r *ReviewRepo) FindByID(ctx context.Context, id uint64) (*entities.Review,
 }
 
 func (r *ReviewRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.Review, error) {
-	query := psql.
+	query := sq.
 		Select("id", "user_id", "dataset_id", "rating", "created_at", "text").
 		From("reviews").
 		Where(sq.Eq{"dataset_id": datasetID}).
@@ -128,13 +152,18 @@ func (r *ReviewRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*
 
 	var list []*entities.Review
 	for rows.Next() {
-		r := &entities.Review{}
+		rItem := &entities.Review{}
 		if err := rows.Scan(
-			&r.ID, &r.UserID, &r.DatasetID, &r.Rating, &r.CreatedAt, &r.Text,
+			&rItem.ID,
+			&rItem.UserID,
+			&rItem.DatasetID,
+			&rItem.Rating,
+			&rItem.CreatedAt,
+			&rItem.Text,
 		); err != nil {
 			return nil, fmt.Errorf("scan review row: %w", err)
 		}
-		list = append(list, r)
+		list = append(list, rItem)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate review rows: %w", err)
@@ -143,7 +172,7 @@ func (r *ReviewRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*
 }
 
 func (r *ReviewRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entities.Review, error) {
-	query := psql.
+	query := sq.
 		Select("id", "user_id", "dataset_id", "rating", "created_at", "text").
 		From("reviews").
 		Where(sq.Eq{"user_id": userID}).
@@ -162,13 +191,18 @@ func (r *ReviewRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entiti
 
 	var list []*entities.Review
 	for rows.Next() {
-		r := &entities.Review{}
+		rItem := &entities.Review{}
 		if err := rows.Scan(
-			&r.ID, &r.UserID, &r.DatasetID, &r.Rating, &r.CreatedAt, &r.Text,
+			&rItem.ID,
+			&rItem.UserID,
+			&rItem.DatasetID,
+			&rItem.Rating,
+			&rItem.CreatedAt,
+			&rItem.Text,
 		); err != nil {
 			return nil, fmt.Errorf("scan review row: %w", err)
 		}
-		list = append(list, r)
+		list = append(list, rItem)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate review rows: %w", err)

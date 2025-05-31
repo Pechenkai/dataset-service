@@ -27,6 +27,7 @@ var (
 	ErrCategoryExists   = errors.New("category already exists")
 	ErrCategoryNotEmpty = errors.New("category not empty")
 	ErrCategoryNotFound = errors.New("category not found")
+	ErrCategoryCreate   = errors.New("failed to create category")
 
 	// Notification errors
 	ErrNotificationNotFound = errors.New("notification not found")
