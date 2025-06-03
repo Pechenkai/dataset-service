@@ -1,0 +1,47 @@
+{{ define "title" }}Отзывы{{ end }}
+{{ define "content" }}
+<h2>Отзывы</h2>
+
+{{ if .FilterDatasetID }}
+<p>Фильтровано по Dataset ID: <strong>{{ .FilterDatasetID }}</strong></p>
+{{ end }}
+{{ if .FilterUserID }}
+<p>Фильтровано по User ID: <strong>{{ .FilterUserID }}</strong></p>
+{{ end }}
+
+<table class="striped">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>User ID</th>
+        <th>Dataset ID</th>
+        <th>Рейтинг</th>
+        <th>Текст</th>
+        <th>Дата</th>
+        <th>Действия</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Reviews }}
+    <tr>
+        <td>{{ .ID }}</td>
+        <td>{{ .UserID }}</td>
+        <td>{{ .DatasetID }}</td>
+        <td>{{ .Rating }}</td>
+        <td>{{ .Text }}</td>
+        <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+        <td>
+            <a href="/reviews/{{ .ID }}/edit">Редактировать</a> |
+            <form method="POST" action="/reviews/{{ .ID }}/delete" style="display:inline;">
+                <button type="submit" onclick="return confirm('Удалить отзыв?');">Удалить</button>
+            </form>
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+
+<p>
+    <a href="/reviews/new">Новый отзыв</a>
+</p>
+{{ end }}

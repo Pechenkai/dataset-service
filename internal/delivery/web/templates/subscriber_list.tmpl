@@ -1,0 +1,14 @@
+{{ define "title" }}Подписчики датасета {{ .DatasetID }}{{ end }}
+{{ define "content" }}
+<h2>Подписчики датасета {{ .DatasetID }}</h2>
+
+<ul>
+  {{ range .Subscribers }}
+  <li>User ID: {{ .UserID }}</li>
+  {{ end }}
+</ul>
+
+<p>
+  <a href="/datasets/{{ .DatasetID }}">Назад к датасету</a>
+</p>
+{{ end }}

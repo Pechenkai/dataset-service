@@ -1,0 +1,31 @@
+{{ define "title" }}{{ if .IsNew }}Новый отзыв{{ else }}Редактирование отзыва #{{ .Form.ID }}{{ end }}{{ end }}
+{{ define "content" }}
+<h2>{{ if .IsNew }}Создание отзыва{{ else }}Редактирование отзыва #{{ .Form.ID }}{{ end }}</h2>
+
+<form method="POST" action="{{ .FormAction }}">
+    {{ if not .IsNew }}
+    <input type="hidden" name="id" value="{{ .Form.ID }}">
+    {{ end }}
+    <div>
+        {{ if .IsNew }}
+        <label for="dataset_id">Dataset ID:</label><br>
+        <input type="number" id="dataset_id" name="dataset_id" required value="{{ .Form.DatasetID }}">
+        {{ else }}
+        <p><strong>Dataset ID:</strong> {{ .Form.DatasetID }}</p>
+        {{ end }}
+    </div>
+
+    <div>
+        <label for="rating">Рейтинг (1–5):</label><br>
+        <input type="number" id="rating" name="rating" min="1" max="5" required value="{{ .Form.Rating }}">
+    </div>
+
+    <div>
+        <label for="text">Текст:</label><br>
+        <textarea id="text" name="text" rows="3" required>{{ .Form.Text }}</textarea>
+    </div>
+
+    <button type="submit">{{ if .IsNew }}Создать{{ else }}Обновить{{ end }}</button>
+    <a href="/reviews">Отмена</a>
+</form>
+{{ end }}

@@ -1,56 +1,74 @@
 package config
 
 import (
+	"github.com/spf13/viper"
 	"time"
-
-	"github.com/caarlos0/env/v10"
-	"github.com/joho/godotenv"
 )
 
 type Database struct {
-	DSN               string        `env:"DB_DSN,required"`
-	MaxConns          int32         `env:"DB_MAX_CONNS" envDefault:"20"`
-	MinConns          int32         `env:"DB_MIN_CONNS" envDefault:"2"`
-	MaxConnIdleTime   time.Duration `env:"DB_MAX_CONN_IDLE_TIME" envDefault:"60s"`
-	HealthCheckPeriod time.Duration `env:"DB_HEALTH_CHECK_PERIOD" envDefault:"30s"`
-	ConnectTimeout    time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`
+	DSN               string        `mapstructure:"dsn"`
+	MaxConns          int32         `mapstructure:"max_conns"`
+	MinConns          int32         `mapstructure:"min_conns"`
+	MaxConnIdleTime   time.Duration `mapstructure:"max_conn_idle_time"`
+	HealthCheckPeriod time.Duration `mapstructure:"health_check_period"`
+	ConnectTimeout    time.Duration `mapstructure:"connect_timeout"`
 }
 
 type HTTP struct {
-	Host         string        `env:"HTTP_HOST" envDefault:"0.0.0.0"`
-	Port         int           `env:"HTTP_PORT" envDefault:"8080"`
-	ReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT" envDefault:"5s"`
-	WriteTimeout time.Duration `env:"HTTP_WRITE_TIMEOUT" envDefault:"10s"`
+	Host         string        `mapstructure:"host"`
+	Port         int           `mapstructure:"port"`
+	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout time.Duration `mapstructure:"write_timeout"`
 }
 
 type Storage struct {
-	Endpoint  string `env:"S3_ENDPOINT,required"`
-	AccessKey string `env:"S3_ACCESS_KEY,required"`
-	SecretKey string `env:"S3_SECRET_KEY,required"`
-	Region    string `env:"S3_REGION" envDefault:"us-east-1"`
-	Bucket    string `env:"S3_BUCKET,required"`
+	Endpoint  string `mapstructure:"endpoint"`
+	AccessKey string `mapstructure:"access_key"`
+	SecretKey string `mapstructure:"secret_key"`
+	Region    string `mapstructure:"region"`
+	Bucket    string `mapstructure:"bucket"`
+}
+
+type TechUI struct {
+	Host string `env:"TECHUI_HOST" envDefault:"0.0.0.0"`
+	Port int    `env:"TECHUI_PORT" envDefault:"8090"`
 }
 
 type LogConfig struct {
-	Level      string `env:"LOG_LEVEL" envDefault:"info"`
-	Format     string `env:"LOG_FORMAT" envDefault:"console"` // "console" или "json"
-	TimeFormat string `env:"LOG_TIME_FORMAT" envDefault:"2006-01-02T15:04:05.000Z07:00"`
+	Level      string `mapstructure:"level"`
+	Format     string `mapstructure:"format"`
+	TimeFormat string `mapstructure:"time_format"`
+	FilePath   string `mapstructure:"file"`
 }
+
 type Config struct {
-	Database Database
-	HTTP     HTTP
-	Storage  Storage
-	LogCfg   LogConfig
+	Database Database  `mapstructure:"database"`
+	HTTP     HTTP      `mapstructure:"http"`
+	Storage  Storage   `mapstructure:"storage"`
+	LogCfg   LogConfig `mapstructure:"log"`
+	TechUI   TechUI    `mapstructure:"techui"`
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load()
+	v := viper.New()
+	v.SetConfigName("config")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(".")
+	v.AutomaticEnv() // дополнительно подхватит переменные окружения
 
-	cfg := &Config{}
+	// значения по умолчанию (если не заданы ни в yaml, ни в ENV)
+	v.SetDefault("log.level", "info")
+	v.SetDefault("log.format", "console")
+	v.SetDefault("log.time_format", "2006-01-02T15:04:05.000Z07:00")
+	v.SetDefault("log.file", "")
 
-	if err := env.Parse(cfg); err != nil {
+	if err := v.ReadInConfig(); err != nil {
 		return nil, err
 	}
 
+	cfg := &Config{}
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }

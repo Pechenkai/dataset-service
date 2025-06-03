@@ -1,0 +1,17 @@
+{{ define "title" }}Новое уведомление{{ end }}
+{{ define "content" }}
+<h2>Отправить уведомление подписчикам</h2>
+
+<form method="POST" action="/notifications">
+    <div>
+        <label for="dataset_id">Dataset ID:</label><br>
+        <input type="number" id="dataset_id" name="dataset_id" required value="{{ .Form.DatasetID }}">
+    </div>
+    <div>
+        <label for="message">Сообщение:</label><br>
+        <textarea id="message" name="message" rows="3" required>{{ .Form.Message }}</textarea>
+    </div>
+    <button type="submit">Отправить</button>
+    <a href="/notifications">Отмена</a>
+</form>
+{{ end }}

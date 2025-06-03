@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ block "title" . }}Dataset Hub{{ end }}</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+<header>
+  <h1>Dataset Hub</h1>
+  <nav>
+    <a href="/categories">Категории</a> |
+    <a href="/datasets">Датасеты</a> |
+    <a href="/notifications">Уведомления</a> |
+    <a href="/reviews">Отзывы</a> |
+    <a href="/subscriptions">Подписки</a> |
+    <a href="/users">Пользователи</a> |
+    <a href="/login">Вход</a>
+  </nav>
+  <hr>
+</header>
+
+<main>
+  {{ block "content" . }}{{ end }}
+</main>
+
+<footer>
+  <hr>
+  <small>&copy; 2025 Dataset Hub</small>
+</footer>
+</body>
+</html>

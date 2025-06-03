@@ -1,0 +1,50 @@
+{{ define "title" }}Новый датасет{{ end }}
+{{ define "content" }}
+<h2>Создание нового датасета</h2>
+
+<form method="POST" action="/datasets" enctype="multipart/form-data">
+    <div>
+        <label for="name">Название:</label><br>
+        <input type="text" id="name" name="name" required value="{{ .Form.Name }}">
+    </div>
+
+    <div>
+        <label for="description">Описание:</label><br>
+        <textarea id="description" name="description" rows="3">{{ .Form.Description }}</textarea>
+    </div>
+
+    <div>
+        <label for="category_id">Category ID:</label><br>
+        <input type="number" id="category_id" name="category_id" required value="{{ .Form.CategoryID }}">
+    </div>
+
+    <div>
+        <label>
+            <input type="checkbox" name="is_public" {{ if .Form.IsPublic }}checked{{ end }}> Публичный
+        </label>
+    </div>
+
+    <div>
+        <label for="file">Файл датасета:</label><br>
+        <input type="file" id="file" name="file" accept="*" required>
+    </div>
+
+    <div>
+        <label for="meta_format">Meta Format:</label><br>
+        <input type="text" id="meta_format" name="meta_format" value="{{ .Form.MetaFormat }}">
+    </div>
+
+    <div>
+        <label for="meta_tags">Meta Tags:</label><br>
+        <input type="text" id="meta_tags" name="meta_tags" value="{{ .Form.MetaTags }}">
+    </div>
+
+    <div>
+        <label for="meta_size">Meta Size:</label><br>
+        <input type="number" id="meta_size" name="meta_size" value="{{ .Form.MetaSize }}">
+    </div>
+
+    <button type="submit">Создать</button>
+    <a href="/datasets">Отмена</a>
+</form>
+{{ end }}

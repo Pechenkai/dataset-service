@@ -1,0 +1,15 @@
+{{ define "title" }}Пользователь {{ .User.ID }}{{ end }}
+{{ define "content" }}
+<h2>Просмотр пользователя #{{ .User.ID }}</h2>
+<p><strong>Username:</strong> {{ .User.Username }}</p>
+<p><strong>Email:</strong> {{ .User.Email }}</p>
+<p><strong>Страна:</strong> {{ .User.Country }}</p>
+<p><strong>Роль:</strong> {{ .User.Role }}</p>
+<p><strong>Заблокирован:</strong> {{ if .User.IsBlocked }}Да{{ else }}Нет{{ end }}</p>
+<p><strong>Дата регистрации:</strong> {{ .User.RegistrationDate.Format "2006-01-02 15:04" }}</p>
+
+<p>
+  <a href="/users/{{ .User.ID }}/edit">Редактировать</a> |
+  <a href="/users">Назад к списку</a>
+</p>
+{{ end }}

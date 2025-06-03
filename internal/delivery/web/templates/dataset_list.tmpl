@@ -1,0 +1,34 @@
+{{ define "title" }}Список датасетов{{ end }}
+{{ define "content" }}
+<h2>Список датасетов</h2>
+
+<table class="striped">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Название</th>
+        <th>Категория ID</th>
+        <th>Владелец ID</th>
+        <th>Публичный</th>
+        <th>Дата создания</th>
+        <th>Действия</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Datasets }}
+    <tr>
+        <td>{{ .ID }}</td>
+        <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
+        <td>{{ .CategoryID }}</td>
+        <td>{{ .OwnerID }}</td>
+        <td>{{ if .IsPublic }}Да{{ else }}Нет{{ end }}</td>
+        <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+        <td>
+            <a href="/datasets/{{ .ID }}">Просмотр</a>
+            {{/* Редактирование и удаление можно добавить позже */}}
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ end }}

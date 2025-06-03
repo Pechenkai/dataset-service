@@ -1,0 +1,31 @@
+{{ define "title" }}Мои подписки{{ end }}
+{{ define "content" }}
+<h2>Мои подписки</h2>
+
+<table class="striped">
+    <thead>
+    <tr>
+        <th>Dataset ID</th>
+        <th>Действие</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Subscriptions }}
+    <tr>
+        <td>{{ .DatasetID }}</td>
+        <td>
+            <form method="POST" action="/subscriptions/{{ .DatasetID }}/unsubscribe" style="display:inline;">
+                <button type="submit" onclick="return confirm('Отписаться от датасета {{ .DatasetID }}?');">
+                    Отписаться
+                </button>
+            </form>
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+
+<p>
+    <a href="/subscriptions/new">Новая подписка</a>
+</p>
+{{ end }}

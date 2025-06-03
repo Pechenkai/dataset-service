@@ -35,4 +35,5 @@ type UserService interface {
 	UpdateUser(ctx context.Context, cmd UpdateUserCmd) error
 	DeleteUser(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*entities.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*entities.User, error)
 }

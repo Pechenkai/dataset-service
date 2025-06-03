@@ -1,0 +1,35 @@
+{{ define "title" }}Уведомления{{ end }}
+{{ define "content" }}
+<h2>Уведомления</h2>
+
+<table class="striped">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Dataset ID</th>
+        <th>Сообщение</th>
+        <th>Прочитано</th>
+        <th>Дата</th>
+        <th>Действие</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Notifications }}
+    <tr>
+        <td>{{ .ID }}</td>
+        <td>{{ .DatasetID }}</td>
+        <td>{{ .Message }}</td>
+        <td>{{ if .IsRead }}Да{{ else }}Нет{{ end }}</td>
+        <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+        <td>
+            {{ if not .IsRead }}
+            <form method="POST" action="/notifications/{{ .ID }}/read" style="display:inline;">
+                <button type="submit">Отметить как прочитанное</button>
+            </form>
+            {{ end }}
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ end }}

@@ -1,0 +1,13 @@
+{{ define "title" }}Новая подписка{{ end }}
+{{ define "content" }}
+<h2>Подписаться на датасет</h2>
+
+<form method="POST" action="/subscriptions">
+    <div>
+        <label for="dataset_id">Dataset ID:</label><br>
+        <input type="number" id="dataset_id" name="dataset_id" required value="{{ .Form.DatasetID }}">
+    </div>
+    <button type="submit">Подписаться</button>
+    <a href="/subscriptions">Отмена</a>
+</form>
+{{ end }}

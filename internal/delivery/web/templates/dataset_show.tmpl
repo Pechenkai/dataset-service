@@ -1,0 +1,15 @@
+{{ define "title" }}Датасет {{ .Dataset.ID }}{{ end }}
+{{ define "content" }}
+<h2>Просмотр датасета</h2>
+<p><strong>ID:</strong> {{ .Dataset.ID }}</p>
+<p><strong>Название:</strong> {{ .Dataset.Name }}</p>
+<p><strong>Описание:</strong> {{ .Dataset.Description }}</p>
+<p><strong>Категория ID:</strong> {{ .Dataset.CategoryID }}</p>
+<p><strong>Владелец ID:</strong> {{ .Dataset.OwnerID }}</p>
+<p><strong>Публичный:</strong> {{ if .Dataset.IsPublic }}Да{{ else }}Нет{{ end }}</p>
+<p><strong>Дата создания:</strong> {{ .Dataset.CreatedAt.Format "2006-01-02 15:04" }}</p>
+
+<p>
+    <a href="/datasets">Назад к списку</a>
+</p>
+{{ end }}

@@ -1,0 +1,22 @@
+{{ define "title" }}{{ if .IsNew }}Новая категория{{ else }}Редактирование категории{{ end }}{{ end }}
+{{ define "content" }}
+<h2>{{ if .IsNew }}Создание новой категории{{ else }}Редактирование категории #{{ .Form.ID }}{{ end }}</h2>
+
+<form method="POST" action="{{ .FormAction }}">
+  {{ if not .IsNew }}
+  <input type="hidden" name="id" value="{{ .Form.ID }}">
+  {{ end }}
+  <div>
+    <label for="name">Название:</label><br>
+    <input type="text" id="name" name="name" value="{{ .Form.Name }}" required>
+  </div>
+
+  <div>
+    <label for="description">Описание:</label><br>
+    <textarea id="description" name="description" rows="3">{{ .Form.Description }}</textarea>
+  </div>
+
+  <button type="submit">{{ if .IsNew }}Создать{{ else }}Обновить{{ end }}</button>
+  <a href="{{ if .IsNew }}/categories{{ else }}/categories/{{ .Form.ID }}{{ end }}">Отмена</a>
+</form>
+{{ end }}

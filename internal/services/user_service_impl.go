@@ -281,3 +281,28 @@ func (s *userService) GetUserByID(ctx context.Context, id uint64) (*entities.Use
 	)
 	return user, nil
 }
+
+// GetUserByID возвращает пользователя по его ID.
+func (s *userService) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
+	s.logger.Debug("GetUserByEmail called", zap.String("user_email", email))
+
+	user, err := s.repo.FindByEmail(ctx, email)
+	if err != nil {
+		s.logger.Error("error fetching user by Email",
+			zap.Error(err),
+			zap.String("email", email),
+		)
+		return nil, fmt.Errorf("fetch user: %w", err)
+	}
+	if user == nil {
+		s.logger.Warn("user not found", zap.String("email", email))
+		return nil, ErrUserNotFound
+	}
+
+	s.logger.Info("user fetched successfully",
+		zap.Uint64("user_id", user.ID),
+		zap.String("email", user.Email),
+		zap.String("username", user.Username),
+	)
+	return user, nil
+}

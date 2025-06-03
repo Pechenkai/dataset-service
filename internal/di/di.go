@@ -3,11 +3,14 @@ package di
 import (
 	"context"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"
 	httpdelivery "ppo/internal/delivery/http"
 	"ppo/internal/logger"
 	"ppo/internal/storage"
+
+	webui "ppo/internal/delivery/web"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
@@ -24,6 +27,7 @@ type App struct {
 	HTTPHandler http.Handler
 	RootCommand *cobra.Command
 	Logger      *zap.Logger
+	WebHandler  chi.Router
 }
 
 func Build(ctx context.Context) (*App, error) {
@@ -51,21 +55,21 @@ func Build(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	catRepo := postqbuild.NewCategoryRepo(dbPool)
-	dsRepo := postqbuild.NewDatasetRepo(dbPool)
-	verRepo := postqbuild.NewVersionRepo(dbPool)
-	mdRepo := postqbuild.NewMetadataRepo(dbPool)
-	notifRepo := postqbuild.NewNotificationRepo(dbPool)
-	subRepo := postqbuild.NewSubscriptionRepo(dbPool)
-	revRepo := postqbuild.NewReviewRepo(dbPool)
-	userRepo := postqbuild.NewUserRepo(dbPool)
+	catRepo := postqbuild.NewCategoryRepo(dbPool, zapLogger)
+	dsRepo := postqbuild.NewDatasetRepo(dbPool, zapLogger)
+	verRepo := postqbuild.NewVersionRepo(dbPool, zapLogger)
+	mdRepo := postqbuild.NewMetadataRepo(dbPool, zapLogger)
+	notifRepo := postqbuild.NewNotificationRepo(dbPool, zapLogger)
+	subRepo := postqbuild.NewSubscriptionRepo(dbPool, zapLogger)
+	revRepo := postqbuild.NewReviewRepo(dbPool, zapLogger)
+	userRepo := postqbuild.NewUserRepo(dbPool, zapLogger)
 
-	catSvc := services.NewCategoryService(catRepo)
-	dsSvc := services.NewDatasetService(dsRepo, verRepo, mdRepo, s3)
-	notifSvc := services.NewNotificationService(notifRepo, subRepo)
-	revSvc := services.NewReviewService(revRepo)
-	userSvc := services.NewUserService(userRepo)
-	subSvc := services.NewSubscriptionService(subRepo)
+	catSvc := services.NewCategoryService(catRepo, zapLogger)
+	dsSvc := services.NewDatasetService(dsRepo, verRepo, mdRepo, s3, zapLogger)
+	notifSvc := services.NewNotificationService(notifRepo, subRepo, zapLogger)
+	revSvc := services.NewReviewService(revRepo, zapLogger)
+	userSvc := services.NewUserService(userRepo, zapLogger)
+	subSvc := services.NewSubscriptionService(subRepo, zapLogger)
 
 	router := httpdelivery.NewRouter(
 		catSvc,
@@ -74,6 +78,17 @@ func Build(ctx context.Context) (*App, error) {
 		revSvc,
 		userSvc,
 		subSvc,
+		zapLogger,
+	)
+
+	webrouter := webui.NewRouter(
+		catSvc,
+		dsSvc,
+		notifSvc,
+		revSvc,
+		subSvc,
+		userSvc,
+		zapLogger,
 	)
 
 	rootCmd := cli.NewRootCommand(
@@ -90,6 +105,7 @@ func Build(ctx context.Context) (*App, error) {
 		DB:          dbPool,
 		HTTPHandler: router,
 		RootCommand: rootCmd,
+		WebHandler:  webrouter,
 	}, nil
 }
 

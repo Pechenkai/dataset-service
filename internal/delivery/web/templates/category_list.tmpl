@@ -1,0 +1,30 @@
+{{ define "title" }}Список категорий{{ end }}
+{{ define "content" }}
+<h2>Список категорий</h2>
+
+<table class="striped">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Название</th>
+        <th>Описание</th>
+        <th>Действия</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Categories }}
+    <tr>
+        <td>{{ .ID }}</td>
+        <td><a href="/categories/{{ .ID }}">{{ .Name }}</a></td>
+        <td>{{ .Description }}</td>
+        <td>
+            <a href="/categories/{{ .ID }}/edit">Редактировать</a> |
+            <form style="display:inline;" method="POST" action="/categories/{{ .ID }}/delete">
+                <button type="submit" onclick="return confirm('Удалить категорию?');">Удалить</button>
+            </form>
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ end }}

@@ -1,0 +1,19 @@
+{{ define "title" }}Вход пользователя{{ end }}
+{{ define "content" }}
+<h2>Вход (Login)</h2>
+
+<form method="POST" action="/login">
+  <div>
+    <label for="email">Email:</label><br>
+    <input type="email" id="email" name="email" required value="{{ .Form.Email }}">
+  </div>
+
+  <div>
+    <label for="password">Пароль:</label><br>
+    <input type="password" id="password" name="password" required>
+  </div>
+
+  <button type="submit">Войти</button>
+  <a href="/users/new">Регистрация</a>
+</form>
+{{ end }}
