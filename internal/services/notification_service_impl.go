@@ -17,7 +17,6 @@ type notificationService struct {
 	logger    *zap.Logger
 }
 
-// NewNotificationService создаёт экземпляр NotificationService с привязанным логгером.
 func NewNotificationService(
 	notifRepo repositories.NotificationRepository,
 	subRepo repositories.SubscriptionRepository,
@@ -31,14 +30,12 @@ func NewNotificationService(
 	}
 }
 
-// NotifySubscribers рассылает сообщение всем подписчикам указанного датасета.
 func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifySubscribersCmd) (int, error) {
 	s.logger.Debug("NotifySubscribers called",
 		zap.Uint64("dataset_id", cmd.DatasetID),
 		zap.String("message", cmd.Message),
 	)
 
-	// 1) Получаем список userID подписчиков из репозитория
 	subscribers, err := s.subRepo.GetSubscribers(ctx, cmd.DatasetID)
 	if err != nil {
 		s.logger.Error("failed to fetch subscribers",
@@ -57,7 +54,6 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 
 	count := 0
 	for _, userID := range subscribers {
-		// 2) Создаём новую сущность Notification
 		notif, err := entities.NewNotification(userID, cmd.DatasetID, cmd.Message, time.Now().UTC())
 		if err != nil {
 			s.logger.Error("failed to construct notification entity",
@@ -65,7 +61,6 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 				zap.Uint64("user_id", userID),
 				zap.Uint64("dataset_id", cmd.DatasetID),
 			)
-			// Возвращаем количество уже успешно созданных уведомлений
 			return count, fmt.Errorf("invalid notification for user %d: %w", userID, err)
 		}
 		s.logger.Debug("notification entity constructed",
@@ -73,14 +68,12 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 			zap.Uint64("dataset_id", cmd.DatasetID),
 		)
 
-		// 3) Пытаемся сохранить уведомление через репозиторий
 		if err := s.notifRepo.Create(ctx, notif); err != nil {
 			s.logger.Error("failed to create notification in repository",
 				zap.Error(err),
 				zap.Uint64("user_id", userID),
 				zap.Uint64("dataset_id", cmd.DatasetID),
 			)
-			// Возвращаем количество уже созданных (успешных) уведомлений
 			return count, fmt.Errorf("create notification for user %d: %w", userID, err)
 		}
 
@@ -99,7 +92,6 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 	return count, nil
 }
 
-// GetNotificationsByUser возвращает все уведомления для данного пользователя.
 func (s *notificationService) GetNotificationsByUser(ctx context.Context, userID uint64) ([]*entities.Notification, error) {
 	s.logger.Debug("GetNotificationsByUser called",
 		zap.Uint64("user_id", userID),
@@ -121,13 +113,11 @@ func (s *notificationService) GetNotificationsByUser(ctx context.Context, userID
 	return notifs, nil
 }
 
-// MarkAsRead устанавливает флаг «прочитано» для конкретного уведомления.
 func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uint64) error {
 	s.logger.Debug("MarkAsRead called",
 		zap.Uint64("notification_id", notificationID),
 	)
 
-	// 1) Сначала пытаемся получить уведомление по ID
 	notif, err := s.notifRepo.FindByID(ctx, notificationID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrNotificationNotFound) {
@@ -143,14 +133,12 @@ func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uin
 		return fmt.Errorf("fetch notification: %w", err)
 	}
 	if notif == nil {
-		// На всякий случай: если репозиторий вернул (nil, nil)
 		s.logger.Warn("notification is nil after fetch",
 			zap.Uint64("notification_id", notificationID),
 		)
 		return ErrNotificationNotFound
 	}
 
-	// 2) Отмечаем «прочитано»
 	notif.IsRead = true
 	if err := s.notifRepo.Update(ctx, notif); err != nil {
 		if errors.Is(err, repositories.ErrNotificationNotFound) {

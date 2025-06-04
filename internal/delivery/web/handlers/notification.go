@@ -3,6 +3,7 @@ package handlers
 import (
 	"html/template"
 	"net/http"
+	"ppo/internal/delivery/web/middleware"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -38,8 +39,8 @@ func (h *NotificationHandler) RegisterRoutes(r chi.Router) {
 // List показывает все уведомления для текущего пользователя.
 // GET /notifications
 func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
-	// TODO: вместо 1 забрать реальный userID из контекста/сессии
-	userID := uint64(1)
+	currentUID, currentRole := middleware.FromContext(r.Context())
+	userID := currentUID
 
 	notifs, err := h.service.GetNotificationsByUser(r.Context(), userID)
 	if err != nil {
@@ -60,9 +61,13 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		Title         string
+		Role          string
+		UserID        uint64
 		Notifications []*dto.NotificationDTO
 	}{
 		Title:         "Мои уведомления",
+		Role:          currentRole,
+		UserID:        currentUID,
 		Notifications: notifications,
 	}
 
@@ -77,6 +82,8 @@ func (h *NotificationHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	// DTO для формы создания уведомления
 	formDTO := &dto.CreateNotificationForm{}
 
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	// Парсим только layout.tmpl + notification_form.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
@@ -86,10 +93,14 @@ func (h *NotificationHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		Title      string
+		Role       string
+		UserID     uint64
 		FormAction string
 		Form       *dto.CreateNotificationForm
 	}{
 		Title:      "Новое уведомление",
+		Role:       currentRole,
+		UserID:     currentUID,
 		FormAction: "/notifications",
 		Form:       formDTO,
 	}

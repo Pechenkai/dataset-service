@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"ppo/internal/delivery/web/middleware"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -27,13 +28,20 @@ func NewCategoryHandler(svc services.CategoryService, log *zap.Logger) *Category
 
 // RegisterRoutes регистрирует маршрут для CategoryHandler.
 func (h *CategoryHandler) RegisterRoutes(r chi.Router) {
+	// Список и просмотр категории — доступны всем
 	r.Get("/categories", h.List)
-	r.Get("/categories/new", h.NewForm)
-	r.Post("/categories", h.Create)
 	r.Get("/categories/{id}", h.Show)
-	r.Get("/categories/{id}/edit", h.EditForm)
-	r.Post("/categories/{id}", h.Update)
-	r.Post("/categories/{id}/delete", h.Delete)
+
+	// Создание новой категории — только admin
+	r.With(middleware.RequireRole("admin")).Get("/categories/new", h.NewForm)
+	r.With(middleware.RequireRole("admin")).Post("/categories", h.Create)
+
+	// Редактирование — только admin
+	r.With(middleware.RequireRole("admin")).Get("/categories/{id}/edit", h.EditForm)
+	r.With(middleware.RequireRole("admin")).Post("/categories/{id}", h.Update)
+
+	// Удаление — только admin
+	r.With(middleware.RequireRole("admin")).Post("/categories/{id}/delete", h.Delete)
 }
 
 // List отображает список всех категорий.
@@ -46,12 +54,18 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	// Собираем данные для шаблона
 	data := struct {
 		Title      string
+		Role       string
+		UserID     uint64
 		Categories []*dto.CategoryDTO
 	}{
 		Title:      "Список категорий",
+		Role:       currentRole,
+		UserID:     currentUID,
 		Categories: dto.ToCategoryDTOs(cats),
 	}
 
@@ -84,12 +98,18 @@ func (h *CategoryHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	data := struct {
 		Title    string
 		Category *dto.CategoryDTO
+		Role     string
+		UserID   uint64
 	}{
 		Title:    fmt.Sprintf("Категория #%d", cat.ID),
 		Category: dto.ToCategoryDTO(cat),
+		Role:     currentRole,
+		UserID:   currentUID,
 	}
 
 	// Парсим только layout.tmpl + category_view.tmpl
@@ -107,13 +127,19 @@ func (h *CategoryHandler) Show(w http.ResponseWriter, r *http.Request) {
 // NewForm показывает форму создания новой категории.
 // GET /categories/new
 func (h *CategoryHandler) NewForm(w http.ResponseWriter, r *http.Request) {
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	data := struct {
 		Title      string
+		Role       string
+		UserID     uint64
 		IsNew      bool
 		FormAction string
 		Form       *dto.CreateCategoryForm
 	}{
 		Title:      "Новая категория",
+		Role:       currentRole,
+		UserID:     currentUID,
 		IsNew:      true,
 		FormAction: "/categories",
 		Form:       &dto.CreateCategoryForm{},
@@ -171,14 +197,20 @@ func (h *CategoryHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	data := struct {
 		Title      string
 		IsNew      bool
+		Role       string
+		UserID     uint64
 		FormAction string
 		Form       *dto.UpdateCategoryForm
 	}{
 		Title:      fmt.Sprintf("Редактирование категории #%d", id),
 		IsNew:      false,
+		Role:       currentRole,
+		UserID:     currentUID,
 		FormAction: fmt.Sprintf("/categories/%d", id),
 		Form: &dto.UpdateCategoryForm{
 			ID:          cat.ID,

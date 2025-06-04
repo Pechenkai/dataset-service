@@ -45,4 +45,7 @@ type CreateDatasetForm struct {
 	Description string
 	CategoryID  uint64
 	IsPublic    bool
+	MetaFormat  string
+	MetaTags    string
+	MetaSize    uint64
 }

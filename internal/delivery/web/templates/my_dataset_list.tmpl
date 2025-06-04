@@ -1,0 +1,36 @@
+{{ define "title" }}Мои датасеты{{ end }}
+
+{{ define "content" }}
+<h2>Мои датасеты</h2>
+
+<table class="striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Название</th>
+      <th>Описание</th>
+      <th>Публичность</th>
+      <th>Действия</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range .Datasets }}
+      <tr>
+        <td>{{ .ID }}</td>
+        <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
+        <td>{{ .Description }}</td>
+        <td>{{ if .IsPublic }}Да{{ else }}Нет{{ end }}</td>
+        <td>
+          <!-- Редактировать / Удалить при необходимости -->
+          <a href="/datasets/{{ .ID }}/edit">Редактировать</a> |
+          <form method="POST" action="/datasets/{{ .ID }}/delete" style="display:inline;">
+            <button type="submit" onclick="return confirm('Удалить датасет?');">Удалить</button>
+          </form>
+        </td>
+      </tr>
+    {{ end }}
+  </tbody>
+</table>
+
+<p><a href="/datasets/new">Создать новый датасет</a></p>
+{{ end }}

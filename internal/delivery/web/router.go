@@ -23,7 +23,7 @@ func NewRouter(
 ) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	
+
 	r.Use(webmid.AuthMiddleware)
 
 	// Category
@@ -31,7 +31,7 @@ func NewRouter(
 	catHandler.RegisterRoutes(r)
 
 	// Dataset
-	dsHandler := handlers.NewDatasetHandler(dsSvc, logger)
+	dsHandler := handlers.NewDatasetHandler(dsSvc, revSvc, logger)
 	dsHandler.RegisterRoutes(r)
 
 	// Notification

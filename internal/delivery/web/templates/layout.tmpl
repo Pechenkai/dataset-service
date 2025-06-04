@@ -10,12 +10,23 @@
   <h1>Dataset Hub</h1>
   <nav>
     <a href="/categories">Категории</a> |
-    <a href="/datasets">Датасеты</a> |
+    <a href="/datasets">Публичные датасеты</a> |
+    {{ if or (eq .Role "user") (eq .Role "admin") }}
+      <a href="/my-datasets">Мои датасеты</a> |
+    {{ end }}
     <a href="/notifications">Уведомления</a> |
     <a href="/reviews">Отзывы</a> |
     <a href="/subscriptions">Подписки</a> |
-    <a href="/users">Пользователи</a> |
-    <a href="/login">Вход</a>
+    {{ if eq .Role "admin" }}
+      <a href="/users">Пользователи</a> |
+    {{ end }}
+    {{ if eq .Role "guest" }}
+      <a href="/login">Вход</a>
+    {{ else }}
+      <form action="/logout" method="post" style="display:inline;">
+        <button type="submit">Выйти</button>
+      </form>
+    {{ end }}
   </nav>
   <hr>
 </header>

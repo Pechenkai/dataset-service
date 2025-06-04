@@ -1,15 +1,54 @@
-{{ define "title" }}Датасет {{ .Dataset.ID }}{{ end }}
-{{ define "content" }}
-<h2>Просмотр датасета</h2>
-<p><strong>ID:</strong> {{ .Dataset.ID }}</p>
-<p><strong>Название:</strong> {{ .Dataset.Name }}</p>
-<p><strong>Описание:</strong> {{ .Dataset.Description }}</p>
-<p><strong>Категория ID:</strong> {{ .Dataset.CategoryID }}</p>
-<p><strong>Владелец ID:</strong> {{ .Dataset.OwnerID }}</p>
-<p><strong>Публичный:</strong> {{ if .Dataset.IsPublic }}Да{{ else }}Нет{{ end }}</p>
-<p><strong>Дата создания:</strong> {{ .Dataset.CreatedAt.Format "2006-01-02 15:04" }}</p>
+{{ define "title" }}Датасет #{{ .Dataset.ID }}{{ end }}
 
-<p>
-    <a href="/datasets">Назад к списку</a>
-</p>
+{{ define "content" }}
+<h2>Датасет #{{ .Dataset.ID }}: {{ .Dataset.Name }}</h2>
+<p><strong>Описание:</strong> {{ .Dataset.Description }}</p>
+<p><strong>Владелец:</strong> {{ .Dataset.OwnerUsername }}</p>
+<p><strong>Публичный:</strong> {{ if .Dataset.IsPublic }}Да{{ else }}Нет{{ end }}</p>
+<p><strong>Имя файла:</strong> {{ .Dataset.FileName }}</p>
+<p><strong>Метаданные (формат):</strong> {{ .Dataset.MetaFormat }}</p>
+<p><strong>Размер метаданных:</strong> {{ .Dataset.MetaSize }}</p>
+<p><strong>Теги:</strong> {{ .Dataset.MetaTags }}</p>
+
+<hr>
+
+<h3>Отзывы</h3>
+{{ if .Reviews }}
+  <ul>
+    {{ range .Reviews }}
+      <li>
+        <strong>Пользователь #{{ .UserID }} (рейтинг: {{ .Rating }}):</strong><br>
+        {{ .Text }}<br>
+        <small>— {{ .CreatedAt.Format "2006-01-02 15:04" }}</small>
+      </li>
+    {{ end }}
+  </ul>
+{{ else }}
+  <p>Пока нет отзывов.</p>
+{{ end }}
+
+{{ if .CanReview }}
+  <hr>
+  <h3>Оставить отзыв</h3>
+  <form action="{{ .ReviewAction }}" method="post">
+    <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
+    <div>
+      <label for="rating">Рейтинг (1–5):</label><br>
+      <select id="rating" name="rating" required>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+    <div>
+      <label for="text">Текст отзыва:</label><br>
+      <textarea id="text" name="text" rows="4" cols="50" required></textarea>
+    </div>
+    <button type="submit">Отправить отзыв</button>
+  </form>
+{{ end }}
+
+<p><a href="{{ if or (eq .Role "user") (eq .Role "admin") }}/my-datasets{{ else }}/datasets{{ end }}">Назад</a></p>
 {{ end }}

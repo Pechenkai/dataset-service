@@ -18,7 +18,6 @@ type userService struct {
 	logger *zap.Logger
 }
 
-// NewUserService создаёт экземпляр UserService с привязанным логгером.
 func NewUserService(repo repositories.UserRepository, logger *zap.Logger) UserService {
 	logger.Debug("NewUserService initialized")
 	return &userService{
@@ -27,8 +26,6 @@ func NewUserService(repo repositories.UserRepository, logger *zap.Logger) UserSe
 	}
 }
 
-// Register регистрирует нового пользователя.
-// Register регистрирует нового пользователя.
 func (s *userService) Register(ctx context.Context, cmd RegisterUserCmd) (uint64, error) {
 	s.logger.Debug("Register called",
 		zap.String("username", cmd.Username),
@@ -37,7 +34,6 @@ func (s *userService) Register(ctx context.Context, cmd RegisterUserCmd) (uint64
 		zap.String("role", cmd.Role),
 	)
 
-	// 1. Валидируем входные данные через фабрику сущности
 	user, err := entities.NewUser(cmd.Username, cmd.Email, cmd.Password, cmd.Country, cmd.Role, time.Now().UTC())
 	if err != nil {
 		s.logger.Error("failed to validate user data",
@@ -52,7 +48,6 @@ func (s *userService) Register(ctx context.Context, cmd RegisterUserCmd) (uint64
 		zap.String("email", user.Email),
 	)
 
-	// 2. Проверяем, нет ли уже пользователя с таким email
 	existing, err := s.repo.FindByEmail(ctx, user.Email)
 	if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
 		s.logger.Error("error checking existing user by email",
@@ -68,7 +63,6 @@ func (s *userService) Register(ctx context.Context, cmd RegisterUserCmd) (uint64
 		return 0, ErrUserExists
 	}
 
-	// 3. Хешируем пароль в bcrypt
 	hashed, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		s.logger.Error("failed to hash password",
@@ -79,7 +73,6 @@ func (s *userService) Register(ctx context.Context, cmd RegisterUserCmd) (uint64
 	user.Password = string(hashed)
 	s.logger.Debug("password hashed for user", zap.String("email", user.Email))
 
-	// 4. Сохраняем в БД
 	if err := s.repo.Create(ctx, user); err != nil {
 		if errors.Is(err, repositories.ErrEmailAlreadyExists) {
 			s.logger.Warn("repository indicates email already exists",
@@ -101,13 +94,11 @@ func (s *userService) Register(ctx context.Context, cmd RegisterUserCmd) (uint64
 	return user.ID, nil
 }
 
-// Authenticate проверяет, что email+пароль совпадают, и возвращает сущность User.
 func (s *userService) Authenticate(ctx context.Context, cmd AuthenticateUserCmd) (*entities.User, error) {
 	s.logger.Debug("Authenticate called",
 		zap.String("email", cmd.Email),
 	)
 
-	// 1. Получаем пользователя по email
 	user, err := s.repo.FindByEmail(ctx, cmd.Email)
 	if err != nil {
 		if errors.Is(err, repositories.ErrUserNotFound) {
@@ -123,7 +114,6 @@ func (s *userService) Authenticate(ctx context.Context, cmd AuthenticateUserCmd)
 		return nil, fmt.Errorf("fetch user: %w", err)
 	}
 
-	// 2. Проверяем, не заблокирован ли пользователь
 	if user.IsBlocked {
 		s.logger.Warn("blocked user tried to authenticate",
 			zap.String("email", cmd.Email),
@@ -131,7 +121,6 @@ func (s *userService) Authenticate(ctx context.Context, cmd AuthenticateUserCmd)
 		return nil, ErrUserBlocked
 	}
 
-	// 3. Сравниваем хэш пароля с введённым
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(cmd.Password)); err != nil {
 		s.logger.Warn("invalid password attempt",
 			zap.String("email", cmd.Email),
@@ -146,9 +135,6 @@ func (s *userService) Authenticate(ctx context.Context, cmd AuthenticateUserCmd)
 	return user, nil
 }
 
-// UpdateUser обновляет профиль пользователя:
-// – если email изменился, проверяем, что новый email не занят;
-// – при необходимости хешируем новый пароль.
 func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 	s.logger.Debug("UpdateUser called",
 		zap.Uint64("user_id", cmd.ID),
@@ -156,7 +142,6 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 		zap.String("new_username", cmd.Username),
 	)
 
-	// 1. Получаем существующего пользователя
 	user, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		s.logger.Error("error fetching user by ID",
@@ -176,12 +161,10 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 		zap.String("current_email", user.Email),
 	)
 
-	// 2. Обновляем username, если передано
 	if cmd.Username != "" {
 		user.Username = cmd.Username
 	}
 
-	// 3. Если email поменялся, проверяем дублирование
 	if cmd.Email != "" && cmd.Email != user.Email {
 		s.logger.Debug("email change detected, checking duplicate",
 			zap.Uint64("user_id", user.ID),
@@ -205,7 +188,6 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 		user.Email = cmd.Email
 	}
 
-	// 4. Если передали новый пароль – хешируем
 	if cmd.Password != "" {
 		s.logger.Debug("hashing new password for user", zap.Uint64("user_id", user.ID))
 		hashed, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), bcrypt.DefaultCost)
@@ -219,12 +201,10 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 		user.Password = string(hashed)
 	}
 
-	// 5. Обновляем остальные поля
 	user.Country = cmd.Country
 	user.IsBlocked = cmd.IsBlocked
 	user.Role = cmd.Role
 
-	// 6. Сохраняем изменения
 	if err := s.repo.Update(ctx, user); err != nil {
 		if errors.Is(err, repositories.ErrUserNotFound) {
 			s.logger.Warn("user not found during update",
@@ -246,7 +226,6 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 	return nil
 }
 
-// DeleteUser удаляет пользователя по ID.
 func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 	s.logger.Debug("DeleteUser called", zap.Uint64("user_id", id))
 
@@ -266,7 +245,6 @@ func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// GetUserByID возвращает пользователя по его ID.
 func (s *userService) GetUserByID(ctx context.Context, id uint64) (*entities.User, error) {
 	s.logger.Debug("GetUserByID called", zap.Uint64("user_id", id))
 
@@ -291,8 +269,6 @@ func (s *userService) GetUserByID(ctx context.Context, id uint64) (*entities.Use
 	return user, nil
 }
 
-// GetUserByEmail возвращает пользователя по его email.
-// Раньше у вас был дублирующий GetUserByID, теперь даём корректное имя.
 func (s *userService) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
 	s.logger.Debug("GetUserByEmail called", zap.String("user_email", email))
 

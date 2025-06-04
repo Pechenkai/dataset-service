@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"ppo/internal/delivery/web/middleware"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -32,17 +33,24 @@ func NewReviewHandler(svc services.ReviewService, log *zap.Logger) *ReviewHandle
 // RegisterRoutes регистрирует маршруты для отзывов.
 func (h *ReviewHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/reviews", h.List)
-	r.Get("/reviews/new", h.NewForm)
-	r.Post("/reviews", h.Create)
-	r.Get("/reviews/{id}/edit", h.EditForm)
-	r.Post("/reviews/{id}", h.Update)
-	r.Post("/reviews/{id}/delete", h.Delete)
+	r.With(middleware.RequireRole("user", "admin")).
+		Get("/reviews/new", h.NewForm)
+	r.With(middleware.RequireRole("user", "admin")).
+		Post("/reviews", h.Create)
+	r.With(middleware.RequireRole("user", "admin")).
+		Get("/reviews/{id}/edit", h.EditForm)
+	r.With(middleware.RequireRole("user", "admin")).
+		Post("/reviews/{id}", h.Update)
+	r.With(middleware.RequireRole("user", "admin")).
+		Post("/reviews/{id}/delete", h.Delete)
 	r.Get("/reviews/summary/{dataset_id}", h.Summary)
 }
 
 // List показывает все отзывы (с опциональным фильтром по dataset_id или user_id).
 // GET /reviews
 func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	// Если задан query-параметр dataset_id, показываем только для него
 	if dsIDStr := r.URL.Query().Get("dataset_id"); dsIDStr != "" {
 		dsID, err := strconv.ParseUint(dsIDStr, 10, 64)
@@ -67,10 +75,14 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 			data := struct {
 				Title           string
 				Reviews         []*dto.ReviewDTO
+				Role            string
+				User            uint64
 				FilterDatasetID uint64
 			}{
 				Title:           fmt.Sprintf("Отзывы для датасета #%d", dsID),
 				Reviews:         reviewDTOs,
+				Role:            currentRole,
+				User:            currentUID,
 				FilterDatasetID: dsID,
 			}
 
@@ -103,10 +115,14 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 			data := struct {
 				Title        string
 				Reviews      []*dto.ReviewDTO
+				User         uint64
+				Role         string
 				FilterUserID uint64
 			}{
 				Title:        fmt.Sprintf("Отзывы пользователя #%d", uID),
 				Reviews:      reviewDTOs,
+				User:         currentUID,
+				Role:         currentRole,
 				FilterUserID: uID,
 			}
 
@@ -137,8 +153,12 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		Title   string
 		Reviews []*dto.ReviewDTO
+		Role    string
+		User    uint64
 	}{
 		Title:   "Все отзывы",
+		User:    currentUID,
+		Role:    currentRole,
 		Reviews: reviewDTOs,
 	}
 
@@ -152,6 +172,8 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *ReviewHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	formDTO := &dto.CreateReviewForm{}
 
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -162,10 +184,14 @@ func (h *ReviewHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 		Title      string
 		FormAction string
 		Form       *dto.CreateReviewForm
+		User       uint64
+		Role       string
 	}{
 		Title:      "Новый отзыв",
 		FormAction: "/reviews",
 		Form:       formDTO,
+		User:       currentUID,
+		Role:       currentRole,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
@@ -175,48 +201,56 @@ func (h *ReviewHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 
 // Create обрабатывает POST /reviews.
 func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// 1. Разрешаем только авторизованным
+	currentUID, _ := middleware.FromContext(r.Context())
+	if currentUID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
-	// Читаем поля формы
-	dsID64, err := strconv.ParseUint(r.FormValue("dataset_id"), 10, 64)
+	dsID, err := strconv.ParseUint(r.FormValue("dataset_id"), 10, 64)
 	if err != nil {
 		h.logger.Warn("invalid dataset_id", zap.Error(err))
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	ratingInt, err := strconv.Atoi(r.FormValue("rating"))
-	if err != nil || ratingInt < int(entities.Rating1) || ratingInt > int(entities.Rating5) {
+	if err != nil || ratingInt < 1 || ratingInt > 5 {
 		h.logger.Warn("invalid rating", zap.Error(err))
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	text := r.FormValue("text")
 
-	// TODO: взять реальный userID из контекста
-	userID := uint64(1)
-
 	cmd := services.CreateReviewCmd{
-		UserID:    userID,
-		DatasetID: dsID64,
+		UserID:    currentUID,
+		DatasetID: dsID,
 		Rating:    entities.Rating(ratingInt),
 		Text:      text,
 	}
-	if _, err = h.service.CreateReview(r.Context(), cmd); err != nil {
+	_, err = h.service.CreateReview(r.Context(), cmd)
+	if err != nil {
 		h.logger.Error("CreateReview failed", zap.Error(err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	// После успешного создания перенаправляем на список с фильтром по dataset_id
-	http.Redirect(w, r, fmt.Sprintf("/reviews?dataset_id=%d", dsID64), http.StatusSeeOther)
+	// После добавления отзыва делаем редирект обратно на страницу датасета
+	http.Redirect(w, r, fmt.Sprintf("/datasets/%d", dsID), http.StatusSeeOther)
 }
 
 // EditForm отображает форму редактирования отзыва.
 // GET /reviews/{id}/edit
 func (h *ReviewHandler) EditForm(w http.ResponseWriter, r *http.Request) {
+	// 1) получаем из контекста текущего пользователя
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
+	// 2) читаем id отзыва из URL
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -224,6 +258,7 @@ func (h *ReviewHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 3) загружаем сам отзыв из БД
 	rev, err := h.service.GetReviewByID(r.Context(), id)
 	if err != nil {
 		h.logger.Warn("GetReviewByID failed", zap.Uint64("id", id), zap.Error(err))
@@ -231,6 +266,13 @@ func (h *ReviewHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 4) проверяем право: либо владелец отзыва, либо админ
+	if currentRole != "admin" && currentUID != rev.UserID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// 5) собираем DTO для формы и отображаем шаблон
 	form := &dto.UpdateReviewForm{
 		ID:     rev.ID,
 		Rating: int(rev.Rating),
@@ -248,11 +290,15 @@ func (h *ReviewHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 		IsNew      bool
 		FormAction string
 		Form       *dto.UpdateReviewForm
+		User       uint64
+		Role       string
 	}{
 		Title:      fmt.Sprintf("Редактирование отзыва #%d", id),
 		IsNew:      false,
 		FormAction: fmt.Sprintf("/reviews/%d", id),
 		Form:       form,
+		User:       currentUID,
+		Role:       currentRole,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
@@ -262,6 +308,7 @@ func (h *ReviewHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 
 // Update обрабатывает POST /reviews/{id}.
 func (h *ReviewHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// 1) получаем id отзыва
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -269,6 +316,24 @@ func (h *ReviewHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 2) достаём текущего пользователя и его роль
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
+	// 3) загружаем отзыв из БД, чтобы узнать, кто его автор
+	rev, err := h.service.GetReviewByID(r.Context(), id)
+	if err != nil {
+		h.logger.Warn("GetReviewByID failed", zap.Uint64("id", id), zap.Error(err))
+		http.NotFound(w, r)
+		return
+	}
+
+	// 4) проверяем право на изменение: только автор или админ
+	if currentRole != "admin" && currentUID != rev.UserID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// 5) парсим форму
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -282,6 +347,7 @@ func (h *ReviewHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	text := r.FormValue("text")
 
+	// 6) обновляем через сервис
 	cmd := services.UpdateReviewCmd{
 		ReviewID: id,
 		Rating:   entities.Rating(ratingInt),
@@ -293,9 +359,9 @@ func (h *ReviewHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// После обновления получаем ревью, чтобы узнать datasetID (для редиректа с фильтром)
-	rev, _ := h.service.GetReviewByID(r.Context(), id)
-	http.Redirect(w, r, fmt.Sprintf("/reviews?dataset_id=%d", rev.DatasetID), http.StatusSeeOther)
+	// 7) после успешного обновления узнаём datasetID для редиректа
+	updated, _ := h.service.GetReviewByID(r.Context(), id)
+	http.Redirect(w, r, fmt.Sprintf("/reviews?dataset_id=%d", updated.DatasetID), http.StatusSeeOther)
 }
 
 // Delete обрабатывает POST /reviews/{id}/delete.

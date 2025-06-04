@@ -36,7 +36,6 @@ func (s *datasetService) CreateDataset(
 	r io.Reader,
 	size int64,
 ) (uint64, error) {
-	// 1. Валидация входных данных
 	ds, err := entities.NewDataset(
 		cmd.Name,
 		cmd.Description,
@@ -60,7 +59,6 @@ func (s *datasetService) CreateDataset(
 		zap.Uint64("actor_id", ds.OwnerID),
 	)
 
-	// 2. Сохранение Dataset в БД
 	if err := s.dsRepo.Create(ctx, ds); err != nil {
 		s.logger.Error("failed to insert dataset into repository",
 			zap.Error(err),
@@ -75,7 +73,6 @@ func (s *datasetService) CreateDataset(
 		zap.String("name", ds.Name),
 	)
 
-	// 3. Загрузка файла в хранилище
 	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
 	url, err := s.storage.Upload(ctx, key, r, size)
 	if err != nil {
@@ -84,7 +81,6 @@ func (s *datasetService) CreateDataset(
 			zap.Uint64("dataset_id", ds.ID),
 			zap.String("storage_key", key),
 		)
-		// Так как загрузка не удалась, откатываем ранее созданный Dataset
 		if delErr := s.dsRepo.Delete(ctx, ds.ID); delErr != nil {
 			s.logger.Warn("failed to delete dataset after upload error",
 				zap.Error(delErr),
@@ -99,14 +95,12 @@ func (s *datasetService) CreateDataset(
 		zap.String("url", url),
 	)
 
-	// 4. Создание первой версии (v0.1)
 	ver, err := entities.NewDatasetVersion("v0.1", url, "", ds.ID, time.Now())
 	if err != nil {
 		s.logger.Error("failed to construct initial dataset version entity",
 			zap.Error(err),
 			zap.Uint64("dataset_id", ds.ID),
 		)
-		// Откатываем оба: файл и сам dataset
 		_ = s.storage.Delete(ctx, key)
 		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("invalid version data: %w", err)
@@ -116,7 +110,6 @@ func (s *datasetService) CreateDataset(
 		zap.String("version_number", ver.Number),
 	)
 
-	// 5. Сохранение версии в БД
 	if err := s.verRepo.Create(ctx, ver); err != nil {
 		s.logger.Error("failed to insert dataset version into repository",
 			zap.Error(err),
@@ -133,7 +126,6 @@ func (s *datasetService) CreateDataset(
 		zap.String("version_number", ver.Number),
 	)
 
-	// 6. Если есть метаданные, создаём их
 	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
 		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
 		if err != nil {
@@ -171,7 +163,6 @@ func (s *datasetService) AddDatasetVersion(
 	r io.Reader,
 	size int64,
 ) (uint64, error) {
-	// 1. Проверяем, существует ли сам Dataset
 	ds, err := s.dsRepo.FindByID(ctx, cmd.DatasetID)
 	if err != nil {
 		s.logger.Error("error fetching dataset before adding version",
@@ -189,7 +180,6 @@ func (s *datasetService) AddDatasetVersion(
 	}
 	s.logger.Debug("dataset found for new version", zap.Uint64("dataset_id", ds.ID))
 
-	// 2. Определяем следующий номер версии
 	vers, err := s.verRepo.FindByDatasetID(ctx, cmd.DatasetID)
 	if err != nil {
 		s.logger.Error("error fetching existing versions",
@@ -201,7 +191,6 @@ func (s *datasetService) AddDatasetVersion(
 	next := nextVersionNumber(vers)
 	s.logger.Debug("calculated next version number", zap.String("next_version", next), zap.Uint64("dataset_id", ds.ID))
 
-	// 3. Загружаем новый файл
 	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
 	url, err := s.storage.Upload(ctx, key, r, size)
 	if err != nil {
@@ -214,7 +203,6 @@ func (s *datasetService) AddDatasetVersion(
 	}
 	s.logger.Info("new version file uploaded", zap.Uint64("dataset_id", ds.ID), zap.String("storage_key", key), zap.String("url", url))
 
-	// 4. Собираем и сохраняем сущность версии
 	ver, err := entities.NewDatasetVersion(next, url, cmd.ChangeLog, cmd.DatasetID, time.Now())
 	if err != nil {
 		s.logger.Error("failed to construct version entity",
@@ -248,7 +236,6 @@ func (s *datasetService) AddDatasetVersion(
 		zap.String("version_number", ver.Number),
 	)
 
-	// 5. Если есть метаданные, создаём их
 	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
 		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
 		if err != nil {

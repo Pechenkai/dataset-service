@@ -82,7 +82,6 @@ func (r *SubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID ui
 		zap.Uint64("dataset_id", datasetID),
 	)
 
-	// Построение SQL удаления
 	query := psql.
 		Delete("subscriptions").
 		Where(sq.Eq{"user_id": userID, "dataset_id": datasetID})
@@ -97,7 +96,6 @@ func (r *SubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID ui
 		return fmt.Errorf("build delete subscription sql: %w", err)
 	}
 
-	// Выполняем удаление
 	cmd, err := r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		r.logger.Error("failed to execute delete subscription query",
@@ -108,7 +106,6 @@ func (r *SubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID ui
 		return fmt.Errorf("unsubscribe: %w", err)
 	}
 
-	// Если ни одна строка не была удалена – возвращаем ErrSubscriptionNotFound
 	if cmd.RowsAffected() == 0 {
 		r.logger.Warn("no subscription found to delete",
 			zap.Uint64("user_id", userID),
@@ -130,7 +127,6 @@ func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID u
 		zap.Uint64("dataset_id", datasetID),
 	)
 
-	// Построение SQL для проверки наличия записи
 	query := psql.
 		Select("1").
 		From("subscriptions").
@@ -148,7 +144,6 @@ func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID u
 	var dummy int
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&dummy)
 	if err != nil {
-		// Если нет строк – значит не подписан, возвращаем (false, nil)
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.logger.Info("user is not subscribed",
 				zap.Uint64("user_id", userID),
@@ -176,7 +171,6 @@ func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64)
 		zap.Uint64("dataset_id", datasetID),
 	)
 
-	// Построение SQL для получения списка подписчиков
 	query := psql.
 		Select("user_id").
 		From("subscriptions").
@@ -231,7 +225,6 @@ func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint
 		zap.Uint64("user_id", userID),
 	)
 
-	// Построение SQL для получения всех подписок данного пользователя
 	query := psql.
 		Select("dataset_id").
 		From("subscriptions").

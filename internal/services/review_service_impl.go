@@ -16,7 +16,6 @@ type reviewService struct {
 	logger *zap.Logger
 }
 
-// NewReviewService создаёт экземпляр ReviewService с привязанным логгером.
 func NewReviewService(repo repositories.ReviewRepository, logger *zap.Logger) ReviewService {
 	logger.Debug("NewReviewService initialized")
 	return &reviewService{
@@ -25,7 +24,6 @@ func NewReviewService(repo repositories.ReviewRepository, logger *zap.Logger) Re
 	}
 }
 
-// CreateReview создаёт новый отзыв.
 func (s *reviewService) CreateReview(ctx context.Context, cmd CreateReviewCmd) (uint64, error) {
 	s.logger.Debug("CreateReview called",
 		zap.Uint64("user_id", cmd.UserID),
@@ -33,7 +31,6 @@ func (s *reviewService) CreateReview(ctx context.Context, cmd CreateReviewCmd) (
 		zap.Int("rating", int(cmd.Rating)),
 	)
 
-	// Проверяем корректность полей через конструктор entity
 	rev, err := entities.NewReview(cmd.UserID, cmd.DatasetID, cmd.Rating, nowUTC(), cmd.Text)
 	if err != nil {
 		if errors.Is(err, entities.ErrInvalidRating) {
@@ -57,7 +54,6 @@ func (s *reviewService) CreateReview(ctx context.Context, cmd CreateReviewCmd) (
 		zap.Int("rating", int(rev.Rating)),
 	)
 
-	// Пытаемся сохранить
 	if err := s.repo.Create(ctx, rev); err != nil {
 		s.logger.Error("failed to create review in repository",
 			zap.Error(err),
@@ -76,14 +72,12 @@ func (s *reviewService) CreateReview(ctx context.Context, cmd CreateReviewCmd) (
 	return rev.ID, nil
 }
 
-// UpdateReview обновляет существующий отзыв.
 func (s *reviewService) UpdateReview(ctx context.Context, cmd UpdateReviewCmd) error {
 	s.logger.Debug("UpdateReview called",
 		zap.Uint64("review_id", cmd.ReviewID),
 		zap.Int("new_rating", int(cmd.Rating)),
 	)
 
-	// Находим существующий отзыв
 	rev, err := s.repo.FindByID(ctx, cmd.ReviewID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrReviewNotFound) {
@@ -109,7 +103,6 @@ func (s *reviewService) UpdateReview(ctx context.Context, cmd UpdateReviewCmd) e
 		zap.Int("old_rating", int(rev.Rating)),
 	)
 
-	// Проверяем валидность нового рейтинга
 	if cmd.Rating < entities.Rating1 || cmd.Rating > entities.Rating5 {
 		s.logger.Warn("invalid rating value for update",
 			zap.Uint64("review_id", cmd.ReviewID),
@@ -118,11 +111,9 @@ func (s *reviewService) UpdateReview(ctx context.Context, cmd UpdateReviewCmd) e
 		return ErrInvalidRating
 	}
 
-	// Обновляем поля
 	rev.Rating = cmd.Rating
 	rev.Text = cmd.Text
 
-	// Сохраняем изменения
 	if err := s.repo.Update(ctx, rev); err != nil {
 		if errors.Is(err, repositories.ErrReviewNotFound) {
 			s.logger.Warn("review not found during update",
@@ -144,7 +135,6 @@ func (s *reviewService) UpdateReview(ctx context.Context, cmd UpdateReviewCmd) e
 	return nil
 }
 
-// DeleteReview удаляет отзыв по ID.
 func (s *reviewService) DeleteReview(ctx context.Context, id uint64) error {
 	s.logger.Debug("DeleteReview called",
 		zap.Uint64("review_id", id),
@@ -170,7 +160,6 @@ func (s *reviewService) DeleteReview(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// GetReviewByID возвращает отзыв по его ID.
 func (s *reviewService) GetReviewByID(ctx context.Context, id uint64) (*entities.Review, error) {
 	s.logger.Debug("GetReviewByID called",
 		zap.Uint64("review_id", id),
@@ -228,7 +217,6 @@ func (s *reviewService) ListByDataset(ctx context.Context, datasetID uint64) ([]
 	return list, nil
 }
 
-// ListByUser возвращает все отзывы, оставленные конкретным пользователем.
 func (s *reviewService) ListByUser(ctx context.Context, userID uint64) ([]*entities.Review, error) {
 	s.logger.Debug("ListByUser called",
 		zap.Uint64("user_id", userID),
@@ -250,7 +238,6 @@ func (s *reviewService) ListByUser(ctx context.Context, userID uint64) ([]*entit
 	return list, nil
 }
 
-// GetRatingSummary вычисляет среднюю оценку и количество отзывов для набора данных.
 func (s *reviewService) GetRatingSummary(ctx context.Context, datasetID uint64) (RatingSummary, error) {
 	s.logger.Debug("GetRatingSummary called",
 		zap.Uint64("dataset_id", datasetID),
@@ -285,7 +272,6 @@ func (s *reviewService) GetRatingSummary(ctx context.Context, datasetID uint64) 
 	return RatingSummary{Average: avg, Count: len(reviews)}, nil
 }
 
-// nowUTC возвращает текущее время в UTC.
 func nowUTC() time.Time {
 	return time.Now().UTC()
 }
