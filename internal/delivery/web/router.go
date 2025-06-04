@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"net/http"
+	webmid "ppo/internal/delivery/web/middleware"
 	"ppo/internal/delivery/web/static"
 
 	"ppo/internal/delivery/web/handlers"
@@ -22,6 +23,8 @@ func NewRouter(
 ) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	
+	r.Use(webmid.AuthMiddleware)
 
 	// Category
 	catHandler := handlers.NewCategoryHandler(catSvc, logger)

@@ -14,6 +14,7 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrNilUser            = errors.New("user is nil")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserBlocked        = errors.New("user is blocked")
 
 	// Dataset errors
 	ErrNilDataset      = errors.New("dataset is nil")
