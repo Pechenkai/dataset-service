@@ -41,7 +41,6 @@ func NewLogger(logCfg config.LogConfig) (*zap.Logger, func(), error) {
 
 	var writer zapcore.WriteSyncer
 	if logCfg.FilePath != "" {
-		// открываем (или создаём) файл в режиме append
 		f, err := os.OpenFile(logCfg.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return nil, nil, err
@@ -53,8 +52,8 @@ func NewLogger(logCfg config.LogConfig) (*zap.Logger, func(), error) {
 	core := zapcore.NewCore(encoder, writer, level)
 
 	logger := zap.New(core,
-		zap.AddCaller(),                       // включаем вывод caller
-		zap.AddStacktrace(zapcore.ErrorLevel), // стектрейс, если уровень ≥ ERROR
+		zap.AddCaller(),
+		zap.AddStacktrace(zapcore.ErrorLevel),
 	)
 
 	closeFn := func() {

@@ -15,14 +15,12 @@ import (
 	"ppo/internal/services"
 )
 
-// DatasetHandler отвечает за CRUD операции с Dataset.
 type DatasetHandler struct {
 	service       services.DatasetService
 	reviewService services.ReviewService
 	logger        *zap.Logger
 }
 
-// NewDatasetHandler создаёт новый DatasetHandler без парсинга всех шаблонов.
 func NewDatasetHandler(svc services.DatasetService, rewsvc services.ReviewService, log *zap.Logger) *DatasetHandler {
 	return &DatasetHandler{
 		service:       svc,
@@ -31,20 +29,15 @@ func NewDatasetHandler(svc services.DatasetService, rewsvc services.ReviewServic
 	}
 }
 
-// RegisterRoutes регистрирует маршруты для операций с Dataset.
 func (h *DatasetHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/datasets", h.List)
 	r.With(middleware.RequireRole("user", "admin")).Get("/datasets/new", h.NewForm)
 	r.Post("/datasets", h.Create)
 	r.Get("/datasets/{id}", h.Show)
 	r.With(middleware.RequireRole("user", "admin")).Get("/my-datasets", h.MyList)
-	// в будущем: редактирование/удаление/версии
 }
 
-// List отображает страницу со списком всех доступных (public) датасетов.
-// GET /datasets
 func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
-	// onlyPublic = true, ownerID = nil
 	list, err := h.service.ListDatasets(r.Context(), true, nil)
 	if err != nil {
 		h.logger.Error("ListDatasets failed", zap.Error(err))
@@ -56,7 +49,6 @@ func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
 		UserID   uint64
 		Datasets []*dto.DatasetDTO
 	}{
-		// title можно не передавать, layout возьмёт из блока title
 		Role:     func() string { _, role := middleware.FromContext(r.Context()); return role }(),
 		UserID:   func() uint64 { uid, _ := middleware.FromContext(r.Context()); return uid }(),
 		Datasets: dto.ToDatasetDTOs(list),
@@ -67,10 +59,7 @@ func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Show отображает детальную страницу одного датасета (по его ID).
-// GET /datasets/{id}
 func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
-	// 1) Извлечь ID
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -78,7 +67,6 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2) Получить датасет (включая метаданные, ownerID, isPublic и т.д.)
 	ds, err := h.service.GetDataset(r.Context(), id)
 	if err != nil {
 		h.logger.Warn("GetDataset failed", zap.Uint64("id", id), zap.Error(err))
@@ -86,14 +74,12 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3) Проверка: если это приватный датасет (ds.IsPublic == false) и пользователь не владелец и не админ → 403
 	currentUID, currentRole := middleware.FromContext(r.Context())
 	if !ds.IsPublic && !(currentRole == "admin" || currentUID == ds.OwnerID) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// 4) Получить список отзывов для этого датасета
 	reviews, err := h.reviewService.ListByDataset(r.Context(), id)
 	if err != nil {
 		h.logger.Error("ListByDataset failed", zap.Error(err), zap.Uint64("datasetID", id))
@@ -101,20 +87,17 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 5) Запрос на формы создания нового отзыва:
-	canReview := (currentRole == "user" || currentRole == "admin") // или нужно дополнительно проверить, что юзер не автор датасета и что он ещё не оставлял отзыв – по требованию
+	canReview := (currentRole == "user" || currentRole == "admin")
 
-	// 6) Подготовка DTO
 	dsDTO := dto.ToDatasetDTO(ds)
-	revDTOs := dto.ToReviewDTOs(reviews) // конвертация списка reviews в DTO
+	revDTOs := dto.ToReviewDTOs(reviews)
 
 	data := struct {
-		Role      string
-		UserID    uint64
-		Dataset   *dto.DatasetDTO
-		Reviews   []*dto.ReviewDTO
-		CanReview bool
-		// Для формы отзыва:
+		Role         string
+		UserID       uint64
+		Dataset      *dto.DatasetDTO
+		Reviews      []*dto.ReviewDTO
+		CanReview    bool
 		ReviewAction string
 	}{
 		Role:         currentRole,
@@ -122,7 +105,7 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 		Dataset:      dsDTO,
 		Reviews:      revDTOs,
 		CanReview:    canReview,
-		ReviewAction: fmt.Sprintf("/reviews"), // форма POST /reviews с hidden dataset_id
+		ReviewAction: fmt.Sprintf("/reviews"),
 	}
 
 	tpl := template.Must(template.ParseFS(templates.TemplatesFS, "layout.tmpl", "dataset_show.tmpl"))
@@ -133,7 +116,6 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 
 func (h *DatasetHandler) MyList(w http.ResponseWriter, r *http.Request) {
 	currentUID, currentRole := middleware.FromContext(r.Context())
-	// currentRole гарантированно "user" или "admin"
 
 	list, err := h.service.ListDatasets(r.Context(), false, &currentUID)
 	if err != nil {
@@ -157,23 +139,17 @@ func (h *DatasetHandler) MyList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// NewForm отображает форму создания нового датасета.
-// GET /datasets/new
 func (h *DatasetHandler) NewForm(w http.ResponseWriter, r *http.Request) {
-	// 1) Получаем из контекста роль и UID
 	currentUID, currentRole := middleware.FromContext(r.Context())
 
-	// 2) Создаем пустой DTO для формы
 	formDTO := &dto.CreateDatasetForm{}
 
-	// 3) Парсим оба шаблона: layout + dataset_form
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
 		"dataset_form.tmpl",
 	))
 
-	// 4) Составляем структуру, которую передадим в шаблон
 	data := struct {
 		Title      string
 		Role       string
@@ -188,14 +164,12 @@ func (h *DatasetHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 		Form:       formDTO,
 	}
 
-	// 5) Пишем результат в HTTP
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
 		h.logger.Error("template execution error", zap.Error(err))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
 
-// Create обрабатывает POST /datasets: создаёт новый датасет + загружает файл и метаданные.
 func (h *DatasetHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const maxMemory = 10 << 20 // 10 МБ
 	if err := r.ParseMultipartForm(maxMemory); err != nil {
@@ -204,7 +178,6 @@ func (h *DatasetHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Читаем поля формы
 	name := r.FormValue("name")
 	description := r.FormValue("description")
 

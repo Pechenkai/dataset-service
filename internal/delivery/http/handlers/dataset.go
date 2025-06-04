@@ -24,13 +24,11 @@ func ListDatasets(svc services.DatasetService) middleware.HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.URL.Query()
 
-		// Определяем publicOnly
 		publicOnly := false
 		if p := q.Get("public"); p != "" {
 			publicOnly, _ = strconv.ParseBool(p)
 		}
 
-		// Определяем ownerID
 		var ownerID *uint64
 		if u := q.Get("user"); u != "" {
 			id, err := strconv.ParseUint(u, 10, 64)
@@ -39,13 +37,11 @@ func ListDatasets(svc services.DatasetService) middleware.HandlerWithError {
 			}
 		}
 
-		// Вызываем сервис
 		list, err := svc.ListDatasets(r.Context(), publicOnly, ownerID)
 		if err != nil {
 			return err
 		}
 
-		// Строим DTO и пишем в JSON
 		dto.WriteJSON(w, http.StatusOK, dto.FromDatasetList(list))
 		return nil
 	}
@@ -101,7 +97,6 @@ func GetDataset(svc services.DatasetService) middleware.HandlerWithError {
 // @Router       /datasets [post]
 func CreateDataset(svc services.DatasetService) middleware.HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// Разбираем multipart form
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			return err
 		}
@@ -116,7 +111,6 @@ func CreateDataset(svc services.DatasetService) middleware.HandlerWithError {
 		tags := r.FormValue("metaTags")
 		sz, _ := strconv.ParseUint(r.FormValue("metaSize"), 10, 64)
 
-		// Получаем файл
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			return err
@@ -133,7 +127,6 @@ func CreateDataset(svc services.DatasetService) middleware.HandlerWithError {
 			MetaFormat:  metaFmt,
 			MetaTags:    tags,
 			MetaSize:    sz,
-			// ActorID обычно из контекста / JWT, но в примере берём из cmd.ActorID
 		}
 
 		id, err := svc.CreateDataset(r.Context(), cmd, io.Reader(file), size)
@@ -141,7 +134,6 @@ func CreateDataset(svc services.DatasetService) middleware.HandlerWithError {
 			return err
 		}
 
-		// Получаем только что созданный датасет
 		d, err := svc.GetDataset(r.Context(), id)
 		if err != nil {
 			return err
@@ -198,7 +190,6 @@ func AddVersion(svc services.DatasetService) middleware.HandlerWithError {
 			MetaFormat: metaFmt,
 			MetaTags:   tags,
 			MetaSize:   sz,
-			// ActorID тоже может быть в cmd, если надо
 		}
 
 		vid, err := svc.AddDatasetVersion(r.Context(), cmd, io.Reader(file), size)

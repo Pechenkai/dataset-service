@@ -14,13 +14,11 @@ import (
 	"ppo/internal/services"
 )
 
-// NotificationHandler отвечает за работу с уведомлениями.
 type NotificationHandler struct {
 	service services.NotificationService
 	logger  *zap.Logger
 }
 
-// NewNotificationHandler создаёт новый NotificationHandler без предзагрузки всех шаблонов.
 func NewNotificationHandler(svc services.NotificationService, log *zap.Logger) *NotificationHandler {
 	return &NotificationHandler{
 		service: svc,
@@ -28,7 +26,6 @@ func NewNotificationHandler(svc services.NotificationService, log *zap.Logger) *
 	}
 }
 
-// RegisterRoutes регистрирует HTTP‐маршруты для уведомлений.
 func (h *NotificationHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/notifications", h.List)
 	r.Get("/notifications/new", h.NewForm)
@@ -36,8 +33,6 @@ func (h *NotificationHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/notifications/{id}/read", h.MarkRead)
 }
 
-// List показывает все уведомления для текущего пользователя.
-// GET /notifications
 func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	currentUID, currentRole := middleware.FromContext(r.Context())
 	userID := currentUID
@@ -49,10 +44,8 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Конвертируем в DTO
 	notifications := dto.ToNotificationDTOs(notifs)
 
-	// Парсим только layout.tmpl + notification_list.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -76,15 +69,11 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// NewForm отображает форму для рассылки уведомления подписчикам.
-// GET /notifications/new
 func (h *NotificationHandler) NewForm(w http.ResponseWriter, r *http.Request) {
-	// DTO для формы создания уведомления
 	formDTO := &dto.CreateNotificationForm{}
 
 	currentUID, currentRole := middleware.FromContext(r.Context())
 
-	// Парсим только layout.tmpl + notification_form.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -110,7 +99,6 @@ func (h *NotificationHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Create обрабатывает POST /notifications и рассылает уведомление подписчикам.
 func (h *NotificationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
@@ -138,12 +126,9 @@ func (h *NotificationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// После успеха редиректим обратно к списку уведомлений
 	http.Redirect(w, r, "/notifications", http.StatusSeeOther)
 }
 
-// MarkRead обрабатывает POST /notifications/{id}/read — помечает уведомление как прочитанное.
-// POST /notifications/{id}/read
 func (h *NotificationHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)

@@ -32,7 +32,7 @@ dirs:
 
 .PHONY: build-dataaccess-archive
 build-dataaccess-archive: dirs
-	@echo "=> Building DataAccess (postqbuild) as archive…"
+	@echo "=> Building DataAccess"
 	GO111MODULE=on $(GO) build -buildmode=archive \
 	  -o $(OBJ_DIR)/dataaccess/dataaccess.a \
 	  $(DATA_PKG)
@@ -40,7 +40,7 @@ build-dataaccess-archive: dirs
 
 .PHONY: build-services-archive
 build-services-archive: dirs
-	@echo "=> Building Services (internal/services) as archive…"
+	@echo "=> Building Services"
 	GO111MODULE=on $(GO) build -buildmode=archive \
 	  -o $(OBJ_DIR)/services/services.a \
 	  $(SVCS_PKG)
@@ -48,18 +48,18 @@ build-services-archive: dirs
 
 .PHONY: build-cli
 build-cli: build-dataaccess-archive build-services-archive
-	@echo "=> Building CLI binary…"
+	@echo "=> Building CLI"
 	GO111MODULE=on $(GO) build -o $(BIN_DIR)/cli $(CLI_PKG)
 
 
 .PHONY: build-api
 build-api: build-dataaccess-archive build-services-archive
-	@echo "=> Building API (Swagger) binary…"
+	@echo "=> Building API (Swagger)"
 	GO111MODULE=on $(GO) build -o $(BIN_DIR)/api $(API_PKG)
 
 .PHONY: build-gui
 build-gui: build-dataaccess-archive build-services-archive
-	@echo "=> Building GUI binary…"
+	@echo "=> Building GUI"
 	GO111MODULE=on $(GO) build -o $(BIN_DIR)/gui $(GUI_PKG)
 
 .PHONY: info

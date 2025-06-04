@@ -43,7 +43,7 @@ type UpdateUserRequest struct {
 	Email     string `json:"email" validate:"omitempty,email"`
 	Password  string `json:"password" validate:"omitempty,min=6"`
 	Country   string `json:"country" validate:"omitempty"`
-	IsBlocked *bool  `json:"is_blocked"` // optional
+	IsBlocked *bool  `json:"is_blocked"`
 	Role      string `json:"role" validate:"omitempty,oneof=guest user admin"`
 }
 
@@ -94,7 +94,7 @@ func FromEntityUser(u *entities.User) UserResponse {
 
 type AuthenticateResponse struct {
 	User  UserResponse `json:"user"`
-	Token string       `json:"token"` // если планируется JWT, иначе пустое
+	Token string       `json:"token"`
 }
 
 type UsersResponse struct {

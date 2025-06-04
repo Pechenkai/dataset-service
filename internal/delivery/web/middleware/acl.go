@@ -4,8 +4,6 @@ import (
 	"net/http"
 )
 
-// RequireRole принимает список ролей, которым разрешено войти.
-// Если роль из контекста не совпала ни с одной из needRoles → 403 Forbidden.
 func RequireRole(needRoles ...string) func(http.Handler) http.Handler {
 	allowed := make(map[string]bool, len(needRoles))
 	for _, r := range needRoles {

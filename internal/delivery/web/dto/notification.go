@@ -6,7 +6,6 @@ import (
 	"ppo/internal/entities"
 )
 
-// NotificationDTO — то, что рендерится в шаблонах списка.
 type NotificationDTO struct {
 	ID        uint64
 	DatasetID uint64
@@ -15,7 +14,6 @@ type NotificationDTO struct {
 	CreatedAt time.Time
 }
 
-// ToNotificationDTO конвертирует entities.Notification в NotificationDTO.
 func ToNotificationDTO(n *entities.Notification) *NotificationDTO {
 	return &NotificationDTO{
 		ID:        n.ID,
@@ -26,7 +24,6 @@ func ToNotificationDTO(n *entities.Notification) *NotificationDTO {
 	}
 }
 
-// ToNotificationDTOs конвертирует срез сущностей в срез DTO.
 func ToNotificationDTOs(list []*entities.Notification) []*NotificationDTO {
 	res := make([]*NotificationDTO, 0, len(list))
 	for _, n := range list {
@@ -35,7 +32,6 @@ func ToNotificationDTOs(list []*entities.Notification) []*NotificationDTO {
 	return res
 }
 
-// CreateNotificationForm — данные формы для рассылки уведомления подписчикам.
 type CreateNotificationForm struct {
 	DatasetID uint64
 	Message   string

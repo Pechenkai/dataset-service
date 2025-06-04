@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"ppo/internal/delivery/web/middleware"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -14,13 +15,11 @@ import (
 	"ppo/internal/services"
 )
 
-// SubscriptionHandler отвечает за работу с подписками.
 type SubscriptionHandler struct {
 	service services.SubscriptionService
 	logger  *zap.Logger
 }
 
-// NewSubscriptionHandler конструирует контроллер для подписок.
 func NewSubscriptionHandler(svc services.SubscriptionService, log *zap.Logger) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		service: svc,
@@ -28,31 +27,34 @@ func NewSubscriptionHandler(svc services.SubscriptionService, log *zap.Logger) *
 	}
 }
 
-// RegisterRoutes регистрирует все URL для подписок/подписчиков.
 func (h *SubscriptionHandler) RegisterRoutes(r chi.Router) {
-	r.Get("/subscriptions", h.ListSubscriptions)
-	r.Get("/subscriptions/new", h.NewForm)
-	r.Post("/subscriptions", h.Create)
-	r.Post("/subscriptions/{dataset_id}/unsubscribe", h.Unsubscribe)
-	r.Get("/subscribers/{dataset_id}", h.ListSubscribers)
+	r.With(middleware.RequireRole("user", "admin")).
+		Get("/subscriptions", h.ListSubscriptions)
+
+	r.With(middleware.RequireRole("user", "admin")).
+		Get("/subscriptions/new", h.NewForm)
+	r.With(middleware.RequireRole("user", "admin")).
+		Post("/subscriptions", h.Create)
+
+	r.With(middleware.RequireRole("user", "admin")).
+		Post("/subscriptions/{dataset_id}/unsubscribe", h.Unsubscribe)
+
+	r.With(middleware.RequireRole("admin")).
+		Get("/subscribers/{dataset_id}", h.ListSubscribers)
 }
 
-// ListSubscriptions показывает все подписки (datasetID) для текущего пользователя.
-// GET /subscriptions
 func (h *SubscriptionHandler) ListSubscriptions(w http.ResponseWriter, r *http.Request) {
-	// TODO: получить реальный userID из сессии/контекста
-	userID := uint64(1)
+	currentUID, currentRole := middleware.FromContext(r.Context())
 
-	list, err := h.service.ListSubscriptions(r.Context(), userID)
+	subs, err := h.service.ListSubscriptions(r.Context(), currentUID)
 	if err != nil {
-		h.logger.Error("ListSubscriptions failed", zap.Error(err), zap.Uint64("userID", userID))
+		h.logger.Error("ListSubscriptions failed", zap.Error(err), zap.Uint64("userID", currentUID))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	subscriptions := dto.ToSubscriptionDTOs(list)
+	dtoList := dto.ToSubscriptionDTOs(subs)
 
-	// Парсим только layout.tmpl + subscription_list.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -62,9 +64,13 @@ func (h *SubscriptionHandler) ListSubscriptions(w http.ResponseWriter, r *http.R
 	data := struct {
 		Title         string
 		Subscriptions []*dto.SubscriptionDTO
+		User          uint64
+		Role          string
 	}{
 		Title:         "Мои подписки",
-		Subscriptions: subscriptions,
+		Subscriptions: dtoList,
+		User:          currentUID,
+		Role:          currentRole,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
@@ -72,12 +78,11 @@ func (h *SubscriptionHandler) ListSubscriptions(w http.ResponseWriter, r *http.R
 	}
 }
 
-// NewForm рендерит форму для создания подписки.
-// GET /subscriptions/new
 func (h *SubscriptionHandler) NewForm(w http.ResponseWriter, r *http.Request) {
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
 	formDTO := &dto.CreateSubscriptionForm{}
 
-	// Парсим только layout.tmpl + subscription_form.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -88,10 +93,14 @@ func (h *SubscriptionHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 		Title      string
 		FormAction string
 		Form       *dto.CreateSubscriptionForm
+		User       uint64
+		Role       string
 	}{
 		Title:      "Новая подписка",
 		FormAction: "/subscriptions",
 		Form:       formDTO,
+		User:       currentUID,
+		Role:       currentRole,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
@@ -99,8 +108,9 @@ func (h *SubscriptionHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Create обрабатывает POST /subscriptions и создаёт подписку.
 func (h *SubscriptionHandler) Create(w http.ResponseWriter, r *http.Request) {
+	currentUID, _ := middleware.FromContext(r.Context())
+
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -113,32 +123,28 @@ func (h *SubscriptionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	// TODO: получить настоящий userID из контекста
-	userID := uint64(1)
 
-	if err := h.service.Subscribe(r.Context(), userID, dsID64); err != nil {
-		h.logger.Error("Subscribe failed", zap.Error(err), zap.Uint64("userID", userID), zap.Uint64("datasetID", dsID64))
+	if err := h.service.Subscribe(r.Context(), currentUID, dsID64); err != nil {
+		h.logger.Error("Subscribe failed", zap.Error(err), zap.Uint64("userID", currentUID), zap.Uint64("datasetID", dsID64))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// После подписки возвращаемся к списку подписок пользователя
 	http.Redirect(w, r, "/subscriptions", http.StatusSeeOther)
 }
 
-// Unsubscribe обрабатывает POST /subscriptions/{dataset_id}/unsubscribe.
 func (h *SubscriptionHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+	currentUID, _ := middleware.FromContext(r.Context())
+
 	dsIDStr := chi.URLParam(r, "dataset_id")
 	dsID, err := strconv.ParseUint(dsIDStr, 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	// TODO: получить настоящий userID из контекста
-	userID := uint64(1)
 
-	if err := h.service.Unsubscribe(r.Context(), userID, dsID); err != nil {
-		h.logger.Error("Unsubscribe failed", zap.Error(err), zap.Uint64("userID", userID), zap.Uint64("datasetID", dsID))
+	if err := h.service.Unsubscribe(r.Context(), currentUID, dsID); err != nil {
+		h.logger.Error("Unsubscribe failed", zap.Error(err), zap.Uint64("userID", currentUID), zap.Uint64("datasetID", dsID))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -146,8 +152,6 @@ func (h *SubscriptionHandler) Unsubscribe(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, "/subscriptions", http.StatusSeeOther)
 }
 
-// ListSubscribers показывает всех пользователей, подписанных на datasetID.
-// GET /subscribers/{dataset_id}
 func (h *SubscriptionHandler) ListSubscribers(w http.ResponseWriter, r *http.Request) {
 	dsIDStr := chi.URLParam(r, "dataset_id")
 	dsID, err := strconv.ParseUint(dsIDStr, 10, 64)
@@ -155,6 +159,8 @@ func (h *SubscriptionHandler) ListSubscribers(w http.ResponseWriter, r *http.Req
 		http.NotFound(w, r)
 		return
 	}
+
+	currentUID, currentRole := middleware.FromContext(r.Context())
 
 	list, err := h.service.ListSubscribers(r.Context(), dsID)
 	if err != nil {
@@ -165,7 +171,6 @@ func (h *SubscriptionHandler) ListSubscribers(w http.ResponseWriter, r *http.Req
 
 	subscribers := dto.ToSubscriberDTOs(list)
 
-	// Парсим только layout.tmpl + subscriber_list.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -176,10 +181,14 @@ func (h *SubscriptionHandler) ListSubscribers(w http.ResponseWriter, r *http.Req
 		Title       string
 		DatasetID   uint64
 		Subscribers []*dto.SubscriberDTO
+		User        uint64
+		Role        string
 	}{
 		Title:       fmt.Sprintf("Подписчики датасета #%d", dsID),
 		DatasetID:   dsID,
 		Subscribers: subscribers,
+		User:        currentUID,
+		Role:        currentRole,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {

@@ -6,7 +6,6 @@ import (
 	"ppo/internal/entities"
 )
 
-// DatasetDTO — то, что передаётся в шаблоны при отображении списка или деталей.
 type DatasetDTO struct {
 	ID          uint64
 	Name        string
@@ -17,7 +16,6 @@ type DatasetDTO struct {
 	CreatedAt   time.Time
 }
 
-// ToDatasetDTO конвертирует entities.Dataset в DatasetDTO.
 func ToDatasetDTO(d *entities.Dataset) *DatasetDTO {
 	return &DatasetDTO{
 		ID:          d.ID,
@@ -30,7 +28,6 @@ func ToDatasetDTO(d *entities.Dataset) *DatasetDTO {
 	}
 }
 
-// ToDatasetDTOs конвертирует срез entities.Dataset в срез DTO.
 func ToDatasetDTOs(list []*entities.Dataset) []*DatasetDTO {
 	result := make([]*DatasetDTO, 0, len(list))
 	for _, d := range list {
@@ -39,7 +36,6 @@ func ToDatasetDTOs(list []*entities.Dataset) []*DatasetDTO {
 	return result
 }
 
-// CreateDatasetForm представляет поля формы создания нового Dataset.
 type CreateDatasetForm struct {
 	Name        string
 	Description string

@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// UserDTO — данные пользователя, передаваемые в шаблоны.
 type UserDTO struct {
 	ID               uint64
 	Username         string
@@ -16,7 +15,6 @@ type UserDTO struct {
 	RegistrationDate time.Time
 }
 
-// ToUserDTO конвертирует entities.User → UserDTO.
 func ToUserDTO(u *entities.User) *UserDTO {
 	return &UserDTO{
 		ID:               u.ID,
@@ -29,7 +27,6 @@ func ToUserDTO(u *entities.User) *UserDTO {
 	}
 }
 
-// ToUserDTOs конвертирует срез *entities.User → срез *UserDTO.
 func ToUserDTOs(list []*entities.User) []*UserDTO {
 	res := make([]*UserDTO, 0, len(list))
 	for _, u := range list {
@@ -38,7 +35,6 @@ func ToUserDTOs(list []*entities.User) []*UserDTO {
 	return res
 }
 
-// CreateUserForm — поля формы регистрации нового пользователя.
 type CreateUserForm struct {
 	Username string
 	Email    string
@@ -47,7 +43,6 @@ type CreateUserForm struct {
 	Role     string
 }
 
-// UpdateUserForm — поля формы редактирования пользователя.
 type UpdateUserForm struct {
 	ID        uint64
 	Username  string
@@ -58,7 +53,6 @@ type UpdateUserForm struct {
 	Role      string
 }
 
-// AuthenticateForm — поля формы входа (логина).
 type AuthenticateForm struct {
 	Email    string
 	Password string

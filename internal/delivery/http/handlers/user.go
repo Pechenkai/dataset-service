@@ -23,25 +23,21 @@ import (
 // @Router       /users/register [post]
 func RegisterUserHandler(svc services.UserService) middleware.HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// 1) Распарсить JSON‐тело
 		var req dto.RegisterUserRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
 			return &dto.BadRequestError{Message: "invalid JSON payload"}
 		}
 
-		// 2) Вызов бизнес‐логики
 		id, err := svc.Register(r.Context(), req.ToCommand())
 		if err != nil {
 			return err // ErrUserExists ⇒ 409, ErrInvalidPassword ⇒ 400, др. ⇒ 500
 		}
 
-		// 3) Получить пользователя по ID, чтобы вернуть его данные
 		user, err := svc.GetUserByID(r.Context(), id)
 		if err != nil {
 			return err // обычно не случится, но маппинг на 500, если что
 		}
 
-		// 4) Записать ответ 201 и JSON
 		dto.WriteJSON(w, http.StatusCreated, dto.FromEntityUser(user))
 		return nil
 	}
@@ -72,7 +68,7 @@ func AuthenticateUserHandler(svc services.UserService) middleware.HandlerWithErr
 
 		resp := dto.AuthenticateResponse{
 			User:  dto.FromEntityUser(user),
-			Token: "", // Токен можно сгенерировать позже
+			Token: "",
 		}
 		dto.WriteJSON(w, http.StatusOK, resp)
 		return nil
@@ -132,7 +128,6 @@ func UpdateUserHandler(svc services.UserService) middleware.HandlerWithError {
 			return &dto.BadRequestError{Message: "invalid JSON payload"}
 		}
 
-		// Вызов бизнес‐логики
 		if err := svc.UpdateUser(r.Context(), req.ToCommand(id)); err != nil {
 			return err // ErrUserNotFound ⇒ 404, ErrUserExists ⇒ 409, и т. д.
 		}

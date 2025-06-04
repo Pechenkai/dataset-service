@@ -15,37 +15,28 @@ import (
 	"ppo/internal/services"
 )
 
-// CategoryHandler отвечает за CRUD‐операции с категориями.
 type CategoryHandler struct {
 	service services.CategoryService
 	logger  *zap.Logger
 }
 
-// NewCategoryHandler создает новый контроллер.
 func NewCategoryHandler(svc services.CategoryService, log *zap.Logger) *CategoryHandler {
 	return &CategoryHandler{service: svc, logger: log}
 }
 
-// RegisterRoutes регистрирует маршрут для CategoryHandler.
 func (h *CategoryHandler) RegisterRoutes(r chi.Router) {
-	// Список и просмотр категории — доступны всем
 	r.Get("/categories", h.List)
 	r.Get("/categories/{id}", h.Show)
 
-	// Создание новой категории — только admin
 	r.With(middleware.RequireRole("admin")).Get("/categories/new", h.NewForm)
 	r.With(middleware.RequireRole("admin")).Post("/categories", h.Create)
 
-	// Редактирование — только admin
 	r.With(middleware.RequireRole("admin")).Get("/categories/{id}/edit", h.EditForm)
 	r.With(middleware.RequireRole("admin")).Post("/categories/{id}", h.Update)
 
-	// Удаление — только admin
 	r.With(middleware.RequireRole("admin")).Post("/categories/{id}/delete", h.Delete)
 }
 
-// List отображает список всех категорий.
-// GET /categories
 func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	cats, err := h.service.ListCategories(r.Context())
 	if err != nil {
@@ -56,7 +47,6 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	currentUID, currentRole := middleware.FromContext(r.Context())
 
-	// Собираем данные для шаблона
 	data := struct {
 		Title      string
 		Role       string
@@ -69,7 +59,6 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		Categories: dto.ToCategoryDTOs(cats),
 	}
 
-	// Парсим только layout.tmpl + category_list.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -81,8 +70,6 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Show отображает одну категорию.
-// GET /categories/{id}
 func (h *CategoryHandler) Show(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -112,7 +99,6 @@ func (h *CategoryHandler) Show(w http.ResponseWriter, r *http.Request) {
 		UserID:   currentUID,
 	}
 
-	// Парсим только layout.tmpl + category_view.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -124,8 +110,6 @@ func (h *CategoryHandler) Show(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// NewForm показывает форму создания новой категории.
-// GET /categories/new
 func (h *CategoryHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	currentUID, currentRole := middleware.FromContext(r.Context())
 
@@ -145,7 +129,6 @@ func (h *CategoryHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 		Form:       &dto.CreateCategoryForm{},
 	}
 
-	// Парсим только layout.tmpl + category_form.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -157,8 +140,6 @@ func (h *CategoryHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Create обрабатывает сохранение новой категории.
-// POST /categories
 func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
@@ -180,8 +161,6 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/categories/%d", id), http.StatusSeeOther)
 }
 
-// EditForm показывает форму редактирования.
-// GET /categories/{id}/edit
 func (h *CategoryHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -219,7 +198,6 @@ func (h *CategoryHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Парсим только layout.tmpl + category_form.tmpl
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -231,8 +209,6 @@ func (h *CategoryHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Update обрабатывает обновление.
-// POST /categories/{id}
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -262,8 +238,6 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/categories/%d", id), http.StatusSeeOther)
 }
 
-// Delete обрабатывает удаление.
-// POST /categories/{id}/delete
 func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)

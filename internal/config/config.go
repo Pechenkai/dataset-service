@@ -54,9 +54,8 @@ func Load() (*Config, error) {
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
-	v.AutomaticEnv() // дополнительно подхватит переменные окружения
+	v.AutomaticEnv()
 
-	// значения по умолчанию (если не заданы ни в yaml, ни в ENV)
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "console")
 	v.SetDefault("log.time_format", "2006-01-02T15:04:05.000Z07:00")

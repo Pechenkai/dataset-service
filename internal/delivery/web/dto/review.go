@@ -6,7 +6,6 @@ import (
 	"ppo/internal/entities"
 )
 
-// ReviewDTO — данные одного отзыва, передаваемые в шаблоны.
 type ReviewDTO struct {
 	ID        uint64
 	UserID    uint64
@@ -16,7 +15,6 @@ type ReviewDTO struct {
 	CreatedAt time.Time
 }
 
-// ToReviewDTO конвертирует *entities.Review → *ReviewDTO.
 func ToReviewDTO(r *entities.Review) *ReviewDTO {
 	return &ReviewDTO{
 		ID:        r.ID,
@@ -28,7 +26,6 @@ func ToReviewDTO(r *entities.Review) *ReviewDTO {
 	}
 }
 
-// ToReviewDTOs конвертирует срез *entities.Review → срез *ReviewDTO.
 func ToReviewDTOs(list []*entities.Review) []*ReviewDTO {
 	res := make([]*ReviewDTO, 0, len(list))
 	for _, r := range list {
@@ -37,21 +34,17 @@ func ToReviewDTOs(list []*entities.Review) []*ReviewDTO {
 	return res
 }
 
-// CreateReviewForm — поля HTML‐формы для создания отзыва.
 type CreateReviewForm struct {
 	DatasetID uint64
-	Rating    int // вводим как int, но приведём к entities.Rating
+	Rating    int
 	Text      string
 }
 
-// UpdateReviewForm — поля формы для редактирования существующего отзыва.
 type UpdateReviewForm struct {
 	ID     uint64
 	Rating int
 	Text   string
 }
-
-// RatingSummaryDTO — передаётся в шаблон для показа средней оценки и количества отзывов.
 type RatingSummaryDTO struct {
 	Average float64
 	Count   int

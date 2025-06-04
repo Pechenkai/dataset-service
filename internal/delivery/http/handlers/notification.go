@@ -24,7 +24,6 @@ import (
 // @Router       /datasets/{id}/notifications [post]
 func NotifySubscribersHandler(svc services.NotificationService) middleware.HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// 1) Парсим dataset ID из URL
 		idParam := chi.URLParam(r, "id")
 		datasetID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
@@ -32,7 +31,6 @@ func NotifySubscribersHandler(svc services.NotificationService) middleware.Handl
 			return &dto.BadRequestError{Message: "invalid dataset ID"}
 		}
 
-		// 2) Считываем тело JSON (dto.NotifyRequest) и маппим в команду
 		var req dto.NotifyRequest
 		if err := dto.DecodeJSON(r.Body, &req); err != nil {
 			return err // если это JSON-парсер, mapErrorToStatus отдаст 400 или 500
@@ -40,13 +38,11 @@ func NotifySubscribersHandler(svc services.NotificationService) middleware.Handl
 
 		cmd := req.ToCommand(datasetID)
 
-		// 3) Вызываем сервис
 		sentCount, err := svc.NotifySubscribers(r.Context(), cmd)
 		if err != nil {
 			return err
 		}
 
-		// 4) Собираем ответ и возвращаем JSON{ "sent": sentCount }
 		resp := dto.NotifyResponse{Sent: sentCount}
 		dto.WriteJSON(w, http.StatusOK, resp)
 		return nil
@@ -65,21 +61,18 @@ func NotifySubscribersHandler(svc services.NotificationService) middleware.Handl
 // @Router       /users/{id}/notifications [get]
 func GetUserNotificationsHandler(svc services.NotificationService) middleware.HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// 1) Парсим user ID из URL
 		idParam := chi.URLParam(r, "id")
 		userID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
 			return &dto.BadRequestError{Message: "invalid user ID"}
 		}
 
-		// 2) Вызываем сервис, чтобы получить список уведомлений
 		notifs, err := svc.GetNotificationsByUser(r.Context(), userID)
 		if err != nil {
 			return err
 		}
 
-		// 3) Пишем JSON-ответ (массив уведомлений)
-		resp := dto.FromEntityList(notifs) // предполагается, что это []dto.NotificationResponse
+		resp := dto.FromEntityList(notifs)
 		dto.WriteJSON(w, http.StatusOK, resp)
 		return nil
 	}
@@ -97,19 +90,16 @@ func GetUserNotificationsHandler(svc services.NotificationService) middleware.Ha
 // @Router       /notifications/{id}/read [put]
 func MarkAsReadHandler(svc services.NotificationService) middleware.HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// 1) Парсим notification ID
 		idParam := chi.URLParam(r, "id")
 		notifID, err := strconv.ParseUint(idParam, 10, 64)
 		if err != nil {
 			return &dto.BadRequestError{Message: "invalid notification ID"}
 		}
 
-		// 2) Вызываем сервис
 		if err := svc.MarkAsRead(r.Context(), notifID); err != nil {
 			return err
 		}
 
-		// 3) Возвращаем 204 No Content
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}

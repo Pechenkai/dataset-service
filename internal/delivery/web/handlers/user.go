@@ -31,33 +31,25 @@ func NewUserHandler(svc services.UserService, log *zap.Logger) *UserHandler {
 }
 
 func (h *UserHandler) RegisterRoutes(r chi.Router) {
-	// Регистрация — для всех (guest тоже)
 	r.Get("/users/new", h.NewForm)
 	r.Post("/users", h.Create)
 
-	// Логин/Logout
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
 	r.Post("/logout", h.Logout)
 
 	r.With(middleware.RequireRole("admin")).Get("/users", h.List)
 
-	// Просмотр/редактирование своего профиля
 	r.With(middleware.RequireRole("user", "admin")).Get("/users/{id}", h.Show)
 	r.With(middleware.RequireRole("user", "admin")).Get("/users/{id}/edit", h.EditForm)
 	r.With(middleware.RequireRole("user", "admin")).Post("/users/{id}", h.Update)
 
-	// Удаление — только админ
 	r.With(middleware.RequireRole("admin")).Post("/users/{id}/delete", h.Delete)
 }
 
-// Show показывает детали пользователя по ID.
-// GET /users/{id}
 func (h *UserHandler) Show(w http.ResponseWriter, r *http.Request) {
-	// 1) Извлечём из контекста: кто залогинен
 	currentUID, currentRole := middleware.FromContext(r.Context())
 
-	// 2) Параметр {id}
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -65,13 +57,11 @@ func (h *UserHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3) Если роль не admin и пытаются смотреть чужого юзера — Forbidden
 	if currentRole != "admin" && currentUID != id {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// 4) Получаем из сервиса
 	user, err := h.service.GetUserByID(r.Context(), id)
 	if err != nil {
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -103,8 +93,6 @@ func (h *UserHandler) Show(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// NewForm отображает форму регистрации (создание нового пользователя).
-// GET /users/new
 func (h *UserHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
@@ -112,7 +100,6 @@ func (h *UserHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 		"user_form.tmpl",
 	))
 
-	// Роль гостя — "guest", UID=0
 	data := struct {
 		Title      string
 		Role       string
@@ -134,7 +121,6 @@ func (h *UserHandler) NewForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Create обрабатывает POST /users — регистрация.
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
@@ -150,10 +136,8 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Role:     "user", // на форме не даём выбирать роль — всегда "user"
 	}
 
-	// Возвращает новый ID или ошибку
 	newID, err := h.service.Register(r.Context(), cmd)
 	if err != nil {
-		// Если почта занята, сервис вернёт repositories.ErrEmailAlreadyExists
 		if errors.Is(err, repositories.ErrEmailAlreadyExists) {
 			http.Error(w, "Email already exists", http.StatusConflict)
 			return
@@ -163,7 +147,6 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// После успешной регистрации — сразу логиним пользователя
 	sess, _ := session.Get(r)
 	sess.Values["uid"] = newID
 	sess.Values["role"] = "user"
@@ -172,8 +155,6 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/users/%d", newID), http.StatusSeeOther)
 }
 
-// EditForm отображает форму редактирования пользователя.
-// GET /users/{id}/edit
 func (h *UserHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 	currentUID, currentRole := middleware.FromContext(r.Context())
 	idStr := chi.URLParam(r, "id")
@@ -183,7 +164,6 @@ func (h *UserHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Проверка: либо админ, либо редактируем свой профиль
 	if currentRole != "admin" && currentUID != id {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
@@ -231,8 +211,6 @@ func (h *UserHandler) EditForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Update обрабатывает POST /users/{id} — сохраняет изменения.
-// POST /users/{id}
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	currentUID, currentRole := middleware.FromContext(r.Context())
 	idStr := chi.URLParam(r, "id")
@@ -275,8 +253,6 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/users/%d", id), http.StatusSeeOther)
 }
 
-// Delete обрабатывает POST /users/{id}/delete — удаляет пользователя.
-// (маршрут обёрнут в RequireRole("admin") => сюда может попасть только админ)
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -293,8 +269,6 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
-// LoginForm отображает форму входа.
-// GET /login
 func (h *UserHandler) LoginForm(w http.ResponseWriter, r *http.Request) {
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
@@ -302,7 +276,6 @@ func (h *UserHandler) LoginForm(w http.ResponseWriter, r *http.Request) {
 		"login_form.tmpl",
 	))
 
-	// Здесь роль=guest, userID=0
 	data := struct {
 		Title      string
 		Role       string
@@ -322,10 +295,8 @@ func (h *UserHandler) LoginForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// List показывает страницу со списком всех пользователей. (GET /users)
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	currentUID, currentRole := middleware.FromContext(r.Context())
-	// currentRole тут гарантированно "admin" (middleware.RequireRole)
 	_ = currentUID
 
 	users, err := h.service.ListAllUsers(r.Context())
@@ -335,7 +306,6 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Конвертируем в DTO
 	dtos := dto.ToUserDTOs(users)
 
 	tpl := template.Must(template.ParseFS(
@@ -361,8 +331,6 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Login обрабатывает POST /login — проверяет email+password.
-// В случае успеха сохраняет role и uid в сессии.
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		h.logger.Warn("ParseForm error", zap.Error(err))
@@ -396,7 +364,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users/"+strconv.FormatUint(user.ID, 10), http.StatusSeeOther)
 }
 
-// Logout обрабатывает POST /logout — удаляет сессию.
 func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess, _ := session.Get(r)
 	sess.Options.MaxAge = -1
