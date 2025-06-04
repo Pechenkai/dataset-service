@@ -18,6 +18,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  minio:
+    image: quay.io/minio/minio
+    container_name: ppo_minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web UI
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - ppo_minio_data:/data
 
 volumes:
   ppo_pg_data:
+  ppo_minio_data:

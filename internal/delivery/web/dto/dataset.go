@@ -7,14 +7,32 @@ import (
 )
 
 type DatasetDTO struct {
-	ID          uint64
-	Name        string
-	Description string
-	OwnerID     uint64
-	CategoryID  uint64
-	IsPublic    bool
-	CreatedAt   time.Time
+	ID           uint64
+	Name         string
+	Description  string
+	OwnerID      uint64
+	OwnerName    string // добавили
+	CategoryID   uint64
+	CategoryName string
+	IsPublic     bool
+	CreatedAt    time.Time
+
+	IsSubscribed bool
+	Reviews      []*ReviewDTO
+	HasReviews   bool
 }
+
+//func ToDatasetDTO(d *entities.Dataset) *DatasetDTO {
+//	return &DatasetDTO{
+//		ID:          d.ID,
+//		Name:        d.Name,
+//		Description: d.Description,
+//		OwnerID:     d.OwnerID,
+//		CategoryID:  d.CategoryID,
+//		IsPublic:    d.IsPublic,
+//		CreatedAt:   d.CreatedAt,
+//	}
+//}
 
 func ToDatasetDTO(d *entities.Dataset) *DatasetDTO {
 	return &DatasetDTO{

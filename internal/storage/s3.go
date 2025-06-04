@@ -22,6 +22,7 @@ func NewS3Storage(cfg config.Storage) (*S3Storage, error) {
 		Secure: false,
 		Region: cfg.Region,
 	})
+
 	if err != nil {
 		return nil, err
 	}

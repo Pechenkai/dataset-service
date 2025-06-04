@@ -16,16 +16,23 @@ import (
 )
 
 type DatasetHandler struct {
-	service       services.DatasetService
-	reviewService services.ReviewService
-	logger        *zap.Logger
+	service             services.DatasetService
+	reviewService       services.ReviewService
+	userService         services.UserService
+	categoryService     services.CategoryService
+	subscriptionService services.SubscriptionService
+	logger              *zap.Logger
 }
 
-func NewDatasetHandler(svc services.DatasetService, rewsvc services.ReviewService, log *zap.Logger) *DatasetHandler {
+func NewDatasetHandler(svc services.DatasetService, rewsvc services.ReviewService, usersvc services.UserService,
+	catsvc services.CategoryService, subsvc services.SubscriptionService, log *zap.Logger) *DatasetHandler {
 	return &DatasetHandler{
-		service:       svc,
-		logger:        log,
-		reviewService: rewsvc,
+		service:             svc,
+		logger:              log,
+		reviewService:       rewsvc,
+		userService:         usersvc,
+		categoryService:     catsvc,
+		subscriptionService: subsvc,
 	}
 }
 
@@ -75,40 +82,54 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	currentUID, currentRole := middleware.FromContext(r.Context())
-	if !ds.IsPublic && !(currentRole == "admin" || currentUID == ds.OwnerID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
+
+	dtoDS := dto.ToDatasetDTO(ds)
+
+	owner, err := h.userService.GetUserByID(r.Context(), ds.OwnerID) // Предположим, у вас есть userService
+	if err == nil && owner != nil {
+		dtoDS.OwnerName = owner.Username
 	}
 
-	reviews, err := h.reviewService.ListByDataset(r.Context(), id)
-	if err != nil {
-		h.logger.Error("ListByDataset failed", zap.Error(err), zap.Uint64("datasetID", id))
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	cat, err := h.categoryService.GetCategoryByID(r.Context(), ds.CategoryID)
+	if err == nil && cat != nil {
+		dtoDS.CategoryName = cat.Name
 	}
 
-	canReview := (currentRole == "user" || currentRole == "admin")
-
-	dsDTO := dto.ToDatasetDTO(ds)
-	revDTOs := dto.ToReviewDTOs(reviews)
+	rawReviews, err := h.reviewService.ListByDataset(r.Context(), id)
+	if err == nil {
+		usernameMap := make(map[uint64]string)
+		for _, rev := range rawReviews {
+			if _, seen := usernameMap[rev.UserID]; !seen {
+				user, e := h.userService.GetUserByID(r.Context(), rev.UserID)
+				if e == nil && user != nil {
+					usernameMap[rev.UserID] = user.Username
+				} else {
+					usernameMap[rev.UserID] = "неизвестный"
+				}
+			}
+		}
+		dtoReviews := dto.ToReviewDTOs(rawReviews)
+		dtoDS.Reviews = dtoReviews
+		dtoDS.HasReviews = len(dtoReviews) > 0
+	}
 
 	data := struct {
-		Role         string
-		UserID       uint64
-		Dataset      *dto.DatasetDTO
-		Reviews      []*dto.ReviewDTO
-		CanReview    bool
-		ReviewAction string
+		Title   string
+		Dataset *dto.DatasetDTO
+		User    uint64
+		Role    string
 	}{
-		Role:         currentRole,
-		UserID:       currentUID,
-		Dataset:      dsDTO,
-		Reviews:      revDTOs,
-		CanReview:    canReview,
-		ReviewAction: fmt.Sprintf("/reviews"),
+		Title:   fmt.Sprintf("Датасет #%d", ds.ID),
+		Dataset: dtoDS,
+		User:    currentUID,
+		Role:    currentRole,
 	}
 
-	tpl := template.Must(template.ParseFS(templates.TemplatesFS, "layout.tmpl", "dataset_show.tmpl"))
+	tpl := template.Must(template.ParseFS(
+		templates.TemplatesFS,
+		"layout.tmpl",
+		"dataset_show.tmpl",
+	))
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
 		h.logger.Error("template execution error", zap.Error(err))
 	}
