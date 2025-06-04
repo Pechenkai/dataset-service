@@ -105,3 +105,8 @@ info:
 clean:
 	@echo "=> Cleaning build directory…"
 	$(RM) $(BUILD)
+
+.PHONY: clean-logs
+clean-logs:
+	@echo "=> Cleaning logs directory…"
+	$(RM) logs/*

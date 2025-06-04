@@ -1,6 +1,8 @@
 {{ define "title" }}Пользователь {{ .User.ID }}{{ end }}
+
 {{ define "content" }}
 <h2>Просмотр пользователя #{{ .User.ID }}</h2>
+
 <p><strong>Username:</strong> {{ .User.Username }}</p>
 <p><strong>Email:</strong> {{ .User.Email }}</p>
 <p><strong>Страна:</strong> {{ .User.Country }}</p>
@@ -9,7 +11,17 @@
 <p><strong>Дата регистрации:</strong> {{ .User.RegistrationDate.Format "2006-01-02 15:04" }}</p>
 
 <p>
-  <a href="/users/{{ .User.ID }}/edit">Редактировать</a> |
+  {{/* Редактировать/Удалить можно либо админу, либо если профиль свой */}}
+  {{ if or (eq .Role "admin") (eq .UserID .User.ID) }}
+    <a href="/users/{{ .User.ID }}/edit">Редактировать</a>
+    {{ if eq .Role "admin" }}
+      |
+      <form method="POST" action="/users/{{ .User.ID }}/delete" style="display:inline;">
+        <button type="submit" onclick="return confirm('Удалить пользователя?');">Удалить</button>
+      </form>
+    {{ end }}
+  {{ end }}
+  |
   <a href="/users">Назад к списку</a>
 </p>
 {{ end }}

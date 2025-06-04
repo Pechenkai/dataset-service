@@ -38,7 +38,9 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	// Логин/Logout
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
-	r.Post("/logout", h.Logout) // нужен user или admin, но даже guest может зайти на этот URL — просто выйдет
+	r.Post("/logout", h.Logout)
+
+	r.With(middleware.RequireRole("admin")).Get("/users", h.List)
 
 	// Просмотр/редактирование своего профиля
 	r.With(middleware.RequireRole("user", "admin")).Get("/users/{id}", h.Show)
@@ -252,19 +254,16 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := services.UpdateUserCmd{
-		ID:        id,
-		Username:  r.FormValue("username"),
-		Email:     r.FormValue("email"),
-		Password:  r.FormValue("password"), // если пусто, сервис не меняет
-		Country:   r.FormValue("country"),
-		IsBlocked: r.FormValue("is_blocked") == "on",
-		Role:      r.FormValue("role"),
+		ID:       id,
+		Username: r.FormValue("username"),
+		Email:    r.FormValue("email"),
+		Password: r.FormValue("password"), // если пусто, сервис игнорирует
+		Country:  r.FormValue("country"),
 	}
 
-	// Если это не админ, убираем возможность менять role и is_blocked
-	if currentRole != "admin" {
-		cmd.Role = ""         // не менять
-		cmd.IsBlocked = false // не менять
+	if currentRole == "admin" {
+		cmd.Role = r.FormValue("role")
+		cmd.IsBlocked = (r.FormValue("is_blocked") == "on")
 	}
 
 	if err := h.service.UpdateUser(r.Context(), cmd); err != nil {
@@ -316,6 +315,45 @@ func (h *UserHandler) LoginForm(w http.ResponseWriter, r *http.Request) {
 		UserID:     0,
 		FormAction: "/login",
 		Form:       &dto.AuthenticateForm{},
+	}
+
+	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
+		h.logger.Error("template execution error", zap.Error(err))
+	}
+}
+
+// List показывает страницу со списком всех пользователей. (GET /users)
+func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
+	currentUID, currentRole := middleware.FromContext(r.Context())
+	// currentRole тут гарантированно "admin" (middleware.RequireRole)
+	_ = currentUID
+
+	users, err := h.service.ListAllUsers(r.Context())
+	if err != nil {
+		h.logger.Error("ListAllUsers failed", zap.Error(err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Конвертируем в DTO
+	dtos := dto.ToUserDTOs(users)
+
+	tpl := template.Must(template.ParseFS(
+		templates.TemplatesFS,
+		"layout.tmpl",
+		"user_list.tmpl",
+	))
+
+	data := struct {
+		Title  string
+		Role   string
+		UserID uint64
+		Users  []*dto.UserDTO
+	}{
+		Title:  "Список пользователей",
+		Role:   currentRole,
+		UserID: currentUID,
+		Users:  dtos,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {

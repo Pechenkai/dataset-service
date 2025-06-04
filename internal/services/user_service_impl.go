@@ -320,3 +320,13 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*entiti
 	)
 	return user, nil
 }
+
+func (s *userService) ListAllUsers(ctx context.Context) ([]*entities.User, error) {
+	s.logger.Debug("ListAllUsers called")
+	users, err := s.repo.FindAll(ctx)
+	if err != nil {
+		s.logger.Error("failed to list all users", zap.Error(err))
+		return nil, fmt.Errorf("list all users: %w", err)
+	}
+	return users, nil
+}

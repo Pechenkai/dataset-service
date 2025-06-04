@@ -1,41 +1,56 @@
 {{ define "title" }}Список пользователей{{ end }}
+
 {{ define "content" }}
 <h2>Список пользователей</h2>
 
 <table class="striped">
   <thead>
-  <tr>
-    <th>ID</th>
-    <th>Username</th>
-    <th>Email</th>
-    <th>Страна</th>
-    <th>Роль</th>
-    <th>Заблокирован</th>
-    <th>Дата регистрации</th>
-    <th>Действия</th>
-  </tr>
+    <tr>
+      <th>ID</th>
+      <th>Username</th>
+      <th>Email</th>
+      <th>Страна</th>
+      <th>Роль</th>
+      <th>Заблокирован</th>
+      <th>Дата регистрации</th>
+      <th>Действия</th>
+    </tr>
   </thead>
   <tbody>
-  {{ range .Users }}
-  <tr>
-    <td>{{ .ID }}</td>
-    <td><a href="/users/{{ .ID }}">{{ .Username }}</a></td>
-    <td>{{ .Email }}</td>
-    <td>{{ .Country }}</td>
-    <td>{{ .Role }}</td>
-    <td>{{ if .IsBlocked }}Да{{ else }}Нет{{ end }}</td>
-    <td>{{ .RegistrationDate.Format "2006-01-02 15:04" }}</td>
-    <td>
-      <a href="/users/{{ .ID }}/edit">Редактировать</a> |
-      <form method="POST" action="/users/{{ .ID }}/delete" style="display:inline;">
-        <button type="submit" onclick="return confirm('Удалить пользователя?');">Удалить</button>
-      </form>
-    </td>
-  </tr>
-  {{ end }}
+    {{ range .Users }}
+      <tr>
+        <td>{{ .ID }}</td>
+        <td>
+          <a href="/users/{{ .ID }}">{{ .Username }}</a>
+        </td>
+        <td>{{ .Email }}</td>
+        <td>{{ .Country }}</td>
+        <td>{{ .Role }}</td>
+        <td>{{ if .IsBlocked }}Да{{ else }}Нет{{ end }}</td>
+        <td>{{ .RegistrationDate.Format "2006-01-02 15:04" }}</td>
+        <td>
+          {{/* Редактировать/Удалить показываем либо админу, либо если это собственный профиль */}}
+          {{ if or (eq $.Role "admin") (eq $.UserID .ID) }}
+            <a href="/users/{{ .ID }}/edit">Редактировать</a>
+            {{ if eq $.Role "admin" }}
+              |
+              <form method="POST" action="/users/{{ .ID }}/delete" style="display:inline;">
+                <button type="submit" onclick="return confirm('Удалить пользователя?');">Удалить</button>
+              </form>
+            {{ end }}
+          {{ else }}
+            —
+          {{ end }}
+        </td>
+      </tr>
+    {{ end }}
   </tbody>
 </table>
+
 <p>
-  <a href="/users/new">Создать нового пользователя</a>
+  {{/* Ссылку "Создать нового пользователя" видят только администратор */}}
+  {{ if eq .Role "admin" }}
+    <a href="/users/new">Создать нового пользователя</a>
+  {{ end }}
 </p>
 {{ end }}

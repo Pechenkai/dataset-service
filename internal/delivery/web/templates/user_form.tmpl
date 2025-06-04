@@ -1,46 +1,32 @@
-{{ define "title" }}{{ if .IsNew }}Новый пользователь{{ else }}Редактирование пользователя #{{ .Form.ID }}{{ end }}{{ end }}
-{{ define "content" }}
-<h2>{{ if .IsNew }}Регистрация нового пользователя{{ else }}Редактирование пользователя #{{ .Form.ID }}{{ end }}</h2>
+ {{ define "content" }}
+ <h2>{{ if .IsNew }}Регистрация нового пользователя{{ else }}Редактирование пользователя #{{ .Form.ID }}{{ end }}</h2>
 
-<form method="POST" action="{{ .FormAction }}">
-  {{ if not .IsNew }}
-  <input type="hidden" name="id" value="{{ .Form.ID }}">
-  {{ end }}
+ <form method="POST" action="{{ .FormAction }}">
+   {{ if not .IsNew }}
+     <input type="hidden" name="id" value="{{ .Form.ID }}">
+   {{ end }}
 
-  <div>
-    <label for="username">Username:</label><br>
-    <input type="text" id="username" name="username" required value="{{ .Form.Username }}">
-  </div>
+   <div>
+     <label for="username">Username:</label><br>
+     <input type="text" id="username" name="username" required value="{{ .Form.Username }}">
+   </div>
 
-  <div>
-    <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" required value="{{ .Form.Email }}">
-  </div>
+   <div>
+     <label for="email">Email:</label><br>
+     <input type="email" id="email" name="email" required value="{{ .Form.Email }}">
+   </div>
 
-  <div>
-    <label for="password">{{ if .IsNew }}Пароль{{ else }}Новый пароль (оставьте пустым, чтобы не менять){{ end }}:</label><br>
-    <input type="password" id="password" name="password" {{ if .IsNew }}required{{ end }}>
-  </div>
+   <div>
+     <label for="password">{{ if .IsNew }}Пароль{{ else }}Новый пароль (оставьте пустым, чтобы не менять){{ end }}:</label><br>
+     <input type="password" id="password" name="password" {{ if .IsNew }}required{{ end }}>
+   </div>
 
-  <div>
-    <label for="country">Страна:</label><br>
-    <input type="text" id="country" name="country" required value="{{ .Form.Country }}">
-  </div>
+   <div>
+     <label for="country">Страна:</label><br>
+     <input type="text" id="country" name="country" required value="{{ .Form.Country }}">
+   </div>
 
-  <div>
-    <label for="role">Роль:</label><br>
-    <input type="text" id="role" name="role" required value="{{ .Form.Role }}">
-  </div>
-
-  {{ if not .IsNew }}
-  <div>
-    <label>
-      <input type="checkbox" name="is_blocked" {{ if .Form.IsBlocked }}checked{{ end }}> Заблокирован
-    </label>
-  </div>
-  {{ end }}
-
-  <button type="submit">{{ if .IsNew }}Зарегистрировать{{ else }}Обновить{{ end }}</button>
-  <a href="{{ if .IsNew }}/login{{ else }}/users/{{ .Form.ID }}{{ end }}">Отмена</a>
-</form>
-{{ end }}
+   <button type="submit">{{ if .IsNew }}Зарегистрировать{{ else }}Обновить{{ end }}</button>
+   <a href="{{ if .IsNew }}/login{{ else }}/users/{{ .Form.ID }}{{ end }}">Отмена</a>
+ </form>
+ {{ end }}

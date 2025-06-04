@@ -36,4 +36,5 @@ type UserService interface {
 	DeleteUser(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*entities.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*entities.User, error)
+	ListAllUsers(ctx context.Context) ([]*entities.User, error)
 }
