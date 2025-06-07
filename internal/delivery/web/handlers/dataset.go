@@ -131,7 +131,7 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		usernameMap := make(map[uint64]string)
 		for _, rev := range rawReviews {
-			if _, seen := usernameMap[rev.UserID]; !seen {
+			if _, ok := usernameMap[rev.UserID]; !ok {
 				user, e := h.userService.GetUserByID(r.Context(), rev.UserID)
 				if e == nil && user != nil {
 					usernameMap[rev.UserID] = user.Username
@@ -141,6 +141,9 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		dtoReviews := dto.ToReviewDTOs(rawReviews)
+		for i, rev := range rawReviews {
+			dtoReviews[i].AuthorUsername = usernameMap[rev.UserID]
+		}
 		dtoDS.Reviews = dtoReviews
 		dtoDS.HasReviews = len(dtoReviews) > 0
 	}

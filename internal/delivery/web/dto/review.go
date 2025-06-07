@@ -7,12 +7,13 @@ import (
 )
 
 type ReviewDTO struct {
-	ID        uint64
-	UserID    uint64
-	DatasetID uint64
-	Rating    entities.Rating
-	Text      string
-	CreatedAt time.Time
+	ID             uint64
+	UserID         uint64
+	DatasetID      uint64
+	Rating         entities.Rating
+	AuthorUsername string
+	Text           string
+	CreatedAt      time.Time
 }
 
 func ToReviewDTO(r *entities.Review) *ReviewDTO {

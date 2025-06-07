@@ -31,9 +31,26 @@
   <a href="{{ .Dataset.DownloadURL }}">Скачать</a>
 {{ end }}
 
-{{/* --- Оставить отзыв: тоже только не-владелец залогиненный --- */}}
 {{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
-  <a href="/reviews/new?dataset_id={{ .Dataset.ID }}" style="margin-left:15px;">Оставить отзыв</a>
+  <h3>Оставить отзыв</h3>
+  <form action="/reviews" method="post" style="margin-bottom:2em;">
+    <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
+    <div>
+      <label for="review-text">Текст отзыва:</label><br>
+      <textarea id="review-text" name="text" rows="4" required></textarea>
+    </div>
+    <div>
+      <label for="review-rating">Оценка:</label>
+      <select id="review-rating" name="rating">
+        <option value="1">1 ⭐</option>
+        <option value="2">2 ⭐⭐</option>
+        <option value="3">3 ⭐⭐⭐</option>
+        <option value="4">4 ⭐⭐⭐⭐</option>
+        <option value="5">5 ⭐⭐⭐⭐⭐</option>
+      </select>
+    </div>
+    <button type="submit">Отправить отзыв</button>
+  </form>
 {{ end }}
 
 <hr>
