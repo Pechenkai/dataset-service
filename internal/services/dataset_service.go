@@ -38,4 +38,5 @@ type DatasetService interface {
 	ListDatasets(ctx context.Context, onlyPublic bool, ownerID *uint64) ([]*entities.Dataset, error)
 	GetVersion(ctx context.Context, versionID uint64) (*entities.DatasetVersion, error)
 	ListVersions(ctx context.Context, datasetID uint64) ([]*entities.DatasetVersion, error)
+	ListByCategory(ctx context.Context, categoryID uint64) ([]*entities.Dataset, error)
 }

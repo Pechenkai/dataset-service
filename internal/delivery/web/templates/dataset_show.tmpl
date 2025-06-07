@@ -1,7 +1,7 @@
 {{ define "title" }}Датасет #{{ .Dataset.ID }}{{ end }}
 {{ define "content" }}
 
-<h2>Датасет #{{ .Dataset.ID }}: {{ .Dataset.Name }}</h2>
+<h2>Датасет: {{ .Dataset.Name }}</h2>
 
 <p><strong>Описание:</strong> {{ .Dataset.Description }}</p>
 <p><strong>Владелец:</strong> {{ if .Dataset.OwnerName }}{{ .Dataset.OwnerName }}{{ else }}неизвестно{{ end }}</p>

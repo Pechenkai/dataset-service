@@ -1,0 +1,20 @@
+{{ define "content" }}
+  <h1>{{ .Title }}</h1>
+  <table class="table">
+    <tr><th>Имя пользователя:</th><td>{{ .User.Username }}</td></tr>
+    <tr><th>Email:</th><td>{{ .User.Email }}</td></tr>
+    <tr><th>Дата регистрации:</th><td>{{ .User.RegistrationDate.Format "2006-01-02 15:04:05" }}</td></tr>
+    <tr><th>Страна:</th><td>{{ .User.Country }}</td></tr>
+    <tr><th>Заблокирован:</th>
+      <td>{{ if .User.IsBlocked }}Да{{ else }}Нет{{ end }}</td>
+    </tr>
+    <tr><th>Роль:</th><td>{{ .User.Role }}</td></tr>
+  </table>
+
+  <ul>
+    <li><a href="/users/{{ .UserID }}/edit">Редактировать профиль</a></li>
+    {{ if eq .Role "admin" }}
+      <li><a href="/users">Список всех пользователей</a></li>
+    {{ end }}
+  </ul>
+{{ end }}

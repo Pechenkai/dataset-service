@@ -43,6 +43,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	r.With(middleware.RequireRole("user", "admin")).Get("/users/{id}", h.Show)
 	r.With(middleware.RequireRole("user", "admin")).Get("/users/{id}/edit", h.EditForm)
 	r.With(middleware.RequireRole("user", "admin")).Post("/users/{id}", h.Update)
+	r.With(middleware.RequireRole("user", "admin")).Get("/profile", h.ProfileShow)
 
 	r.With(middleware.RequireRole("admin")).Post("/users/{id}/delete", h.Delete)
 }
@@ -133,7 +134,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Email:    r.FormValue("email"),
 		Password: r.FormValue("password"),
 		Country:  r.FormValue("country"),
-		Role:     "user", // на форме не даём выбирать роль — всегда "user"
+		Role:     "user",
 	}
 
 	newID, err := h.service.Register(r.Context(), cmd)
@@ -369,4 +370,38 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess.Options.MaxAge = -1
 	session.Save(r, w, sess)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (h *UserHandler) ProfileShow(w http.ResponseWriter, r *http.Request) {
+	currentUID, currentRole := middleware.FromContext(r.Context())
+
+	user, err := h.service.GetUserByID(r.Context(), currentUID)
+	if err != nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	userDTO := dto.ToUserDTO(user)
+
+	tpl := template.Must(template.ParseFS(
+		templates.TemplatesFS,
+		"layout.tmpl",
+		"profile_show.tmpl",
+	))
+
+	data := struct {
+		Title  string
+		Role   string
+		UserID uint64
+		User   *dto.UserDTO
+	}{
+		Title:  "Личный кабинет",
+		Role:   currentRole,
+		UserID: currentUID,
+		User:   userDTO,
+	}
+
+	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
+		h.logger.Error("template execution error", zap.Error(err))
+	}
 }

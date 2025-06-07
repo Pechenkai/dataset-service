@@ -22,7 +22,6 @@ func main() {
 		}
 	}()
 
-	// Запускаем только CLI (RootCommand)
 	if err := app.RootCommand.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

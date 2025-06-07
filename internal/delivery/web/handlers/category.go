@@ -16,12 +16,13 @@ import (
 )
 
 type CategoryHandler struct {
-	service services.CategoryService
-	logger  *zap.Logger
+	service    services.CategoryService
+	datasetSvc services.DatasetService
+	logger     *zap.Logger
 }
 
-func NewCategoryHandler(svc services.CategoryService, log *zap.Logger) *CategoryHandler {
-	return &CategoryHandler{service: svc, logger: log}
+func NewCategoryHandler(svc services.CategoryService, dssvc services.DatasetService, log *zap.Logger) *CategoryHandler {
+	return &CategoryHandler{service: svc, logger: log, datasetSvc: dssvc}
 }
 
 func (h *CategoryHandler) RegisterRoutes(r chi.Router) {
@@ -85,16 +86,23 @@ func (h *CategoryHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dsets, err := h.datasetSvc.ListByCategory(r.Context(), id)
+	if err != nil {
+		h.logger.Warn("ListByCategory failed", zap.Uint64("catID", id), zap.Error(err))
+	}
+
 	currentUID, currentRole := middleware.FromContext(r.Context())
 
 	data := struct {
 		Title    string
 		Category *dto.CategoryDTO
+		Datasets []*dto.DatasetDTO
 		Role     string
 		UserID   uint64
 	}{
 		Title:    fmt.Sprintf("Категория #%d", cat.ID),
 		Category: dto.ToCategoryDTO(cat),
+		Datasets: dto.ToDatasetDTOs(dsets),
 		Role:     currentRole,
 		UserID:   currentUID,
 	}

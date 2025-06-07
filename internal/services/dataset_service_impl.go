@@ -355,3 +355,15 @@ func nextVersionNumber(existing []*entities.DatasetVersion) string {
 	last := existing[0].Number
 	return last + ".1"
 }
+
+func (s *datasetService) ListByCategory(ctx context.Context, categoryID uint64) ([]*entities.Dataset, error) {
+	s.logger.Debug("ListByCategory called", zap.Uint64("category_id", categoryID))
+
+	dsets, err := s.dsRepo.FindByCategoryID(ctx, categoryID)
+	if err != nil {
+		s.logger.Error("ListByCategory failed", zap.Error(err), zap.Uint64("category_id", categoryID))
+		return nil, fmt.Errorf("list datasets by category: %w", err)
+	}
+	s.logger.Info("ListByCategory completed", zap.Uint64("category_id", categoryID), zap.Int("count", len(dsets)))
+	return dsets, nil
+}

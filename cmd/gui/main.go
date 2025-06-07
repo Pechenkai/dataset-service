@@ -22,7 +22,6 @@ func main() {
 		}
 	}()
 
-	// Берём настройки порта из config.TechUI (или выделенный блок в config GUI)
 	addr := fmt.Sprintf("%s:%d", app.Config.TechUI.Host, app.Config.TechUI.Port)
 	log.Printf("GUI running on %s", addr)
 	if err := http.ListenAndServe(addr, app.WebHandler); err != nil {

@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -9,6 +11,45 @@ import (
 
 	"ppo/internal/config"
 )
+
+type disablingSyncer struct {
+	inner zapcore.WriteSyncer
+	mu    sync.Mutex
+	dead  bool
+}
+
+func (d *disablingSyncer) Write(p []byte) (int, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.dead {
+		return len(p), nil
+	}
+
+	n, err := d.inner.Write(p)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Logger: отключен после первой ошибки записи: %v\n", err)
+		d.dead = true
+		return len(p), nil
+	}
+	return n, nil
+}
+
+func (d *disablingSyncer) Sync() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.dead {
+		return nil
+	}
+
+	if err := d.inner.Sync(); err != nil {
+		fmt.Fprintf(os.Stderr, "Logger: отключен после первой ошибки Sync(): %v\n", err)
+		d.dead = true
+		return nil
+	}
+	return nil
+}
 
 func NewLogger(logCfg config.LogConfig) (*zap.Logger, func(), error) {
 	var level zapcore.Level
@@ -41,16 +82,17 @@ func NewLogger(logCfg config.LogConfig) (*zap.Logger, func(), error) {
 
 	var writer zapcore.WriteSyncer
 	if logCfg.FilePath != "" {
-		f, err := os.OpenFile(logCfg.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		f, err := os.OpenFile(logCfg.FilePath,
+			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("нет прав окрыть log file %q: %w", logCfg.FilePath, err)
 		}
-		writer = zapcore.AddSync(f)
+		writer = &disablingSyncer{inner: zapcore.AddSync(f)}
 	} else {
-		writer = zapcore.AddSync(os.Stdout)
+		writer = &disablingSyncer{inner: zapcore.AddSync(os.Stdout)}
 	}
-	core := zapcore.NewCore(encoder, writer, level)
 
+	core := zapcore.NewCore(encoder, writer, level)
 	logger := zap.New(core,
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.ErrorLevel),

@@ -2,7 +2,6 @@ package web
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"net/http"
 	webmid "ppo/internal/delivery/web/middleware"
@@ -22,12 +21,12 @@ func NewRouter(
 	logger *zap.Logger,
 ) chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(webmid.ChiZapLogger(logger))
 
 	r.Use(webmid.AuthMiddleware)
 
 	// Category
-	catHandler := handlers.NewCategoryHandler(catSvc, logger)
+	catHandler := handlers.NewCategoryHandler(catSvc, dsSvc, logger)
 	catHandler.RegisterRoutes(r)
 
 	// Dataset

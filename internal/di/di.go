@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"
+	"os"
 	httpdelivery "ppo/internal/delivery/http"
 	"ppo/internal/logger"
 	"ppo/internal/storage"
@@ -38,7 +39,9 @@ func Build(ctx context.Context) (*App, error) {
 
 	zapLogger, closeLog, err := logger.NewLogger(cfg.LogCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init logger: %w", err)
+		fmt.Fprintf(os.Stderr, "failed to init logger: %w\n", err)
+		zapLogger = zap.NewNop()
+		closeLog = func() {}
 	}
 
 	_ = closeLog

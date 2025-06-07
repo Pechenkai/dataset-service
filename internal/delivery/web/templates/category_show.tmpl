@@ -2,12 +2,22 @@
 
 {{ define "content" }}
   <h2>Просмотр категории</h2>
-  <p><strong>ID:</strong> {{ .Category.ID }}</p>
   <p><strong>Название:</strong> {{ .Category.Name }}</p>
   <p><strong>Описание:</strong> {{ .Category.Description }}</p>
 
+  {{ if .Datasets }}
+  <h3>Датасеты в этой категории</h3>
+  <ul>
+    {{ range .Datasets }}
+      <li><a href="/datasets/{{ .ID }}">{{ .Name }}</a></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+
   <p>
-    <a href="/categories/{{ .Category.ID }}/edit">Редактировать</a> |
-    <a href="/categories">Назад к списку</a>
+    {{ if eq .Role "admin" }}
+     <a href="/categories/{{ .Category.ID }}/edit">Редактировать</a> |
+    {{ end }}
+     <a href="/categories">Назад к списку</a>
   </p>
 {{ end }}

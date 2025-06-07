@@ -13,13 +13,11 @@
     <a href="/datasets">Публичные датасеты</a> |
     {{ if or (eq .Role "user") (eq .Role "admin") }}
       <a href="/my-datasets">Мои датасеты</a> |
+      <a href="/profile">Личный кабинет</a> |
     {{ end }}
     <a href="/notifications">Уведомления</a> |
     <a href="/reviews">Отзывы</a> |
     <a href="/subscriptions">Подписки</a> |
-    {{ if eq .Role "admin" }}
-      <a href="/users">Пользователи</a> |
-    {{ end }}
     {{ if eq .Role "guest" }}
       <a href="/login">Вход</a>
     {{ else }}

@@ -359,3 +359,47 @@ func (r *DatasetRepo) FindPublic(ctx context.Context) ([]*entities.Dataset, erro
 	)
 	return list, nil
 }
+
+func (r *DatasetRepo) FindByCategoryID(ctx context.Context, categoryID uint64) ([]*entities.Dataset, error) {
+	r.logger.Debug("FindByCategoryID Datasets called", zap.Uint64("category_id", categoryID))
+
+	query := psql.
+		Select("id", "name", "description", "owner_id", "category_id", "is_public", "created_at").
+		From("datasets").
+		Where(sq.Eq{"category_id": categoryID}).
+		OrderBy("created_at DESC")
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		r.logger.Error("failed to build find datasets by category query", zap.Error(err), zap.Uint64("category_id", categoryID))
+		return nil, repositories.ErrDatasetQueryBuild
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
+	if err != nil {
+		r.logger.Error("failed to execute find datasets by category query", zap.Error(err), zap.Uint64("category_id", categoryID))
+		return nil, repositories.ErrDatasetScan
+	}
+	defer rows.Close()
+
+	var list []*entities.Dataset
+	for rows.Next() {
+		d := &entities.Dataset{}
+		if err := rows.Scan(
+			&d.ID, &d.Name, &d.Description,
+			&d.OwnerID, &d.CategoryID, &d.IsPublic,
+			&d.CreatedAt,
+		); err != nil {
+			r.logger.Error("failed to scan dataset row", zap.Error(err))
+			return nil, repositories.ErrDatasetScan
+		}
+		list = append(list, d)
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("error iterating over dataset rows", zap.Error(err))
+		return nil, repositories.ErrDatasetScan
+	}
+
+	r.logger.Info("datasets fetched by category successfully", zap.Uint64("category_id", categoryID), zap.Int("count", len(list)))
+	return list, nil
+}
