@@ -64,3 +64,32 @@ type CreateDatasetForm struct {
 	MetaTags    string
 	MetaSize    uint64
 }
+
+type UpdateDatasetForm struct {
+	ID          uint64
+	Name        string
+	Description string
+	CategoryID  uint64
+	IsPublic    bool
+}
+
+type VersionDTO struct {
+	ID          uint64
+	Number      string
+	ChangeLog   string
+	CreatedAt   time.Time
+	DownloadURL string
+}
+
+func ToVersionDTOs(src []*entities.DatasetVersion) []*VersionDTO {
+	out := make([]*VersionDTO, len(src))
+	for i, v := range src {
+		out[i] = &VersionDTO{
+			ID:        v.ID,
+			Number:    v.Number,
+			ChangeLog: v.ChangeLog,
+			CreatedAt: v.UploadDate,
+		}
+	}
+	return out
+}

@@ -400,3 +400,33 @@ func (s *datasetService) GetDownloadURL(ctx context.Context, datasetID uint64) (
 
 	return presignedURL, nil
 }
+
+func (s *datasetService) UpdateDataset(ctx context.Context, cmd UpdateDatasetCmd) error {
+	s.logger.Debug("UpdateDataset called", zap.Uint64("id", cmd.ID))
+	ds, err := s.dsRepo.FindByID(ctx, cmd.ID)
+	if err != nil {
+		return ErrDatasetNotFound
+	}
+
+	ds.Name = cmd.Name
+	ds.Description = cmd.Description
+	ds.CategoryID = cmd.CategoryID
+	ds.IsPublic = cmd.IsPublic
+	if err := s.dsRepo.Update(ctx, ds); err != nil {
+		return fmt.Errorf("update dataset: %w", err)
+	}
+	s.logger.Info("UpdateDataset completed", zap.Uint64("id", cmd.ID))
+	return nil
+}
+
+func (s *datasetService) GetVersionDownloadURL(ctx context.Context, versionID uint64) (string, error) {
+	ver, err := s.verRepo.FindByID(ctx, versionID)
+	if err != nil {
+		return "", fmt.Errorf("fetch version: %w", err)
+	}
+	url, err := s.storage.GetURL(ctx, ver.Filepath)
+	if err != nil {
+		return "", fmt.Errorf("presign version: %w", err)
+	}
+	return url, nil
+}

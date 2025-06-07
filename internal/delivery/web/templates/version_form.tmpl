@@ -1,0 +1,18 @@
+{{ define "title" }}Добавить версию датасета #{{ .DatasetID }}{{ end }}
+ {{ define "content" }}
+ <h2>{{ .Title }}</h2>
+ <form method="post" action="{{ .FormAction }}" enctype="multipart/form-data">
+       <div>
+         <label for="file">Файл новой версии:</label><br>
+         <input type="file" id="file" name="file" required>
+       </div>
+       <div>
+         <label for="changelog">Что изменилось:</label><br>
+         <textarea id="changelog" name="changelog" rows="3"></textarea>
+       </div>
+       <div style="margin-top:10px;">
+         <button type="submit">Добавить версию</button>
+         <a href="/datasets/{{ .DatasetID }}" style="margin-left:10px;">Отмена</a>
+       </div>
+     </form>
+{{ end }}

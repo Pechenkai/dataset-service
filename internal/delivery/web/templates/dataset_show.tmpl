@@ -26,10 +26,16 @@
   {{ end }}
 {{ end }}
 
-{{/* --- Кнопка «Скачать»: всем у кого датасет публичный --- */}}
 {{ if .Dataset.IsPublic }}
   <a href="{{ .Dataset.DownloadURL }}">Скачать</a>
 {{ end }}
+
+<a href="/datasets/{{ .Dataset.ID }}/versions">Версии</a>
+
+{{- if or (eq .Role "admin") (eq .User .Dataset.OwnerID) }}
+|
+<a href="/datasets/{{ .Dataset.ID }}/versions/new">Добавить версию</a>
+{{- end }}
 
 {{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
   <h3>Оставить отзыв</h3>

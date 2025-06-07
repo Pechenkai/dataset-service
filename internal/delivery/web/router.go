@@ -30,7 +30,7 @@ func NewRouter(
 	catHandler.RegisterRoutes(r)
 
 	// Dataset
-	dsHandler := handlers.NewDatasetHandler(dsSvc, revSvc, userSvc, catSvc, subSvc, logger)
+	dsHandler := handlers.NewDatasetHandler(dsSvc, revSvc, userSvc, catSvc, subSvc, notifSvc, logger)
 	dsHandler.RegisterRoutes(r)
 
 	// Notification

@@ -31,6 +31,14 @@ type AddVersionCmd struct {
 	MetaSize   uint64
 }
 
+type UpdateDatasetCmd struct {
+	ID          uint64
+	Name        string
+	Description string
+	CategoryID  uint64
+	IsPublic    bool
+}
+
 type DatasetService interface {
 	CreateDataset(ctx context.Context, cmd CreateDatasetCmd, r io.Reader, size int64) (uint64, error)
 	AddDatasetVersion(ctx context.Context, cmd AddVersionCmd, r io.Reader, size int64) (uint64, error)
@@ -41,4 +49,6 @@ type DatasetService interface {
 	ListByCategory(ctx context.Context, categoryID uint64) ([]*entities.Dataset, error)
 	DeleteDataset(ctx context.Context, datasetID uint64) error
 	GetDownloadURL(ctx context.Context, datasetID uint64) (string, error)
+	UpdateDataset(ctx context.Context, cmd UpdateDatasetCmd) error
+	GetVersionDownloadURL(ctx context.Context, versionID uint64) (string, error)
 }
