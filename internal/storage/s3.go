@@ -34,11 +34,10 @@ func (s *S3Storage) Upload(ctx context.Context, key string, r io.Reader, size in
 	if err != nil {
 		return "", err
 	}
-	presigned, err := s.client.PresignedGetObject(ctx, s.bucket, key, time.Hour, url.Values{})
 	if err != nil {
 		return "", err
 	}
-	return presigned.String(), nil
+	return key, nil
 }
 
 func (s *S3Storage) Delete(ctx context.Context, key string) error {

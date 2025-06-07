@@ -14,6 +14,7 @@ type DatasetDTO struct {
 	OwnerName    string
 	CategoryID   uint64
 	CategoryName string
+	DownloadURL  string
 	IsPublic     bool
 	CreatedAt    time.Time
 

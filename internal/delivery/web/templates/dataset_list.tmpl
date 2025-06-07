@@ -19,7 +19,22 @@
         <td>{{ .Description }}</td>
         <td>{{ .OwnerName }}</td>
         <td>
-          —
+            {{ if .IsPublic }}
+              {{ if not .IsSubscribed }}
+                <form action="/subscriptions" method="post" style="display:inline;">
+                  <input type="hidden" name="dataset_id" value="{{ .ID }}">
+                  <button type="submit">Подписаться</button>
+                </form>
+              {{ else }}
+                <form action="/subscriptions/{{ .ID }}/unsubscribe" method="post" style="display:inline;">
+                  <button type="submit">Отписаться</button>
+                </form>
+              {{ end }}
+              |
+              <a href="{{ .DownloadURL }}">Скачать</a>
+            {{ else }}
+              —
+            {{ end }}
         </td>
       </tr>
     {{ end }}

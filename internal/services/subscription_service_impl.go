@@ -201,3 +201,14 @@ func (s *subscriptionService) ListSubscriptions(ctx context.Context, userID uint
 	)
 	return ds, nil
 }
+
+func (s *subscriptionService) IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error) {
+	s.logger.Debug("IsSubscribed called", zap.Uint64("user_id", userID), zap.Uint64("dataset_id", datasetID))
+
+	exists, err := s.repo.IsSubscribed(ctx, userID, datasetID)
+	if err != nil {
+		s.logger.Error("IsSubscribed failed", zap.Error(err), zap.Uint64("user_id", userID), zap.Uint64("dataset_id", datasetID))
+		return false, fmt.Errorf("check subscription: %w", err)
+	}
+	return exists, nil
+}

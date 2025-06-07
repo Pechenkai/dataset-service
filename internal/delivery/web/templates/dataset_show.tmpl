@@ -10,28 +10,33 @@
 
 <hr>
 
-{{/* Если пользователь залогинен и он не является владельцем, показываем действия */}}
-{{ if and (ne .CurrentUser 0) (ne .CurrentUser .Dataset.OwnerID) }}
-
-  {{/* Кнопка подписаться / отписаться */}}
-  {{ if not .Dataset.IsSubscribed }}
-    <form action="/subscriptions" method="post" style="display:inline;">
-      <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
-      <button type="submit">Подписаться</button>
-    </form>
-  {{ else }}
-    <form action="/subscriptions/{{ .Dataset.ID }}/unsubscribe" method="post" style="display:inline;">
-      <button type="submit">Отписаться</button>
-    </form>
+{{/* --- Подписка/Отписка: залогиненный не-владелец --- */}}
+{{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
+  {{ if .Dataset.IsPublic }}
+    {{ if not .Dataset.IsSubscribed }}
+      <form action="/subscriptions" method="post" style="display:inline;">
+        <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
+        <button type="submit">Подписаться</button>
+      </form>
+    {{ else }}
+      <form action="/subscriptions/{{ .Dataset.ID }}/unsubscribe" method="post" style="display:inline;">
+        <button type="submit">Отписаться</button>
+      </form>
+    {{ end }}
   {{ end }}
+{{ end }}
 
-  {{/* Кнопка оставить отзыв */}}
+{{/* --- Кнопка «Скачать»: всем у кого датасет публичный --- */}}
+{{ if .Dataset.IsPublic }}
+  <a href="{{ .Dataset.DownloadURL }}">Скачать</a>
+{{ end }}
+
+{{/* --- Оставить отзыв: тоже только не-владелец залогиненный --- */}}
+{{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
   <a href="/reviews/new?dataset_id={{ .Dataset.ID }}" style="margin-left:15px;">Оставить отзыв</a>
-
 {{ end }}
 
 <hr>
-
 <h3>Отзывы</h3>
 {{ if not .Dataset.HasReviews }}
   <p>У этого датасета еще нет отзывов.</p>
@@ -39,15 +44,16 @@
   <ul>
   {{ range .Dataset.Reviews }}
     <li>
-      <strong>{{ .AuthorUsername }}:</strong> {{ .Text }}
-      ({{ .Rating }}⭐)
-      {{/* Если текущий пользователь — автор или админ, показываем «Редактировать» */}}
-      {{ if or (eq $.CurrentRole "admin") (eq $.CurrentUser .AuthorID) }}
+      <strong>{{ .AuthorUsername }}:</strong> {{ .Text }} ({{ .Rating }}⭐)
+
+      {{/* Редактировать/удалить отзыве может админ или автор */}}
+      {{ if or (eq $.Role "admin") (eq $.User .AuthorID) }}
         — <a href="/reviews/{{ .ID }}/edit">Редактировать</a>
         <form action="/reviews/{{ .ID }}/delete" method="post" style="display:inline;">
           <button type="submit" onclick="return confirm('Удалить отзыв?');">Удалить</button>
         </form>
       {{ end }}
+
     </li>
   {{ end }}
   </ul>

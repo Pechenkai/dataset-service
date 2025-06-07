@@ -71,6 +71,18 @@ func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
 		dtos[i].OwnerName = usernameMap[ds.OwnerID]
 	}
 
+	currentUID, _ := middleware.FromContext(r.Context())
+	for i, ds := range list {
+		if ds.IsPublic {
+			subscribed, _ := h.subscriptionService.IsSubscribed(r.Context(), currentUID, ds.ID)
+			dtos[i].IsSubscribed = subscribed
+			url, err := h.service.GetDownloadURL(r.Context(), ds.ID)
+			if err == nil {
+				dtos[i].DownloadURL = url
+			}
+		}
+	}
+
 	data := struct {
 		Role     string
 		UserID   uint64
@@ -131,6 +143,21 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 		dtoReviews := dto.ToReviewDTOs(rawReviews)
 		dtoDS.Reviews = dtoReviews
 		dtoDS.HasReviews = len(dtoReviews) > 0
+	}
+
+	if dtoDS.IsPublic {
+		sub, _ := h.subscriptionService.IsSubscribed(r.Context(), currentUID, ds.ID)
+		dtoDS.IsSubscribed = sub
+
+		url, err := h.service.GetDownloadURL(r.Context(), ds.ID)
+		if err == nil {
+			dtoDS.DownloadURL = url
+		}
+	}
+
+	url, err := h.service.GetDownloadURL(r.Context(), ds.ID)
+	if err == nil {
+		dtoDS.DownloadURL = url
 	}
 
 	data := struct {

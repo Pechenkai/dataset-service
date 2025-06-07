@@ -384,3 +384,19 @@ func (s *datasetService) DeleteDataset(ctx context.Context, datasetID uint64) er
 	s.logger.Info("DeleteDataset completed", zap.Uint64("dataset_id", datasetID))
 	return nil
 }
+
+func (s *datasetService) GetDownloadURL(ctx context.Context, datasetID uint64) (string, error) {
+	vers, err := s.verRepo.FindByDatasetID(ctx, datasetID)
+	if err != nil {
+		s.logger.Error("GetDownloadURL failed", zap.Error(err), zap.Uint64("dataset_id", datasetID))
+		return "", fmt.Errorf("fetch versions: %w", err)
+	}
+	if len(vers) == 0 {
+		s.logger.Warn("GetDownloadURL: dataset not found", zap.Uint64("dataset_id", datasetID))
+		return "", ErrVersionNotFound
+	}
+
+	presignedURL, err := s.storage.GetURL(ctx, vers[0].Filepath)
+
+	return presignedURL, nil
+}
