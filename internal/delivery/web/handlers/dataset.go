@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -42,6 +43,7 @@ func (h *DatasetHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/datasets", h.Create)
 	r.Get("/datasets/{id}", h.Show)
 	r.With(middleware.RequireRole("user", "admin")).Get("/my-datasets", h.MyList)
+	r.With(middleware.RequireRole("user", "admin")).Post("/datasets/{id}/delete", h.Delete)
 }
 
 func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +53,24 @@ func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
+	dtos := dto.ToDatasetDTOs(list)
+
+	usernameMap := make(map[uint64]string, len(list))
+	for _, ds := range list {
+		if _, ok := usernameMap[ds.OwnerID]; !ok {
+			user, err := h.userService.GetUserByID(r.Context(), ds.OwnerID)
+			if err == nil && user != nil {
+				usernameMap[ds.OwnerID] = user.Username
+			} else {
+				usernameMap[ds.OwnerID] = "неизвестный"
+			}
+		}
+	}
+	for i, ds := range list {
+		dtos[i].OwnerName = usernameMap[ds.OwnerID]
+	}
+
 	data := struct {
 		Role     string
 		UserID   uint64
@@ -58,7 +78,7 @@ func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
 	}{
 		Role:     func() string { _, role := middleware.FromContext(r.Context()); return role }(),
 		UserID:   func() uint64 { uid, _ := middleware.FromContext(r.Context()); return uid }(),
-		Datasets: dto.ToDatasetDTOs(list),
+		Datasets: dtos,
 	}
 	tpl := template.Must(template.ParseFS(templates.TemplatesFS, "layout.tmpl", "dataset_list.tmpl"))
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
@@ -246,4 +266,36 @@ func (h *DatasetHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/datasets/%d", id), http.StatusSeeOther)
+}
+
+func (h *DatasetHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	datasetID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	currentUID, currentRole := middleware.FromContext(r.Context())
+	ds, err := h.service.GetDataset(r.Context(), datasetID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if currentRole != "admin" && ds.OwnerID != currentUID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if err := h.service.DeleteDataset(r.Context(), datasetID); err != nil {
+		h.logger.Error("DeleteDataset failed", zap.Error(err), zap.Uint64("dataset_id", datasetID))
+		if errors.Is(err, services.ErrDatasetNotFound) {
+			http.NotFound(w, r)
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	http.Redirect(w, r, "/my-datasets", http.StatusSeeOther)
 }

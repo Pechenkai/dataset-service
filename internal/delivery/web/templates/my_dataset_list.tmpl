@@ -6,7 +6,6 @@
 <table class="striped">
   <thead>
     <tr>
-      <th>ID</th>
       <th>Название</th>
       <th>Описание</th>
       <th>Публичность</th>
@@ -16,7 +15,6 @@
   <tbody>
     {{ range .Datasets }}
       <tr>
-        <td>{{ .ID }}</td>
         <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
         <td>{{ .Description }}</td>
         <td>{{ if .IsPublic }}Да{{ else }}Нет{{ end }}</td>

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"io"
@@ -366,4 +367,20 @@ func (s *datasetService) ListByCategory(ctx context.Context, categoryID uint64) 
 	}
 	s.logger.Info("ListByCategory completed", zap.Uint64("category_id", categoryID), zap.Int("count", len(dsets)))
 	return dsets, nil
+}
+
+func (s *datasetService) DeleteDataset(ctx context.Context, datasetID uint64) error {
+	s.logger.Debug("DeleteDataset called", zap.Uint64("dataset_id", datasetID))
+
+	if err := s.dsRepo.Delete(ctx, datasetID); err != nil {
+		if errors.Is(err, repositories.ErrDatasetNotFound) {
+			s.logger.Warn("DeleteDataset: dataset not found", zap.Uint64("dataset_id", datasetID))
+			return ErrDatasetNotFound
+		}
+		s.logger.Error("DeleteDataset failed", zap.Error(err), zap.Uint64("dataset_id", datasetID))
+		return fmt.Errorf("delete dataset: %w", err)
+	}
+
+	s.logger.Info("DeleteDataset completed", zap.Uint64("dataset_id", datasetID))
+	return nil
 }

@@ -1,6 +1,6 @@
 {{ define "title" }}Сводка по рейтингам{{ end }}
 {{ define "content" }}
-<h2>Сводка по рейтингам для датасета {{ .DatasetID }}</h2>
+<h2>Сводка по рейтингам для датасета {{ .Name }}</h2>
 
 <p><strong>Количество отзывов:</strong> {{ .Summary.Count }}</p>
 <p><strong>Средний рейтинг:</strong> {{ printf "%.2f" .Summary.Average }}</p>

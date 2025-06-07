@@ -5,7 +5,6 @@
 <table class="striped">
     <thead>
     <tr>
-        <th>ID</th>
         <th>Dataset ID</th>
         <th>Сообщение</th>
         <th>Прочитано</th>
@@ -16,7 +15,6 @@
     <tbody>
     {{ range .Notifications }}
     <tr>
-        <td>{{ .ID }}</td>
         <td>{{ .DatasetID }}</td>
         <td>{{ .Message }}</td>
         <td>{{ if .IsRead }}Да{{ else }}Нет{{ end }}</td>

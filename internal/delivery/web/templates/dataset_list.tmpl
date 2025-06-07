@@ -1,12 +1,11 @@
-{{ define "title" }}Список публичных датасетов{{ end }}
+{{ define "title" }}Список датасетов{{ end }}
 
 {{ define "content" }}
-<h2>Публичные датасеты</h2>
+<h2>Датасеты</h2>
 
 <table class="striped">
   <thead>
     <tr>
-      <th>ID</th>
       <th>Название</th>
       <th>Описание</th>
       <th>Владелец</th>
@@ -16,12 +15,10 @@
   <tbody>
     {{ range .Datasets }}
       <tr>
-        <td>{{ .ID }}</td>
         <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
         <td>{{ .Description }}</td>
-        <td>{{ .OwnerUsername }}</td>
+        <td>{{ .OwnerName }}</td>
         <td>
-          {{/* Если ты авторизован (роль user/admin), можно сразу иметь иконку «Добавить в избранное» или т. п. */}}
           —
         </td>
       </tr>

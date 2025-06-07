@@ -11,7 +11,7 @@ type DatasetDTO struct {
 	Name         string
 	Description  string
 	OwnerID      uint64
-	OwnerName    string // добавили
+	OwnerName    string
 	CategoryID   uint64
 	CategoryName string
 	IsPublic     bool

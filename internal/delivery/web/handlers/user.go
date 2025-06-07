@@ -369,7 +369,7 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess, _ := session.Get(r)
 	sess.Options.MaxAge = -1
 	session.Save(r, w, sess)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (h *UserHandler) ProfileShow(w http.ResponseWriter, r *http.Request) {
