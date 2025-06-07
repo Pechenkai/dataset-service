@@ -19,14 +19,16 @@ import (
 )
 
 type UserHandler struct {
-	service services.UserService
-	logger  *zap.Logger
+	service             services.UserService
+	notificationService services.NotificationService
+	logger              *zap.Logger
 }
 
-func NewUserHandler(svc services.UserService, log *zap.Logger) *UserHandler {
+func NewUserHandler(svc services.UserService, notifSvc services.NotificationService, log *zap.Logger) *UserHandler {
 	return &UserHandler{
-		service: svc,
-		logger:  log,
+		service:             svc,
+		notificationService: notifSvc,
+		logger:              log,
 	}
 }
 
@@ -383,6 +385,13 @@ func (h *UserHandler) ProfileShow(w http.ResponseWriter, r *http.Request) {
 
 	userDTO := dto.ToUserDTO(user)
 
+	notifs, err := h.notificationService.GetNotificationsByUser(r.Context(), currentUID)
+	if err != nil {
+		h.logger.Error("GetNotificationsByUser failed", zap.Error(err), zap.Uint64("userID", currentUID))
+		notifs = nil
+	}
+	notifDTOs := dto.ToNotificationDTOs(notifs)
+
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -390,15 +399,17 @@ func (h *UserHandler) ProfileShow(w http.ResponseWriter, r *http.Request) {
 	))
 
 	data := struct {
-		Title  string
-		Role   string
-		UserID uint64
-		User   *dto.UserDTO
+		Title         string
+		Role          string
+		UserID        uint64
+		User          *dto.UserDTO
+		Notifications []*dto.NotificationDTO
 	}{
-		Title:  "Личный кабинет",
-		Role:   currentRole,
-		UserID: currentUID,
-		User:   userDTO,
+		Title:         "Личный кабинет",
+		Role:          currentRole,
+		UserID:        currentUID,
+		User:          userDTO,
+		Notifications: notifDTOs,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {

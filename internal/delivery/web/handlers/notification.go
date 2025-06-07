@@ -15,14 +15,16 @@ import (
 )
 
 type NotificationHandler struct {
-	service services.NotificationService
-	logger  *zap.Logger
+	service        services.NotificationService
+	datasetService services.DatasetService
+	logger         *zap.Logger
 }
 
-func NewNotificationHandler(svc services.NotificationService, log *zap.Logger) *NotificationHandler {
+func NewNotificationHandler(svc services.NotificationService, dssvc services.DatasetService, log *zap.Logger) *NotificationHandler {
 	return &NotificationHandler{
-		service: svc,
-		logger:  log,
+		service:        svc,
+		datasetService: dssvc,
+		logger:         log,
 	}
 }
 
@@ -45,6 +47,15 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	notifications := dto.ToNotificationDTOs(notifs)
+
+	for _, nd := range notifications {
+		ds, err := h.datasetService.GetDataset(r.Context(), nd.DatasetID)
+		if err != nil {
+			nd.DatasetName = "—"
+		} else {
+			nd.DatasetName = ds.Name
+		}
+	}
 
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,

@@ -34,7 +34,7 @@ func NewRouter(
 	dsHandler.RegisterRoutes(r)
 
 	// Notification
-	notifHandler := handlers.NewNotificationHandler(notifSvc, logger)
+	notifHandler := handlers.NewNotificationHandler(notifSvc, dsSvc, logger)
 	notifHandler.RegisterRoutes(r)
 
 	// Review
@@ -46,7 +46,7 @@ func NewRouter(
 	subHandler.RegisterRoutes(r)
 
 	// User
-	userHandler := handlers.NewUserHandler(userSvc, logger)
+	userHandler := handlers.NewUserHandler(userSvc, notifSvc, logger)
 	userHandler.RegisterRoutes(r)
 
 	// Статика (шаблоны + CSS)

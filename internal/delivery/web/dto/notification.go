@@ -7,11 +7,12 @@ import (
 )
 
 type NotificationDTO struct {
-	ID        uint64
-	DatasetID uint64
-	Message   string
-	IsRead    bool
-	CreatedAt time.Time
+	ID          uint64
+	DatasetID   uint64
+	DatasetName string
+	Message     string
+	IsRead      bool
+	CreatedAt   time.Time
 }
 
 func ToNotificationDTO(n *entities.Notification) *NotificationDTO {
