@@ -159,3 +159,37 @@ func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uin
 	)
 	return nil
 }
+
+func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID uint64, message string) error {
+	s.logger.Debug("NotifyUser called",
+		zap.Uint64("user_id", userID),
+		zap.Uint64("dataset_id", datasetID),
+		zap.String("message", message),
+	)
+
+	notif, err := entities.NewNotification(userID, datasetID, message, time.Now().UTC())
+	if err != nil {
+		s.logger.Error("failed to construct notification entity",
+			zap.Error(err),
+			zap.Uint64("user_id", userID),
+			zap.Uint64("dataset_id", datasetID),
+		)
+		return err
+	}
+
+	if err := s.notifRepo.Create(ctx, notif); err != nil {
+		s.logger.Error("failed to create notification in repository",
+			zap.Error(err),
+			zap.Uint64("user_id", userID),
+			zap.Uint64("dataset_id", datasetID),
+		)
+		return fmt.Errorf("create notification: %w", err)
+	}
+
+	s.logger.Info("notification created",
+		zap.Uint64("user_id", userID),
+		zap.Uint64("notification_id", notif.ID),
+		zap.Uint64("dataset_id", datasetID),
+	)
+	return nil
+}

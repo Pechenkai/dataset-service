@@ -19,7 +19,6 @@ type CategoryRepo struct {
 	logger *zap.Logger
 }
 
-// NewCategoryRepo создаёт экземпляр CategoryRepo с привязанным логгером.
 func NewCategoryRepo(pool *pgxpool.Pool, logger *zap.Logger) *CategoryRepo {
 	logger.Debug("NewCategoryRepo initialized")
 	return &CategoryRepo{

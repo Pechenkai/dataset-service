@@ -7,6 +7,7 @@ var (
 	ErrCategoryQueryBuild = errors.New("CategoryQueryBuild")
 	ErrDatasetQueryBuild  = errors.New("failed to build dataset SQL")
 	ErrUserQueryBuild     = errors.New("failed to build user SQL")
+	ErrRequestQueryBuild  = errors.New("failed to build request SQL")
 
 	// Dataset errors
 	ErrDatasetNotFound = errors.New("dataset not found")
@@ -70,4 +71,8 @@ var (
 	ErrCategoryFind          = errors.New("category find")
 	ErrCategoryScan          = errors.New("category scan")
 	ErrCategoryIterate       = errors.New("category iterate")
+
+	// Request errors
+	ErrRequestNotFound = errors.New("request not found")
+	ErrRequestScan     = errors.New("scan request row failed")
 )

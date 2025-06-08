@@ -21,13 +21,17 @@ import (
 type UserHandler struct {
 	service             services.UserService
 	notificationService services.NotificationService
+	dsSvc               services.DatasetService
+	accessSvc           services.AccessService
 	logger              *zap.Logger
 }
 
-func NewUserHandler(svc services.UserService, notifSvc services.NotificationService, log *zap.Logger) *UserHandler {
+func NewUserHandler(svc services.UserService, notifSvc services.NotificationService, dssvc services.DatasetService, accesssvc services.AccessService, log *zap.Logger) *UserHandler {
 	return &UserHandler{
 		service:             svc,
 		notificationService: notifSvc,
+		accessSvc:           accesssvc,
+		dsSvc:               dssvc,
 		logger:              log,
 	}
 }
@@ -392,6 +396,22 @@ func (h *UserHandler) ProfileShow(w http.ResponseWriter, r *http.Request) {
 	}
 	notifDTOs := dto.ToNotificationDTOs(notifs)
 
+	accessReqs, _ := h.accessSvc.ListPending(r.Context(), currentUID)
+	reqDTOs := make([]*dto.AccessRequestDTO, len(accessReqs))
+
+	for i, ar := range accessReqs {
+		ds, _ := h.dsSvc.GetDataset(r.Context(), ar.DatasetID)
+		usr, _ := h.service.GetUserByID(r.Context(), ar.UserID)
+		reqDTOs[i] = &dto.AccessRequestDTO{
+			ID:          ar.ID,
+			DatasetID:   ar.DatasetID,
+			DatasetName: ds.Name,
+			UserID:      ar.UserID,
+			Username:    usr.Username,
+			CreatedAt:   ar.CreatedAt,
+		}
+	}
+
 	tpl := template.Must(template.ParseFS(
 		templates.TemplatesFS,
 		"layout.tmpl",
@@ -399,17 +419,19 @@ func (h *UserHandler) ProfileShow(w http.ResponseWriter, r *http.Request) {
 	))
 
 	data := struct {
-		Title         string
-		Role          string
-		UserID        uint64
-		User          *dto.UserDTO
-		Notifications []*dto.NotificationDTO
+		Title          string
+		Role           string
+		UserID         uint64
+		User           *dto.UserDTO
+		Notifications  []*dto.NotificationDTO
+		AccessRequests []*dto.AccessRequestDTO
 	}{
-		Title:         "Личный кабинет",
-		Role:          currentRole,
-		UserID:        currentUID,
-		User:          userDTO,
-		Notifications: notifDTOs,
+		Title:          "Личный кабинет",
+		Role:           currentRole,
+		UserID:         currentUID,
+		User:           userDTO,
+		Notifications:  notifDTOs,
+		AccessRequests: reqDTOs,
 	}
 
 	if err := tpl.ExecuteTemplate(w, "layout.tmpl", data); err != nil {

@@ -49,4 +49,37 @@
 {{ else }}
 <p>У вас нет уведомлений об обновлениях.</p>
 {{ end }}
+
+<h2>Запросы доступа</h2>
+{{ if not .AccessRequests }}
+<p>Нет новых запросов.</p>
+{{ else }}
+<table class="striped">
+    <thead>
+    <tr>
+        <th>Пользователь</th>
+        <th>Датасет</th>
+        <th>Дата</th>
+        <th>Действие</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .AccessRequests }}
+    <tr>
+        <td>{{ .Username }}</td>
+        <td><a href="/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
+        <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+        <td>
+            <form action="/access-requests/{{ .ID }}/approve" method="post" style="display:inline;">
+                <button type="submit">Принять</button>
+            </form>
+            <form action="/access-requests/{{ .ID }}/deny" method="post" style="display:inline;">
+                <button type="submit">Отклонить</button>
+            </form>
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ end }}
 {{ end }}

@@ -4,41 +4,54 @@
 <h2>Датасеты</h2>
 
 <table class="striped">
-  <thead>
-  <tr>
-    <th>Название</th>
-    <th>Описание</th>
-    <th>Владелец</th>
-    <th>Действия</th>
-  </tr>
-  </thead>
-  <tbody>
-  {{ range .Datasets }}
-  <tr>
-    <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
-    <td>{{ .Description }}</td>
-    <td>{{ .OwnerName }}</td>
-    <td>
-      {{ if .IsPublic }}
-      {{ if not .IsSubscribed }}
-      <form action="/subscriptions" method="post" style="display:inline;">
-        <input type="hidden" name="dataset_id" value="{{ .ID }}">
-        <button type="submit">Подписаться</button>
-      </form>
-      {{ else }}
-      <form action="/subscriptions/{{ .ID }}/unsubscribe" method="post" style="display:inline;">
-        <button type="submit">Отписаться</button>
-      </form>
-      {{ end }}
-      |
-      <a href="/datasets/{{ .ID }}/download">Скачать</a>
-      {{ else }}
-      —
-      {{ end }}
-    </td>
-  </tr>
-  {{ end }}
-  </tbody>
+    <thead>
+    <tr>
+        <th>Название</th>
+        <th>Описание</th>
+        <th>Владелец</th>
+        <th>Действия</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Datasets }}
+    <tr>
+        <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
+        <td>{{ .Description }}</td>
+        <td>{{ .OwnerName }}</td>
+        <td>
+            {{/* Если пользователь — владелец, только Скачать */}}
+            {{ if eq $.UserID .OwnerID }}
+            <a href="{{ .DownloadURL }}">Скачать</a>
+            {{ else if .IsPublic }}
+            {{/* Публичный: подписаться/отписаться + Скачать */}}
+            {{ if not .IsSubscribed }}
+            <form action="/subscriptions" method="post" style="display:inline;">
+                <input type="hidden" name="dataset_id" value="{{ .ID }}">
+                <button type="submit">Подписаться</button>
+            </form>
+            {{ else }}
+            <form action="/subscriptions/{{ .ID }}/unsubscribe" method="post" style="display:inline;">
+                <button type="submit">Отписаться</button>
+            </form>
+            {{ end }}
+            |
+            <a href="{{ .DownloadURL }}">Скачать</a>
+            {{ else }}
+            {{/* Приватный: проверяем статус доступа */}}
+            {{ if eq .AccessStatus "approved" }}
+            <a href="{{ .DownloadURL }}">Скачать</a>
+            {{ else if eq .AccessStatus "pending" }}
+            <em>запрос отправлен</em>
+            {{ else }}
+            <form action="/datasets/{{ .ID }}/request-access" method="post" style="display:inline;">
+                <button type="submit">Запросить доступ</button>
+            </form>
+            {{ end }}
+            {{ end }}
+        </td>
+    </tr>
+    {{ end }}
+    </tbody>
 </table>
 
 {{ if or (eq .Role "user") (eq .Role "admin") }}

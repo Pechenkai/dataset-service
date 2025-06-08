@@ -18,6 +18,7 @@ func NewRouter(
 	revSvc services.ReviewService,
 	subSvc services.SubscriptionService,
 	userSvc services.UserService,
+	reqSvc services.AccessService,
 	logger *zap.Logger,
 ) chi.Router {
 	r := chi.NewRouter()
@@ -30,7 +31,7 @@ func NewRouter(
 	catHandler.RegisterRoutes(r)
 
 	// Dataset
-	dsHandler := handlers.NewDatasetHandler(dsSvc, revSvc, userSvc, catSvc, subSvc, notifSvc, logger)
+	dsHandler := handlers.NewDatasetHandler(dsSvc, revSvc, userSvc, catSvc, subSvc, notifSvc, reqSvc, logger)
 	dsHandler.RegisterRoutes(r)
 
 	// Notification
@@ -46,10 +47,13 @@ func NewRouter(
 	subHandler.RegisterRoutes(r)
 
 	// User
-	userHandler := handlers.NewUserHandler(userSvc, notifSvc, logger)
+	userHandler := handlers.NewUserHandler(userSvc, notifSvc, dsSvc, reqSvc, logger)
 	userHandler.RegisterRoutes(r)
 
-	// Статика (шаблоны + CSS)
+	// Запрос доступа
+	requestHandler := handlers.NewAccessRequestHandler(reqSvc, notifSvc, dsSvc, userSvc, logger)
+	requestHandler.RegisterRoutes(r)
+
 	fileServer := http.FileServer(http.FS(static.FS))
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 

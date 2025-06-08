@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"ppo/internal/delivery/web/middleware"
+	"ppo/internal/entities"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -23,11 +24,12 @@ type DatasetHandler struct {
 	categoryService     services.CategoryService
 	subscriptionService services.SubscriptionService
 	notificationService services.NotificationService
+	accessSvc           services.AccessService
 	logger              *zap.Logger
 }
 
 func NewDatasetHandler(svc services.DatasetService, rewsvc services.ReviewService, usersvc services.UserService,
-	catsvc services.CategoryService, subsvc services.SubscriptionService, notifsvc services.NotificationService, log *zap.Logger) *DatasetHandler {
+	catsvc services.CategoryService, subsvc services.SubscriptionService, notifsvc services.NotificationService, accsvc services.AccessService, log *zap.Logger) *DatasetHandler {
 	return &DatasetHandler{
 		service:             svc,
 		logger:              log,
@@ -36,6 +38,7 @@ func NewDatasetHandler(svc services.DatasetService, rewsvc services.ReviewServic
 		notificationService: notifsvc,
 		categoryService:     catsvc,
 		subscriptionService: subsvc,
+		accessSvc:           accsvc,
 	}
 }
 
@@ -85,7 +88,16 @@ func (h *DatasetHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	currentUID, _ := middleware.FromContext(r.Context())
 	for i, ds := range list {
-		if ds.IsPublic {
+		if !dtos[i].IsPublic {
+			ar, err := h.accessSvc.Find(r.Context(), ds.ID, currentUID)
+			if err == nil && ar != nil {
+				dtos[i].AccessStatus = string(ar.Status)
+			}
+		}
+
+		if ds.IsPublic ||
+			ds.OwnerID == currentUID ||
+			(!ds.IsPublic && dtos[i].AccessStatus == string(entities.AccessStatusApproved)) {
 			subscribed, _ := h.subscriptionService.IsSubscribed(r.Context(), currentUID, ds.ID)
 			dtos[i].IsSubscribed = subscribed
 			url, err := h.service.GetDownloadURL(r.Context(), ds.ID)
@@ -167,6 +179,13 @@ func (h *DatasetHandler) Show(w http.ResponseWriter, r *http.Request) {
 		url, err := h.service.GetDownloadURL(r.Context(), ds.ID)
 		if err == nil {
 			dtoDS.DownloadURL = url
+		}
+	}
+
+	if !dtoDS.IsPublic && currentUID != dtoDS.OwnerID {
+		ar, _ := h.accessSvc.Find(r.Context(), dtoDS.ID, currentUID)
+		if ar != nil {
+			dtoDS.AccessStatus = string(ar.Status)
 		}
 	}
 

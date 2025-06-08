@@ -17,6 +17,7 @@ type DatasetDTO struct {
 	DownloadURL  string
 	IsPublic     bool
 	CreatedAt    time.Time
+	AccessStatus string
 
 	IsSubscribed bool
 	Reviews      []*ReviewDTO

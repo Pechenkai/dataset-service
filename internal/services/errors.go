@@ -34,6 +34,13 @@ var (
 	ErrNotificationNotFound = errors.New("notification not found")
 	ErrNoSubscribers        = errors.New("no subscribers found")
 
+	// Subscription errors
 	ErrAlreadySubscribed = errors.New("user already subscribed to dataset")
 	ErrNotSubscribed     = errors.New("subscription not found")
+
+	// Access request errors
+	ErrRequestNotFound      = errors.New("not found")
+	ErrBadRequest           = errors.New("bad request")
+	ErrRequestAlreadyExists = errors.New("request already exists")
+	ErrRequestForbidden     = errors.New("request is forbidden")
 )

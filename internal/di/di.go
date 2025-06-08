@@ -66,6 +66,7 @@ func Build(ctx context.Context) (*App, error) {
 	subRepo := postqbuild.NewSubscriptionRepo(dbPool, zapLogger)
 	revRepo := postqbuild.NewReviewRepo(dbPool, zapLogger)
 	userRepo := postqbuild.NewUserRepo(dbPool, zapLogger)
+	requestRepo := postqbuild.NewAccessRequestRepo(dbPool, zapLogger)
 
 	catSvc := services.NewCategoryService(catRepo, zapLogger)
 	dsSvc := services.NewDatasetService(dsRepo, verRepo, mdRepo, s3, zapLogger)
@@ -73,6 +74,7 @@ func Build(ctx context.Context) (*App, error) {
 	revSvc := services.NewReviewService(revRepo, zapLogger)
 	userSvc := services.NewUserService(userRepo, zapLogger)
 	subSvc := services.NewSubscriptionService(subRepo, zapLogger)
+	reqSvc := services.NewAccessService(dsRepo, requestRepo, zapLogger)
 
 	router := httpdelivery.NewRouter(
 		catSvc,
@@ -91,6 +93,7 @@ func Build(ctx context.Context) (*App, error) {
 		revSvc,
 		subSvc,
 		userSvc,
+		reqSvc,
 		zapLogger,
 	)
 

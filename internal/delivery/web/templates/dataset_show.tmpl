@@ -1,4 +1,3 @@
-{{ define "title" }}Датасет #{{ .Dataset.ID }}{{ end }}
 {{ define "content" }}
 
 <h2>Датасет: {{ .Dataset.Name }}</h2>
@@ -10,76 +9,84 @@
 
 <hr>
 
-{{/* --- Подписка/Отписка: залогиненный не-владелец --- */}}
-{{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
-  {{ if .Dataset.IsPublic }}
-    {{ if not .Dataset.IsSubscribed }}
-      <form action="/subscriptions" method="post" style="display:inline;">
-        <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
-        <button type="submit">Подписаться</button>
-      </form>
-    {{ else }}
-      <form action="/subscriptions/{{ .Dataset.ID }}/unsubscribe" method="post" style="display:inline;">
-        <button type="submit">Отписаться</button>
-      </form>
-    {{ end }}
-  {{ end }}
-{{ end }}
+{{ if eq .User .Dataset.OwnerID }}
+<!-- Владелец всегда скачивает -->
+<a href="{{ .Dataset.DownloadURL }}">Скачать</a>
 
-{{ if .Dataset.IsPublic }}
-  <a href="{{ .Dataset.DownloadURL }}">Скачать</a>
-{{ end }}
-
-<a href="/datasets/{{ .Dataset.ID }}/versions">Версии</a>
-
-{{- if or (eq .Role "admin") (eq .User .Dataset.OwnerID) }}
-|
-<a href="/datasets/{{ .Dataset.ID }}/versions/new">Добавить версию</a>
-{{- end }}
-
-{{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
-  <h3>Оставить отзыв</h3>
-  <form action="/reviews" method="post" style="margin-bottom:2em;">
+{{ else if .Dataset.IsPublic }}
+<!-- Для публичных: подписка + скачивание -->
+{{ if not .Dataset.IsSubscribed }}
+<form action="/subscriptions" method="post" style="display:inline;">
     <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
-    <div>
-      <label for="review-text">Текст отзыва:</label><br>
-      <textarea id="review-text" name="text" rows="4" required></textarea>
-    </div>
-    <div>
-      <label for="review-rating">Оценка:</label>
-      <select id="review-rating" name="rating">
-        <option value="1">1 ⭐</option>
-        <option value="2">2 ⭐⭐</option>
-        <option value="3">3 ⭐⭐⭐</option>
-        <option value="4">4 ⭐⭐⭐⭐</option>
-        <option value="5">5 ⭐⭐⭐⭐⭐</option>
-      </select>
-    </div>
-    <button type="submit">Отправить отзыв</button>
-  </form>
+    <button type="submit">Подписаться</button>
+</form>
+{{ else }}
+<form action="/subscriptions/{{ .Dataset.ID }}/unsubscribe" method="post" style="display:inline;">
+    <button type="submit">Отписаться</button>
+</form>
+{{ end }}
+| <a href="{{ .Dataset.DownloadURL }}">Скачать</a>
+
+{{ else }}
+{{ if eq .Dataset.AccessStatus "approved" }}
+<a href="{{ .Dataset.DownloadURL }}">Скачать</a>
+{{ else if eq .Dataset.AccessStatus "pending" }}
+<em>запрос отправлен</em>
+{{ else }}
+<form action="/datasets/{{ .Dataset.ID }}/request-access" method="post" style="display:inline;">
+    <button type="submit">Запросить доступ</button>
+</form>
+{{ end }}
 {{ end }}
 
 <hr>
+
+<a href="/datasets/{{ .Dataset.ID }}/versions">Версии</a>
+{{ if or (eq .Role "admin") (eq .User .Dataset.OwnerID) }} |
+<a href="/datasets/{{ .Dataset.ID }}/versions/new">Добавить версию</a>
+{{ end }}
+
+<hr>
+
+{{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
+<h3>Оставить отзыв</h3>
+<form action="/reviews" method="post" style="margin-bottom:2em;">
+    <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
+    <div>
+        <label for="review-text">Текст отзыва:</label><br>
+        <textarea id="review-text" name="text" rows="4" required></textarea>
+    </div>
+    <div>
+        <label for="review-rating">Оценка:</label>
+        <select id="review-rating" name="rating">
+            <option value="1">1 ⭐</option>
+            <option value="2">2 ⭐⭐</option>
+            <option value="3">3 ⭐⭐⭐</option>
+            <option value="4">4 ⭐⭐⭐⭐</option>
+            <option value="5">5 ⭐⭐⭐⭐⭐</option>
+        </select>
+    </div>
+    <button type="submit">Отправить отзыв</button>
+</form>
+{{ end }}
+
 <h3>Отзывы</h3>
 {{ if not .Dataset.HasReviews }}
-  <p>У этого датасета еще нет отзывов.</p>
+<p>У этого датасета еще нет отзывов.</p>
 {{ else }}
-  <ul>
-  {{ range .Dataset.Reviews }}
+<ul>
+    {{ range .Dataset.Reviews }}
     <li>
-      <strong>{{ .AuthorUsername }}:</strong> {{ .Text }} ({{ .Rating }}⭐)
-
-      {{/* Редактировать/удалить отзыве может админ или автор */}}
-      {{ if or (eq $.Role "admin") (eq $.User .AuthorID) }}
+        <strong>{{ .AuthorUsername }}:</strong> {{ .Text }} ({{ .Rating }}⭐)
+        {{ if or (eq $.Role "admin") (eq $.User .UserID) }}
         — <a href="/reviews/{{ .ID }}/edit">Редактировать</a>
         <form action="/reviews/{{ .ID }}/delete" method="post" style="display:inline;">
-          <button type="submit" onclick="return confirm('Удалить отзыв?');">Удалить</button>
+            <button type="submit" onclick="return confirm('Удалить отзыв?');">Удалить</button>
         </form>
-      {{ end }}
-
+        {{ end }}
     </li>
-  {{ end }}
-  </ul>
+    {{ end }}
+</ul>
 {{ end }}
 
 {{ end }}

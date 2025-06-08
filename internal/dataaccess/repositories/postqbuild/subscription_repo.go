@@ -25,7 +25,6 @@ func NewSubscriptionRepo(pool *pgxpool.Pool, logger *zap.Logger) *SubscriptionRe
 }
 
 func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
-	// Если дата создания не задана, инициализируем текущим временем
 	if s.CreatedAt.IsZero() {
 		s.CreatedAt = time.Now().UTC()
 	}
@@ -34,7 +33,6 @@ func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription)
 		zap.Uint64("dataset_id", s.DatasetID),
 	)
 
-	// Построение SQL через squirrel
 	query := psql.
 		Insert("subscriptions").
 		Columns("user_id", "dataset_id", "created_at").
@@ -48,10 +46,8 @@ func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription)
 		return fmt.Errorf("build insert subscription sql: %w", err)
 	}
 
-	// Выполняем вставку
 	_, err = r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		// Если это ошибка дубликата (unique constraint violation)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			r.logger.Warn("duplicate subscription on create",
