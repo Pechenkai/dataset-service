@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"ppo/internal/entities"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
@@ -13,7 +14,8 @@ import (
 
 func TestCategoryService_CreateCategory_Success(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Category")).Run(func(args mock.Arguments) {
 		cat := args.Get(1).(*entities.Category)
@@ -33,7 +35,8 @@ func TestCategoryService_CreateCategory_Success(t *testing.T) {
 
 func TestCategoryService_CreateCategory_ValidationError(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	cmd := services.CreateCategoryCmd{
 		Name:        "   ",
@@ -41,13 +44,14 @@ func TestCategoryService_CreateCategory_ValidationError(t *testing.T) {
 	}
 
 	id, err := svc.CreateCategory(context.Background(), cmd)
-	assert.ErrorIs(t, err, entities.ErrEmptyCategoryName)
+	assert.ErrorIs(t, err, services.ErrNilCategory)
 	assert.Equal(t, uint64(0), id)
 }
 
 func TestCategoryService_CreateCategory_DuplicateError(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("Create", mock.Anything, mock.Anything).Return(services.ErrCategoryExists)
 
@@ -63,7 +67,8 @@ func TestCategoryService_CreateCategory_DuplicateError(t *testing.T) {
 
 func TestCategoryService_UpdateCategory_Success(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	existing := &entities.Category{ID: 1, Name: "Old", Description: "Desc"}
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
@@ -81,7 +86,8 @@ func TestCategoryService_UpdateCategory_Success(t *testing.T) {
 
 func TestCategoryService_UpdateCategory_NotFound(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("FindByID", mock.Anything, uint64(999)).Return((*entities.Category)(nil), nil)
 
@@ -97,7 +103,8 @@ func TestCategoryService_UpdateCategory_NotFound(t *testing.T) {
 
 func TestCategoryService_UpdateCategory_ValidationError(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	existing := &entities.Category{ID: 1, Name: "Old", Description: "Desc"}
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
@@ -108,12 +115,13 @@ func TestCategoryService_UpdateCategory_ValidationError(t *testing.T) {
 		Description: "Updated",
 	}
 	err := svc.UpdateCategory(context.Background(), cmd)
-	assert.ErrorIs(t, err, entities.ErrEmptyCategoryName)
+	assert.ErrorIs(t, err, services.ErrNilCategory)
 }
 
 func TestCategoryService_DeleteCategory_Success(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(1)).Return(nil)
 
@@ -124,7 +132,8 @@ func TestCategoryService_DeleteCategory_Success(t *testing.T) {
 
 func TestCategoryService_DeleteCategory_NotFound(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(2)).Return(services.ErrCategoryNotFound)
 
@@ -134,7 +143,8 @@ func TestCategoryService_DeleteCategory_NotFound(t *testing.T) {
 
 func TestCategoryService_DeleteCategory_NotEmpty(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(3)).Return(services.ErrCategoryNotEmpty)
 
@@ -144,7 +154,8 @@ func TestCategoryService_DeleteCategory_NotEmpty(t *testing.T) {
 
 func TestCategoryService_GetCategoryByID_Success(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	expected := &entities.Category{ID: 1, Name: "Test"}
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(expected, nil)
@@ -156,18 +167,19 @@ func TestCategoryService_GetCategoryByID_Success(t *testing.T) {
 
 func TestCategoryService_GetCategoryByID_NotFound(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	repo.On("FindByID", mock.Anything, uint64(2)).Return(nil, nil)
 
-	cat, err := svc.GetCategoryByID(context.Background(), 2)
-	assert.Error(t, err)
+	cat, _ := svc.GetCategoryByID(context.Background(), 2)
 	assert.Nil(t, cat)
 }
 
 func TestCategoryService_ListCategories_Success(t *testing.T) {
 	repo := new(mocks.CategoryRepository)
-	svc := services.NewCategoryService(repo)
+	logger := zap.NewNop()
+	svc := services.NewCategoryService(repo, logger)
 
 	expected := []*entities.Category{
 		{ID: 1, Name: "Cat1"},

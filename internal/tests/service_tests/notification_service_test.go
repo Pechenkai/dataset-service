@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 	"ppo/internal/entities"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
@@ -15,7 +16,8 @@ func TestNotifySubscribers_Success(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
 
-	svc := services.NewNotificationService(notifRepo, subRepo)
+	logger := zap.NewNop()
+	svc := services.NewNotificationService(notifRepo, subRepo, logger)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(7)).
 		Return([]uint64{11, 22, 33}, nil)
@@ -26,7 +28,12 @@ func TestNotifySubscribers_Success(t *testing.T) {
 		})).
 		Return(nil).Times(3)
 
-	count, err := svc.NotifySubscribers(context.Background(), 7, "MSG")
+	cmd := services.NotifySubscribersCmd{
+		DatasetID: 7,
+		Message:   "MSG",
+	}
+
+	count, err := svc.NotifySubscribers(context.Background(), cmd)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, count)
 
@@ -37,13 +44,19 @@ func TestNotifySubscribers_Success(t *testing.T) {
 func TestNotifySubscribers_NoSubscribers(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
+	logger := zap.NewNop()
 
-	svc := services.NewNotificationService(notifRepo, subRepo)
+	svc := services.NewNotificationService(notifRepo, subRepo, logger)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(5)).
 		Return([]uint64{}, nil)
 
-	cnt, err := svc.NotifySubscribers(context.Background(), 5, "hello")
+	cmd := services.NotifySubscribersCmd{
+		DatasetID: 5,
+		Message:   "hello",
+	}
+
+	cnt, err := svc.NotifySubscribers(context.Background(), cmd)
 	assert.Zero(t, cnt)
 	assert.ErrorIs(t, err, services.ErrNoSubscribers)
 }
@@ -51,12 +64,19 @@ func TestNotifySubscribers_NoSubscribers(t *testing.T) {
 func TestNotifySubscribers_FetchSubsError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	svc := services.NewNotificationService(notifRepo, subRepo)
+	logger := zap.NewNop()
+
+	svc := services.NewNotificationService(notifRepo, subRepo, logger)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(99)).
 		Return(nil, errors.New("db fail"))
 
-	_, err := svc.NotifySubscribers(context.Background(), 99, "MSG")
+	cmd := services.NotifySubscribersCmd{
+		DatasetID: 99,
+		Message:   "MSG",
+	}
+
+	_, err := svc.NotifySubscribers(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "fetch subscribers")
 }
@@ -64,21 +84,27 @@ func TestNotifySubscribers_FetchSubsError(t *testing.T) {
 func TestNotifySubscribers_InvalidMessage(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
-	svc := services.NewNotificationService(notifRepo, subRepo)
+	logger := zap.NewNop()
+	svc := services.NewNotificationService(notifRepo, subRepo, logger)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(1)).
 		Return([]uint64{1}, nil)
 
-	// пустое сообщение => entities.NewNotification вернёт ErrEmptyMessage
-	_, err := svc.NotifySubscribers(context.Background(), 1, "   ")
+	cmd := services.NotifySubscribersCmd{
+		DatasetID: 1,
+		Message:   "   ",
+	}
+
+	_, err := svc.NotifySubscribers(context.Background(), cmd)
 	assert.ErrorIs(t, err, entities.ErrEmptyMessage)
 }
 
 func TestNotifySubscribers_CreateError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
+	logger := zap.NewNop()
 
-	svc := services.NewNotificationService(notifRepo, subRepo)
+	svc := services.NewNotificationService(notifRepo, subRepo, logger)
 
 	subRepo.On("GetSubscribers", mock.Anything, uint64(2)).
 		Return([]uint64{2, 3}, nil)
@@ -86,7 +112,12 @@ func TestNotifySubscribers_CreateError(t *testing.T) {
 	notifRepo.On("Create", mock.Anything, mock.Anything).Return(nil).Once()
 	notifRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("io fail")).Once()
 
-	cnt, err := svc.NotifySubscribers(context.Background(), 2, "MSG")
+	cmd := services.NotifySubscribersCmd{
+		DatasetID: 2,
+		Message:   "MSG",
+	}
+
+	cnt, err := svc.NotifySubscribers(context.Background(), cmd)
 	assert.Equal(t, 1, cnt)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "create notification for user")
@@ -96,7 +127,9 @@ func TestGetNotificationsByUser_Success(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
 	subRepo := new(mocks.SubscriptionRepository)
 
-	svc := services.NewNotificationService(notifRepo, subRepo)
+	logger := zap.NewNop()
+
+	svc := services.NewNotificationService(notifRepo, subRepo, logger)
 
 	expected := []*entities.Notification{
 		{ID: 1, UserID: 5, Message: "X"},
@@ -111,7 +144,9 @@ func TestGetNotificationsByUser_Success(t *testing.T) {
 
 func TestGetNotificationsByUser_Error(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
+	logger := zap.NewNop()
+
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), logger)
 
 	notifRepo.On("FindByUserID", mock.Anything, uint64(6)).
 		Return(nil, errors.New("db err"))
@@ -123,7 +158,9 @@ func TestGetNotificationsByUser_Error(t *testing.T) {
 
 func TestMarkAsRead_Success(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
+	logger := zap.NewNop()
+
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), logger)
 
 	n := &entities.Notification{ID: 9, IsRead: false}
 	notifRepo.On("FindByID", mock.Anything, uint64(9)).Return(n, nil)
@@ -137,7 +174,8 @@ func TestMarkAsRead_Success(t *testing.T) {
 
 func TestMarkAsRead_NotFound(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
+	logger := zap.NewNop()
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), logger)
 
 	notifRepo.On("FindByID", mock.Anything, uint64(10)).Return((*entities.Notification)(nil), nil)
 
@@ -147,7 +185,8 @@ func TestMarkAsRead_NotFound(t *testing.T) {
 
 func TestMarkAsRead_FetchError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
+	logger := zap.NewNop()
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), logger)
 
 	notifRepo.On("FindByID", mock.Anything, uint64(11)).Return(nil, errors.New("db fail"))
 
@@ -158,7 +197,8 @@ func TestMarkAsRead_FetchError(t *testing.T) {
 
 func TestMarkAsRead_UpdateError(t *testing.T) {
 	notifRepo := new(mocks.NotificationRepository)
-	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository))
+	logger := zap.NewNop()
+	svc := services.NewNotificationService(notifRepo, new(mocks.SubscriptionRepository), logger)
 
 	n := &entities.Notification{ID: 12}
 	notifRepo.On("FindByID", mock.Anything, uint64(12)).Return(n, nil)

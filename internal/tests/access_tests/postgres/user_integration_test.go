@@ -2,6 +2,7 @@ package postqbuild_test
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -89,7 +90,8 @@ import (
 
 func TestUserRepo_CRUD(t *testing.T) {
 	ctx := context.Background()
-	userRepo := postqbuild.NewUserRepo(dbPool)
+	logger := zap.NewNop()
+	userRepo := postqbuild.NewUserRepo(dbPool, logger)
 
 	now := time.Now().UTC()
 	uEnt, err := entities.NewUser(

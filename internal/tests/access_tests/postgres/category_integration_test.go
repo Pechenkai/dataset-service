@@ -2,6 +2,7 @@ package postqbuild_test
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"testing"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -88,7 +89,8 @@ import (
 //}
 
 func TestCategoryRepo_CRUD_Integration(t *testing.T) {
-	repo := postqbuild.NewCategoryRepo(dbPool)
+	logger := zap.NewNop()
+	repo := postqbuild.NewCategoryRepo(dbPool, logger)
 	ctx := context.Background()
 
 	c := &entities.Category{Name: "Dogs", Description: "All about dogs"}
@@ -127,7 +129,8 @@ func TestCategoryRepo_CRUD_Integration(t *testing.T) {
 }
 
 func TestCreateDuplicateCategory_Integration(t *testing.T) {
-	repo := postqbuild.NewCategoryRepo(dbPool)
+	logger := zap.NewNop()
+	repo := postqbuild.NewCategoryRepo(dbPool, logger)
 	ctx := context.Background()
 
 	c1 := &entities.Category{Name: "Unique", Description: ""}

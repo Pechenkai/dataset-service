@@ -2,6 +2,7 @@ package postqbuild_test
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -89,9 +90,9 @@ import (
 
 func TestNotificationRepo_CRUD(t *testing.T) {
 	ctx := context.Background()
-
-	notifRepo := postqbuild.NewNotificationRepo(dbPool)
-	dsRepo := postqbuild.NewDatasetRepo(dbPool)
+	logger := zap.NewNop()
+	notifRepo := postqbuild.NewNotificationRepo(dbPool, logger)
+	dsRepo := postqbuild.NewDatasetRepo(dbPool, logger)
 
 	var userID uint64
 	err := dbPool.QueryRow(ctx,

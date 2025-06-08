@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -17,7 +18,9 @@ import (
 
 func TestRegister_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	cmd := services.RegisterUserCmd{
 		Username: "alice",
@@ -51,7 +54,9 @@ func TestRegister_Success(t *testing.T) {
 
 func TestRegister_EmptyUsername(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	_, err := svc.Register(context.Background(), services.RegisterUserCmd{
 		Username: "   ",
@@ -65,7 +70,9 @@ func TestRegister_EmptyUsername(t *testing.T) {
 
 func TestRegister_DuplicateEmail(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	repo.On("FindByEmail", mock.Anything, "dup@em.com").
 		Return(&entities.User{ID: 1}, nil)
@@ -88,7 +95,9 @@ func TestAuthenticate_Success(t *testing.T) {
 	stored := &entities.User{ID: 5, Email: "x@y", Password: string(hash)}
 
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	repo.On("FindByEmail", mock.Anything, "x@y").Return(stored, nil)
 
@@ -103,7 +112,9 @@ func TestAuthenticate_Success(t *testing.T) {
 func TestAuthenticate_WrongPassword(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("right"), bcrypt.DefaultCost)
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 	repo.On("FindByEmail", mock.Anything, "x@y").Return(&entities.User{Password: string(hash)}, nil)
 
 	_, err := svc.Authenticate(context.Background(), services.AuthenticateUserCmd{
@@ -115,21 +126,26 @@ func TestAuthenticate_WrongPassword(t *testing.T) {
 
 func TestAuthenticate_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
-	repo.On("FindByEmail", mock.Anything, "none@x").Return(nil, nil)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
+	repo.On("FindByEmail", mock.Anything, "none@x").
+		Return(nil, repositories.ErrUserNotFound)
 
 	_, err := svc.Authenticate(context.Background(), services.AuthenticateUserCmd{
 		Email:    "none@x",
 		Password: "anything",
 	})
-	assert.ErrorIs(t, err, services.ErrUserNotFound)
+	assert.ErrorIs(t, err, services.ErrInvalidCredentials)
 }
 
 // === UpdateUser ===
 
 func TestUpdateUser_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	existing := &entities.User{
 		ID:               10,
@@ -163,7 +179,9 @@ func TestUpdateUser_Success(t *testing.T) {
 
 func TestUpdateUser_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 	repo.On("FindByID", mock.Anything, uint64(99)).Return(nil, nil)
 
 	err := svc.UpdateUser(context.Background(), services.UpdateUserCmd{ID: 99})
@@ -172,7 +190,9 @@ func TestUpdateUser_NotFound(t *testing.T) {
 
 func TestUpdateUser_DuplicateEmail(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	existing := &entities.User{ID: 1, Email: "old@e"}
 	repo.On("FindByID", mock.Anything, uint64(1)).Return(existing, nil)
@@ -189,7 +209,8 @@ func TestUpdateUser_DuplicateEmail(t *testing.T) {
 
 func TestDeleteUser_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+	svc := services.NewUserService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(3)).Return(nil)
 	err := svc.DeleteUser(context.Background(), 3)
@@ -198,7 +219,8 @@ func TestDeleteUser_Success(t *testing.T) {
 
 func TestDeleteUser_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+	svc := services.NewUserService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(4)).Return(repositories.ErrUserNotFound)
 	err := svc.DeleteUser(context.Background(), 4)
@@ -207,7 +229,9 @@ func TestDeleteUser_NotFound(t *testing.T) {
 
 func TestGetUserByID_Success(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewUserService(repo, logger)
 
 	expected := &entities.User{ID: 5}
 	repo.On("FindByID", mock.Anything, uint64(5)).Return(expected, nil)
@@ -219,7 +243,8 @@ func TestGetUserByID_Success(t *testing.T) {
 
 func TestGetUserByID_NotFound(t *testing.T) {
 	repo := new(mocks.UserRepository)
-	svc := services.NewUserService(repo)
+	logger := zap.NewNop()
+	svc := services.NewUserService(repo, logger)
 
 	repo.On("FindByID", mock.Anything, uint64(6)).Return(nil, nil)
 

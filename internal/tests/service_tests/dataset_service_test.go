@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"go.uber.org/zap"
 	"io"
 	"ppo/internal/entities"
 	"ppo/internal/services"
@@ -24,7 +25,9 @@ func TestDatasetService_CreateDataset_Success_WithMetadata(t *testing.T) {
 	mdRepo := new(mocks.MetadataRepository)
 	storage := new(mocks.Storage)
 
-	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage)
+	logger := zap.NewNop()
+
+	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage, logger)
 
 	dsRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Dataset")).Run(func(args mock.Arguments) {
 		ds := args.Get(1).(*entities.Dataset)
@@ -64,7 +67,8 @@ func TestDatasetService_CreateDataset_Success_WithMetadata(t *testing.T) {
 }
 
 func TestDatasetService_CreateDataset_ValidationError(t *testing.T) {
-	svc := services.NewDatasetService(nil, nil, nil, nil)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(nil, nil, nil, nil, logger)
 	_, err := svc.CreateDataset(context.Background(), services.CreateDatasetCmd{
 		ActorID:    1,
 		Name:       "   ",
@@ -76,7 +80,8 @@ func TestDatasetService_CreateDataset_ValidationError(t *testing.T) {
 
 func TestDatasetService_CreateDataset_DatasetRepoError(t *testing.T) {
 	dsRepo := new(mocks.DatasetRepository)
-	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil, logger)
 
 	dsRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("db error"))
 
@@ -101,8 +106,8 @@ func TestDatasetService_CreateDataset_UploadError(t *testing.T) {
 
 	storage.On("Upload", mock.Anything, "datasets/5/f.txt", mock.Anything, int64(0)).Return("", errors.New("net err"))
 	dsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
-
-	svc := services.NewDatasetService(dsRepo, nil, nil, storage)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(dsRepo, nil, nil, storage, logger)
 
 	_, err := svc.CreateDataset(context.Background(), services.CreateDatasetCmd{
 		ActorID:    1,
@@ -119,8 +124,8 @@ func TestDatasetService_AddDatasetVersion_Success_NoMetadata(t *testing.T) {
 	verRepo := new(mocks.DatasetVersionRepository)
 	mdRepo := new(mocks.MetadataRepository)
 	storage := new(mocks.Storage)
-
-	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage, logger)
 
 	dsRepo.On("FindByID", mock.Anything, uint64(99)).Return(&entities.Dataset{ID: 99, Name: "A"}, nil)
 	verRepo.On("FindByDatasetID", mock.Anything, uint64(99)).Return([]*entities.DatasetVersion{}, nil)
@@ -143,7 +148,8 @@ func TestDatasetService_AddDatasetVersion_Success_NoMetadata(t *testing.T) {
 
 func TestDatasetService_AddDatasetVersion_DatasetNotFound(t *testing.T) {
 	dsRepo := new(mocks.DatasetRepository)
-	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil, logger)
 
 	dsRepo.On("FindByID", mock.Anything, uint64(123)).Return((*entities.Dataset)(nil), nil)
 
@@ -153,7 +159,8 @@ func TestDatasetService_AddDatasetVersion_DatasetNotFound(t *testing.T) {
 
 func TestDatasetService_GetDataset_Success(t *testing.T) {
 	dsRepo := new(mocks.DatasetRepository)
-	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil, logger)
 
 	expected := &entities.Dataset{ID: 5, Name: "OK"}
 	dsRepo.On("FindByID", mock.Anything, uint64(5)).Return(expected, nil)
@@ -165,7 +172,8 @@ func TestDatasetService_GetDataset_Success(t *testing.T) {
 
 func TestDatasetService_GetDataset_NotFound(t *testing.T) {
 	dsRepo := new(mocks.DatasetRepository)
-	svc := services.NewDatasetService(dsRepo, nil, nil, nil)
+	logger := zap.NewNop()
+	svc := services.NewDatasetService(dsRepo, nil, nil, nil, logger)
 
 	dsRepo.On("FindByID", mock.Anything, uint64(6)).Return((*entities.Dataset)(nil), nil)
 

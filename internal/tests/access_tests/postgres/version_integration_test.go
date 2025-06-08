@@ -2,6 +2,7 @@ package postqbuild_test
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -105,7 +106,8 @@ func TestDatasetVersionRepo_CRUD(t *testing.T) {
 	).Scan(&categoryID)
 	assert.NoError(t, err)
 
-	dsRepo := postqbuild.NewDatasetRepo(dbPool)
+	logger := zap.NewNop()
+	dsRepo := postqbuild.NewDatasetRepo(dbPool, logger)
 	dsEnt, err := entities.NewDataset("TestDS", "desc", userID, categoryID, true, time.Now())
 	assert.NoError(t, err)
 	assert.Zero(t, dsEnt.ID)
@@ -114,7 +116,7 @@ func TestDatasetVersionRepo_CRUD(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotZero(t, dsEnt.ID)
 
-	verRepo := postqbuild.NewVersionRepo(dbPool)
+	verRepo := postqbuild.NewVersionRepo(dbPool, logger)
 	verEnt, err := entities.NewDatasetVersion("v1.0", "/tmp/file1", "initial upload", dsEnt.ID, time.Now())
 	assert.NoError(t, err)
 	assert.Zero(t, verEnt.ID)

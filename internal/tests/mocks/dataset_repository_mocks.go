@@ -13,6 +13,11 @@ type DatasetRepository struct {
 	mock.Mock
 }
 
+func (m *DatasetRepository) FindByCategoryID(ctx context.Context, categoryID uint64) ([]*entities.Dataset, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (m *DatasetRepository) FindPublic(ctx context.Context) ([]*entities.Dataset, error) {
 	panic("implement me")
 }

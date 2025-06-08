@@ -3,6 +3,7 @@ package services_test
 import (
 	"context"
 	"errors"
+	"go.uber.org/zap"
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
 	"ppo/internal/services"
@@ -15,7 +16,9 @@ import (
 
 func TestCreateReview_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	cmd := services.CreateReviewCmd{
 		UserID:    1,
@@ -39,7 +42,9 @@ func TestCreateReview_Success(t *testing.T) {
 
 func TestCreateReview_InvalidRating(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	_, err := svc.CreateReview(context.Background(), services.CreateReviewCmd{
 		UserID:    1,
@@ -52,7 +57,9 @@ func TestCreateReview_InvalidRating(t *testing.T) {
 
 func TestUpdateReview_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	existing := &entities.Review{ID: 5, UserID: 1, DatasetID: 2, Rating: entities.Rating3}
 	repo.On("FindByID", mock.Anything, uint64(5)).Return(existing, nil)
@@ -71,7 +78,9 @@ func TestUpdateReview_Success(t *testing.T) {
 
 func TestUpdateReview_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	repo.On("FindByID", mock.Anything, uint64(9)).Return(nil, nil)
 
@@ -87,8 +96,9 @@ func TestUpdateReview_InvalidRating(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
 	existing := &entities.Review{ID: 7, UserID: 1, DatasetID: 2, Rating: entities.Rating2}
 	repo.On("FindByID", mock.Anything, uint64(7)).Return(existing, nil)
+	logger := zap.NewNop()
 
-	svc := services.NewReviewService(repo)
+	svc := services.NewReviewService(repo, logger)
 	err := svc.UpdateReview(context.Background(), services.UpdateReviewCmd{
 		ReviewID: 7,
 		Rating:   entities.Rating(9),
@@ -99,7 +109,9 @@ func TestUpdateReview_InvalidRating(t *testing.T) {
 
 func TestDeleteReview_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(3)).Return(nil)
 	err := svc.DeleteReview(context.Background(), 3)
@@ -108,7 +120,9 @@ func TestDeleteReview_Success(t *testing.T) {
 
 func TestDeleteReview_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	repo.On("Delete", mock.Anything, uint64(4)).Return(repositories.ErrReviewNotFound)
 	err := svc.DeleteReview(context.Background(), 4)
@@ -117,7 +131,9 @@ func TestDeleteReview_NotFound(t *testing.T) {
 
 func TestGetReviewByID_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	expected := &entities.Review{ID: 10}
 	repo.On("FindByID", mock.Anything, uint64(10)).Return(expected, nil)
@@ -129,7 +145,9 @@ func TestGetReviewByID_Success(t *testing.T) {
 
 func TestGetReviewByID_NotFound(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+
+	svc := services.NewReviewService(repo, logger)
 
 	repo.On("FindByID", mock.Anything, uint64(11)).Return(nil, nil)
 	_, err := svc.GetReviewByID(context.Background(), 11)
@@ -138,7 +156,8 @@ func TestGetReviewByID_NotFound(t *testing.T) {
 
 func TestListByDataset_Success(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+	svc := services.NewReviewService(repo, logger)
 
 	list := []*entities.Review{{ID: 1}, {ID: 2}}
 	repo.On("FindByDatasetID", mock.Anything, uint64(2)).Return(list, nil)
@@ -150,7 +169,8 @@ func TestListByDataset_Success(t *testing.T) {
 
 func TestListByUser_Error(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+	svc := services.NewReviewService(repo, logger)
 
 	repo.On("FindByUserID", mock.Anything, uint64(3)).Return(nil, errors.New("fail"))
 	_, err := svc.ListByUser(context.Background(), 3)
@@ -159,7 +179,8 @@ func TestListByUser_Error(t *testing.T) {
 
 func TestGetRatingSummary_Empty(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+	svc := services.NewReviewService(repo, logger)
 
 	repo.On("FindByDatasetID", mock.Anything, uint64(5)).Return([]*entities.Review{}, nil)
 	sum, err := svc.GetRatingSummary(context.Background(), 5)
@@ -170,7 +191,8 @@ func TestGetRatingSummary_Empty(t *testing.T) {
 
 func TestGetRatingSummary_Calc(t *testing.T) {
 	repo := new(mocks.ReviewRepository)
-	svc := services.NewReviewService(repo)
+	logger := zap.NewNop()
+	svc := services.NewReviewService(repo, logger)
 
 	reviews := []*entities.Review{
 		{Rating: entities.Rating1},
