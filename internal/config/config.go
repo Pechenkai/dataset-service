@@ -41,12 +41,18 @@ type LogConfig struct {
 	FilePath   string `mapstructure:"file"`
 }
 
+type Mongo struct {
+	URI      string `mapstructure:"uri"`
+	Database string `mapstructure:"database"`
+}
+
 type Config struct {
 	Database Database  `mapstructure:"database"`
 	HTTP     HTTP      `mapstructure:"http"`
 	Storage  Storage   `mapstructure:"storage"`
 	LogCfg   LogConfig `mapstructure:"log"`
 	TechUI   TechUI    `mapstructure:"techui"`
+	Mongo    Mongo     `mapstructure:"mongo"`
 }
 
 func Load() (*Config, error) {

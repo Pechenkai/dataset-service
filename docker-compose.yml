@@ -18,6 +18,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  mongo:
+    image: mongo:6
+    container_name: ppo_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ppo_mongo_data:/data/db
+      - ./mongo-migrations:/docker-entrypoint-initdb.d
+    environment:
+      MONGO_INITDB_DATABASE: myappdb
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand({ ping: 1 })" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      
   minio:
     image: quay.io/minio/minio
     container_name: ppo_minio
@@ -33,4 +50,5 @@ services:
 
 volumes:
   ppo_pg_data:
+  ppo_mongo_data:
   ppo_minio_data:

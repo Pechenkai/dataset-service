@@ -6,6 +6,10 @@ database:
   health_check_period: "30s"
   connect_timeout: "5s"
 
+mongo:
+  uri: "mongodb://localhost:27017"
+  database: "myappdb"
+
 http:
   host: "0.0.0.0"
   port: 8080
