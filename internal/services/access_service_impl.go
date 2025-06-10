@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"go.uber.org/zap"
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
@@ -41,8 +42,16 @@ func (s *accessService) Request(ctx context.Context, cmd RequestAccessCmd) error
 
 	existing, err := s.arRepo.Find(ctx, cmd.DatasetID, cmd.UserID)
 	if err == nil && existing != nil {
-		s.logger.Info("access request already exists", zap.Uint64("request_id", existing.ID))
-		return ErrRequestAlreadyExists
+		switch existing.Status {
+		case entities.AccessStatusDenied:
+			if err := s.arRepo.UpdateStatus(ctx, existing.ID, string(entities.AccessStatusPending)); err != nil {
+				s.logger.Error("reset denied to pending", zap.Error(err))
+				return fmt.Errorf("reset denied to pending: %w", err)
+			}
+			return nil
+		default:
+			return ErrRequestAlreadyExists
+		}
 	}
 
 	ar, err := entities.NewAccessRequest(cmd.DatasetID, cmd.UserID)
