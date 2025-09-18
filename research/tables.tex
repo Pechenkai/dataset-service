@@ -1,0 +1,58 @@
+\begin{table}
+\caption{delete: время выполнения (ms), статистика = median}
+\label{tab:delete_median}
+\begin{tabular}{lrrrr}
+\toprule
+scenario & clustered\_btree & heap\_btree & heap\_no\_index & heap\_unique\_btree \\
+n &  &  &  &  \\
+\midrule
+10000 & 102.77 & 105.50 & 59.07 & 103.61 \\
+40000 & 312.88 & 312.83 & 189.67 & 314.87 \\
+70000 & 532.92 & 528.74 & 318.15 & 535.05 \\
+100000 & 749.52 & 763.72 & 447.66 & 759.35 \\
+130000 & 953.86 & 1002.66 & 586.30 & 978.92 \\
+160000 & 1170.91 & 1233.65 & 716.02 & 1207.56 \\
+190000 & 1413.88 & 1465.53 & 843.07 & 1420.78 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}
+\caption{insert: время выполнения (ms), статистика = median}
+\label{tab:insert_median}
+\begin{tabular}{lrrrr}
+\toprule
+scenario & clustered\_btree & heap\_btree & heap\_no\_index & heap\_unique\_btree \\
+n &  &  &  &  \\
+\midrule
+10000 & 99.06 & 76.99 & 57.14 & 99.46 \\
+40000 & 306.83 & 306.55 & 184.22 & 307.66 \\
+70000 & 518.94 & 523.89 & 310.42 & 526.15 \\
+100000 & 734.69 & 754.65 & 435.56 & 742.64 \\
+130000 & 973.08 & 981.66 & 572.50 & 958.72 \\
+160000 & 1155.45 & 1221.09 & 699.15 & 1184.32 \\
+190000 & 1395.56 & 1443.21 & 822.09 & 1404.70 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}
+\caption{select: время выполнения (ms), статистика = median}
+\label{tab:select_median}
+\begin{tabular}{lrrrr}
+\toprule
+scenario & clustered\_btree & heap\_btree & heap\_no\_index & heap\_unique\_btree \\
+n &  &  &  &  \\
+\midrule
+10000 & 0.19 & 0.18 & 0.59 & 0.20 \\
+40000 & 0.26 & 0.34 & 1.89 & 0.36 \\
+70000 & 0.28 & 0.52 & 3.32 & 0.45 \\
+100000 & 0.28 & 0.53 & 4.67 & 0.51 \\
+130000 & 0.30 & 0.56 & 5.71 & 0.57 \\
+160000 & 0.27 & 0.58 & 7.05 & 0.56 \\
+190000 & 0.28 & 0.62 & 7.81 & 0.59 \\
+\bottomrule
+\end{tabular}
+\end{table}

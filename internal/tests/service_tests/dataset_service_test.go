@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"go.uber.org/zap"
 	"io"
 	"ppo/internal/entities"
@@ -34,7 +35,7 @@ func TestDatasetService_CreateDataset_Success_WithMetadata(t *testing.T) {
 		ds.ID = 10
 	}).Return(nil)
 
-	storage.On("Upload", mock.Anything, "datasets/10/myfile.txt", mock.Anything, int64(9)).
+	storage.On("Upload", mock.Anything, fmt.Sprintf("datasets/%d/%s/%s", 10, "v0.1", "myfile.txt"), mock.Anything, int64(9)).
 		Return("http://url/to/myfile.txt", nil)
 
 	verRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.DatasetVersion")).Run(func(args mock.Arguments) {
@@ -104,7 +105,7 @@ func TestDatasetService_CreateDataset_UploadError(t *testing.T) {
 		ds.ID = 5
 	}).Return(nil)
 
-	storage.On("Upload", mock.Anything, "datasets/5/f.txt", mock.Anything, int64(0)).Return("", errors.New("net err"))
+	storage.On("Upload", mock.Anything, fmt.Sprintf("datasets/%d/%s/%s", 5, "v0.1", "f.txt"), mock.Anything, int64(0)).Return("", errors.New("net err"))
 	dsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 	logger := zap.NewNop()
 	svc := services.NewDatasetService(dsRepo, nil, nil, storage, logger)
@@ -128,11 +129,12 @@ func TestDatasetService_AddDatasetVersion_Success_NoMetadata(t *testing.T) {
 	svc := services.NewDatasetService(dsRepo, verRepo, mdRepo, storage, logger)
 
 	dsRepo.On("FindByID", mock.Anything, uint64(99)).Return(&entities.Dataset{ID: 99, Name: "A"}, nil)
-	verRepo.On("FindByDatasetID", mock.Anything, uint64(99)).Return([]*entities.DatasetVersion{}, nil)
-	storage.On("Upload", mock.Anything, "datasets/99/vers.txt", mock.Anything, int64(0)).
+	verRepo.On("FindByDatasetID", mock.Anything, uint64(99)).Return([]*entities.DatasetVersion{{Number: "v0.1"}}, nil)
+	storage.On("Upload", mock.Anything, fmt.Sprintf("datasets/%d/%s/%s", 99, "v0.2", "vers.txt"), mock.Anything, int64(0)).
 		Return("url", nil)
 	verRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.DatasetVersion")).Run(func(args mock.Arguments) {
 		v := args.Get(1).(*entities.DatasetVersion)
+		assert.Equal(t, "v0.2", v.Number)
 		v.ID = 77
 	}).Return(nil)
 

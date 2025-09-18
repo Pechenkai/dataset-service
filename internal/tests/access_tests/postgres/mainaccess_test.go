@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package postqbuild_test
 
 import (
@@ -14,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 //var dbPool *pgxpool.Pool
@@ -100,6 +104,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "docker pool error: %v\n", err)
 		os.Exit(1)
 	}
+	pool.MaxWait = 60 * time.Second
 	pgRes, err := pool.RunWithOptions(&dockertest.RunOptions{
 		Repository: "postgres",
 		Tag:        "15-alpine",

@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"io"
+	"path/filepath"
 	"ppo/internal/storage"
+	"strconv"
+	"strings"
 	"time"
 
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
 )
+
+const initialDatasetVersion = "v0.1"
 
 type datasetService struct {
 	dsRepo  repositories.DatasetRepository
@@ -74,13 +79,13 @@ func (s *datasetService) CreateDataset(
 		zap.String("name", ds.Name),
 	)
 
-	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
-	url, err := s.storage.Upload(ctx, key, r, size)
+	objectKey := datasetObjectKey(ds.ID, initialDatasetVersion, cmd.FileName)
+	url, err := s.storage.Upload(ctx, objectKey, r, size)
 	if err != nil {
 		s.logger.Error("failed to upload dataset file to storage",
 			zap.Error(err),
 			zap.Uint64("dataset_id", ds.ID),
-			zap.String("storage_key", key),
+			zap.String("storage_key", objectKey),
 		)
 		if delErr := s.dsRepo.Delete(ctx, ds.ID); delErr != nil {
 			s.logger.Warn("failed to delete dataset after upload error",
@@ -92,17 +97,17 @@ func (s *datasetService) CreateDataset(
 	}
 	s.logger.Info("dataset file uploaded",
 		zap.Uint64("dataset_id", ds.ID),
-		zap.String("storage_key", key),
+		zap.String("storage_key", objectKey),
 		zap.String("url", url),
 	)
 
-	ver, err := entities.NewDatasetVersion("v0.1", url, "", ds.ID, time.Now())
+	ver, err := entities.NewDatasetVersion(initialDatasetVersion, url, "", ds.ID, time.Now())
 	if err != nil {
 		s.logger.Error("failed to construct initial dataset version entity",
 			zap.Error(err),
 			zap.Uint64("dataset_id", ds.ID),
 		)
-		_ = s.storage.Delete(ctx, key)
+		_ = s.storage.Delete(ctx, objectKey)
 		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("invalid version data: %w", err)
 	}
@@ -117,7 +122,7 @@ func (s *datasetService) CreateDataset(
 			zap.Uint64("dataset_id", ds.ID),
 			zap.String("version_number", ver.Number),
 		)
-		_ = s.storage.Delete(ctx, key)
+		_ = s.storage.Delete(ctx, objectKey)
 		_ = s.dsRepo.Delete(ctx, ds.ID)
 		return 0, fmt.Errorf("create version: %w", err)
 	}
@@ -134,7 +139,7 @@ func (s *datasetService) CreateDataset(
 				zap.Error(err),
 				zap.Uint64("version_id", ver.ID),
 			)
-			_ = s.storage.Delete(ctx, key)
+			_ = s.storage.Delete(ctx, objectKey)
 			_ = s.verRepo.Delete(ctx, ver.ID)
 			_ = s.dsRepo.Delete(ctx, ds.ID)
 			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
@@ -146,7 +151,7 @@ func (s *datasetService) CreateDataset(
 				zap.Error(err),
 				zap.Uint64("version_id", ver.ID),
 			)
-			_ = s.storage.Delete(ctx, key)
+			_ = s.storage.Delete(ctx, objectKey)
 			_ = s.verRepo.Delete(ctx, ver.ID)
 			_ = s.dsRepo.Delete(ctx, ds.ID)
 			return 0, fmt.Errorf("create metadata: %w", err)
@@ -192,17 +197,17 @@ func (s *datasetService) AddDatasetVersion(
 	next := nextVersionNumber(vers)
 	s.logger.Debug("calculated next version number", zap.String("next_version", next), zap.Uint64("dataset_id", ds.ID))
 
-	key := fmt.Sprintf("datasets/%d/%s", ds.ID, cmd.FileName)
-	url, err := s.storage.Upload(ctx, key, r, size)
+	objectKey := datasetObjectKey(ds.ID, next, cmd.FileName)
+	url, err := s.storage.Upload(ctx, objectKey, r, size)
 	if err != nil {
 		s.logger.Error("failed to upload new version file",
 			zap.Error(err),
 			zap.Uint64("dataset_id", ds.ID),
-			zap.String("storage_key", key),
+			zap.String("storage_key", objectKey),
 		)
 		return 0, fmt.Errorf("upload file: %w", err)
 	}
-	s.logger.Info("new version file uploaded", zap.Uint64("dataset_id", ds.ID), zap.String("storage_key", key), zap.String("url", url))
+	s.logger.Info("new version file uploaded", zap.Uint64("dataset_id", ds.ID), zap.String("storage_key", objectKey), zap.String("url", url))
 
 	ver, err := entities.NewDatasetVersion(next, url, cmd.ChangeLog, cmd.DatasetID, time.Now())
 	if err != nil {
@@ -211,7 +216,7 @@ func (s *datasetService) AddDatasetVersion(
 			zap.Uint64("dataset_id", ds.ID),
 			zap.String("version_number", next),
 		)
-		_ = s.storage.Delete(ctx, key)
+		_ = s.storage.Delete(ctx, objectKey)
 		return 0, fmt.Errorf("invalid version data: %w", err)
 	}
 	s.logger.Debug("dataset version entity constructed",
@@ -225,7 +230,7 @@ func (s *datasetService) AddDatasetVersion(
 			zap.Uint64("dataset_id", ds.ID),
 			zap.String("version_number", ver.Number),
 		)
-		_ = s.storage.Delete(ctx, key)
+		_ = s.storage.Delete(ctx, objectKey)
 		if err == repositories.ErrVersionNotFound {
 			return 0, ErrVersionNotFound
 		}
@@ -244,7 +249,7 @@ func (s *datasetService) AddDatasetVersion(
 				zap.Error(err),
 				zap.Uint64("version_id", ver.ID),
 			)
-			_ = s.storage.Delete(ctx, key)
+			_ = s.storage.Delete(ctx, objectKey)
 			_ = s.verRepo.Delete(ctx, ver.ID)
 			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
 		}
@@ -255,7 +260,7 @@ func (s *datasetService) AddDatasetVersion(
 				zap.Error(err),
 				zap.Uint64("version_id", ver.ID),
 			)
-			_ = s.storage.Delete(ctx, key)
+			_ = s.storage.Delete(ctx, objectKey)
 			_ = s.verRepo.Delete(ctx, ver.ID)
 			return 0, fmt.Errorf("create metadata: %w", err)
 		}
@@ -351,10 +356,49 @@ func (s *datasetService) ListVersions(ctx context.Context, datasetID uint64) ([]
 
 func nextVersionNumber(existing []*entities.DatasetVersion) string {
 	if len(existing) == 0 {
-		return "v1.0"
+		return initialDatasetVersion
 	}
-	last := existing[0].Number
-	return last + ".1"
+	latest := strings.TrimSpace(existing[0].Number)
+	if major, minor, ok := parseVersion(latest); ok {
+		minor++
+		return fmt.Sprintf("v%d.%d", major, minor)
+	}
+	return latest + ".1"
+}
+
+func datasetObjectKey(datasetID uint64, version, fileName string) string {
+	name := strings.TrimSpace(fileName)
+	if name == "" {
+		name = fmt.Sprintf("dataset-%d", datasetID)
+	}
+	name = filepath.Base(name)
+	if name == "." || name == string(filepath.Separator) {
+		name = fmt.Sprintf("dataset-%d.bin", datasetID)
+	}
+	return fmt.Sprintf("datasets/%d/%s/%s", datasetID, version, name)
+}
+
+func parseVersion(number string) (int, int, bool) {
+	number = strings.TrimSpace(number)
+	if number == "" {
+		return 0, 0, false
+	}
+	if strings.HasPrefix(number, "v") {
+		number = number[1:]
+	}
+	parts := strings.Split(number, ".")
+	if len(parts) < 2 {
+		return 0, 0, false
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, false
+	}
+	minor, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
 }
 
 func (s *datasetService) ListByCategory(ctx context.Context, categoryID uint64) ([]*entities.Dataset, error) {

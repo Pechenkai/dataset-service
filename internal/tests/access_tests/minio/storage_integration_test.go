@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package minio
 
 import (
@@ -10,7 +13,6 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 	"log"
-	"net/http"
 	"os"
 	"ppo/internal/config"
 	"testing"
@@ -35,10 +37,10 @@ func TestMain(m *testing.M) {
 	opts := &dockertest.RunOptions{
 		Repository: "minio/minio",
 		Tag:        "latest",
-		Cmd:        []string{"server", "/data"},
+		Cmd:        []string{"server", "--address", ":9000", "--console-address", ":9001", "/data"},
 		Env: []string{
-			"MINIO_ACCESS_KEY=" + access,
-			"MINIO_SECRET_KEY=" + secret,
+			"MINIO_ROOT_USER=" + access,
+			"MINIO_ROOT_PASSWORD=" + secret,
 		},
 	}
 	resource, err := pool.RunWithOptions(opts, func(hc *docker.HostConfig) {
@@ -50,29 +52,33 @@ func TestMain(m *testing.M) {
 	}
 	resource.Expire(120)
 
-	pool.MaxWait = 30 * time.Second
-	endpoint = fmt.Sprintf("localhost:%s", resource.GetPort("9000/tcp"))
+	pool.MaxWait = 60 * time.Second
+	ip := resource.GetBoundIP("9000/tcp")
+	if ip == "0.0.0.0" || ip == "" {
+		ip = "127.0.0.1"
+	}
+	endpoint = fmt.Sprintf("%s:%s", ip, resource.GetPort("9000/tcp"))
+
+	var minioClient *minio.Client
 	if err := pool.Retry(func() error {
-		resp, e := http.Get("http://" + endpoint + "/minio/health/live")
-		if e != nil {
-			return e
+		cli, err := minio.New(endpoint, &minio.Options{
+			Creds:  credentials.NewStaticV4(access, secret, ""),
+			Secure: false,
+		})
+		if err != nil {
+			return err
 		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			return fmt.Errorf("health status: %d", resp.StatusCode)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := cli.ListBuckets(ctx); err != nil {
+			return err
 		}
+		minioClient = cli
 		return nil
 	}); err != nil {
 		log.Fatalf("could not connect to minio: %v", err)
 	}
 
-	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(access, secret, ""),
-		Secure: false,
-	})
-	if err != nil {
-		log.Fatalf("minio.New error: %v", err)
-	}
 	ctx := context.Background()
 	if err := minioClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
 		exists, err2 := minioClient.BucketExists(ctx, bucket)

@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"context"
-	"fmt"
-	"os"
 	"ppo/internal/delivery/cli/commands"
 
 	"github.com/spf13/cobra"
@@ -31,16 +28,6 @@ func NewRootCommand(
 		commands.NewUserCommand(userSvc),
 		commands.NewSubscriptionCommand(subSvc),
 	)
-
-	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-	}
-
-	cobra.OnInitialize(func() {
-		if err := root.ExecuteContext(context.Background()); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-	})
 
 	return root
 }

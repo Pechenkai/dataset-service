@@ -29,6 +29,7 @@ type App struct {
 	RootCommand *cobra.Command
 	Logger      *zap.Logger
 	WebHandler  chi.Router
+	logClose    func()
 }
 
 func Build(ctx context.Context) (*App, error) {
@@ -39,23 +40,23 @@ func Build(ctx context.Context) (*App, error) {
 
 	zapLogger, closeLog, err := logger.NewLogger(cfg.LogCfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to init logger: %w\n", err)
+		fmt.Fprintf(os.Stderr, "failed to init logger: %v\n", err)
 		zapLogger = zap.NewNop()
 		closeLog = func() {}
 	}
-
-	_ = closeLog
-
 	dbPool, err := postqbuild.NewPool(ctx, cfg.Database)
 	if err != nil {
-		zapLogger.Fatal("failed to connect to database", zap.Error(err))
+		closeLog()
+		return nil, fmt.Errorf("connect to database: %w", err)
 	}
 
 	zapLogger.Info("database pool created")
 
 	s3, err := storage.NewS3Storage(cfg.Storage)
 	if err != nil {
-		return nil, err
+		dbPool.Close()
+		closeLog()
+		return nil, fmt.Errorf("init storage: %w", err)
 	}
 
 	catRepo := postqbuild.NewCategoryRepo(dbPool, zapLogger)
@@ -111,11 +112,21 @@ func Build(ctx context.Context) (*App, error) {
 		DB:          dbPool,
 		HTTPHandler: router,
 		RootCommand: rootCmd,
+		Logger:      zapLogger,
 		WebHandler:  webrouter,
+		logClose:    closeLog,
 	}, nil
 }
 
 func (a *App) Shutdown(ctx context.Context) error {
-	a.DB.Close()
-	return a.Logger.Sync()
+	if a.DB != nil {
+		a.DB.Close()
+	}
+	if a.logClose != nil {
+		a.logClose()
+	}
+	if a.Logger != nil {
+		return a.Logger.Sync()
+	}
+	return nil
 }
