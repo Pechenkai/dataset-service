@@ -6,7 +6,6 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.37.0
-	github.com/ozontech/allure-go v1.17.3
 )
 
 require (
@@ -16,6 +15,7 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/minio/minio-go/v7 v7.0.92
 	github.com/ory/dockertest/v3 v3.12.0
+	github.com/ozontech/allure-go/pkg/allure v0.7.4
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/swaggo/http-swagger v1.3.4
@@ -110,5 +110,6 @@ require (
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/tools v0.26.0 // indirect
+	google.golang.org/protobuf v1.36.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

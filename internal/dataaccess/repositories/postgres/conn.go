@@ -2,7 +2,6 @@ package postqbuild
 
 import (
 	"context"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"ppo/internal/config"
@@ -16,9 +15,9 @@ func NewPool(ctx context.Context, dbCfg config.Database) (*pgxpool.Pool, error) 
 
 	poolCfg.MaxConns = dbCfg.MaxConns
 	poolCfg.MinConns = dbCfg.MinConns
-	poolCfg.MaxConnIdleTime = time.Duration(dbCfg.MaxConnIdleTime) * time.Second
-	poolCfg.HealthCheckPeriod = time.Duration(dbCfg.HealthCheckPeriod) * time.Second
-	poolCfg.ConnConfig.ConnectTimeout = time.Duration(dbCfg.ConnectTimeout) * time.Second
+	poolCfg.MaxConnIdleTime = dbCfg.MaxConnIdleTime
+	poolCfg.HealthCheckPeriod = dbCfg.HealthCheckPeriod
+	poolCfg.ConnConfig.ConnectTimeout = dbCfg.ConnectTimeout
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
