@@ -15,6 +15,9 @@ GOTOOL := go tool
 MKDIR  := mkdir -p
 RM     := rm -rf
 
+ALLURE_RESULTS_DIR := allure-results
+ALLURE_REPORT_DIR  := allure-report
+
 
 .PHONY: all clean dirs \
         build-dataaccess-archive build-services-archive \
@@ -74,6 +77,18 @@ info:
 clean:
 	@echo "=> Cleaning build directory…"
 	$(RM) $(BUILD)
+
+.PHONY: test-dataset-allure
+test-dataset-allure:
+	@echo "=> Running service Allure suites"
+	$(RM) $(ALLURE_RESULTS_DIR)
+	$(RM) internal/tests/service_tests/$(ALLURE_RESULTS_DIR)
+	GO_TEST_RUNNER=allure ALLURE_OUTPUT_PATH=$(CURDIR) $(GO) test -shuffle=on -p 1 ./internal/tests/service_tests -run Test.*ServiceSuite
+
+.PHONY: allure-report
+allure-report: test-dataset-allure
+	@echo "=> Generating Allure report"
+	allure generate $(ALLURE_RESULTS_DIR) -o $(ALLURE_REPORT_DIR) --clean
 
 .PHONY: clean-logs
 clean-logs:

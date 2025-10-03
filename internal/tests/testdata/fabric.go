@@ -42,6 +42,29 @@ func (f *Fabric) Category() *entities.Category {
 		Build()
 }
 
+func (f *Fabric) CreateCategoryCommand() services.CreateCategoryCmd {
+	return NewCreateCategoryCmdBuilder().Build()
+}
+
+func (f *Fabric) InvalidCreateCategoryCommand() services.CreateCategoryCmd {
+	return NewCreateCategoryCmdBuilder().WithoutName().Build()
+}
+
+func (f *Fabric) UpdateCategoryCommand(cat *entities.Category) services.UpdateCategoryCmd {
+	return NewUpdateCategoryCmdBuilder().
+		WithID(cat.ID).
+		WithName(cat.Name + " updated").
+		WithDescription(cat.Description + " updated").
+		Build()
+}
+
+func (f *Fabric) InvalidUpdateCategoryCommand(cat *entities.Category) services.UpdateCategoryCmd {
+	return NewUpdateCategoryCmdBuilder().
+		WithID(cat.ID).
+		WithoutName().
+		Build()
+}
+
 func (f *Fabric) RegularUser() *entities.User {
 	return NewUserBuilder().
 		WithID(f.advanceID()).

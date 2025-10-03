@@ -52,6 +52,40 @@ func (b *CategoryBuilder) Build() *entities.Category {
 	return cat
 }
 
+type CreateCategoryCmdBuilder struct {
+	name        string
+	description string
+}
+
+func NewCreateCategoryCmdBuilder() *CreateCategoryCmdBuilder {
+	return &CreateCategoryCmdBuilder{
+		name:        randomString("category"),
+		description: "auto-generated category",
+	}
+}
+
+func (b *CreateCategoryCmdBuilder) WithName(name string) *CreateCategoryCmdBuilder {
+	b.name = name
+	return b
+}
+
+func (b *CreateCategoryCmdBuilder) WithDescription(desc string) *CreateCategoryCmdBuilder {
+	b.description = desc
+	return b
+}
+
+func (b *CreateCategoryCmdBuilder) WithoutName() *CreateCategoryCmdBuilder {
+	b.name = "   "
+	return b
+}
+
+func (b *CreateCategoryCmdBuilder) Build() services.CreateCategoryCmd {
+	return services.CreateCategoryCmd{
+		Name:        b.name,
+		Description: b.description,
+	}
+}
+
 type DatasetBuilder struct {
 	id          uint64
 	name        string
@@ -117,6 +151,48 @@ func (b *DatasetBuilder) Build() *entities.Dataset {
 		ds.ID = b.id
 	}
 	return ds
+}
+
+type UpdateCategoryCmdBuilder struct {
+	id          uint64
+	name        string
+	description string
+}
+
+func NewUpdateCategoryCmdBuilder() *UpdateCategoryCmdBuilder {
+	return &UpdateCategoryCmdBuilder{
+		id:          1,
+		name:        randomString("category"),
+		description: "updated category",
+	}
+}
+
+func (b *UpdateCategoryCmdBuilder) WithID(id uint64) *UpdateCategoryCmdBuilder {
+	b.id = id
+	return b
+}
+
+func (b *UpdateCategoryCmdBuilder) WithName(name string) *UpdateCategoryCmdBuilder {
+	b.name = name
+	return b
+}
+
+func (b *UpdateCategoryCmdBuilder) WithDescription(desc string) *UpdateCategoryCmdBuilder {
+	b.description = desc
+	return b
+}
+
+func (b *UpdateCategoryCmdBuilder) WithoutName() *UpdateCategoryCmdBuilder {
+	b.name = ""
+	return b
+}
+
+func (b *UpdateCategoryCmdBuilder) Build() services.UpdateCategoryCmd {
+	return services.UpdateCategoryCmd{
+		ID:          b.id,
+		Name:        b.name,
+		Description: b.description,
+	}
 }
 
 type DatasetVersionBuilder struct {

@@ -157,6 +157,8 @@ github.com/ory/dockertest/v3 v3.12.0 h1:3oV9d0sDzlSQfHtIaB5k6ghUCVMVLpAY8hwrqoCy
 github.com/ory/dockertest/v3 v3.12.0/go.mod h1:aKNDTva3cp8dwOWwb9cWuX84aH5akkxXRvO7KCwWVjE=
 github.com/ozontech/allure-go/pkg/allure v0.7.4 h1:BepWbZOmuHKOenmIbhc3iRryg1l21c4R1vs2GzC2374=
 github.com/ozontech/allure-go/pkg/allure v0.7.4/go.mod h1:kM/K/js8tPzl9huIsmgnK1kM6XeqOr7WQu87BBno7ZE=
+github.com/ozontech/allure-go/pkg/framework v0.7.4 h1:GjW8NN2qY4P1KoQ1Teh+IEfBsTf4RijAVtmorwHRep8=
+github.com/ozontech/allure-go/pkg/framework v0.7.4/go.mod h1:6BqD6m6ch2PQb6SjxTlfbtftndV/upv6cOeQH8/RMX8=
 github.com/pelletier/go-toml/v2 v2.2.3 h1:YmeHyLY8mFWbdkNWwpr+qIL2bEqT0o95WSdkNHvL12M=
 github.com/pelletier/go-toml/v2 v2.2.3/go.mod h1:MfCQTFTvCcUyyvvwm1+G6H/jORL20Xlb6rzQu9GuUkc=
 github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c h1:dAMKvw0MlJT1GshSTtih8C2gDs04w8dReiOGXrGLNoY=
