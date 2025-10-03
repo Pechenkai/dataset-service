@@ -471,6 +471,35 @@ func (b *UpdateUserCmdBuilder) Build() services.UpdateUserCmd {
 	}
 }
 
+type RequestAccessCmdBuilder struct {
+	datasetID uint64
+	userID    uint64
+}
+
+func NewRequestAccessCmdBuilder() *RequestAccessCmdBuilder {
+	return &RequestAccessCmdBuilder{
+		datasetID: 1,
+		userID:    2,
+	}
+}
+
+func (b *RequestAccessCmdBuilder) WithDataset(id uint64) *RequestAccessCmdBuilder {
+	b.datasetID = id
+	return b
+}
+
+func (b *RequestAccessCmdBuilder) WithUser(id uint64) *RequestAccessCmdBuilder {
+	b.userID = id
+	return b
+}
+
+func (b *RequestAccessCmdBuilder) Build() services.RequestAccessCmd {
+	return services.RequestAccessCmd{
+		DatasetID: b.datasetID,
+		UserID:    b.userID,
+	}
+}
+
 type DatasetVersionBuilder struct {
 	id         uint64
 	number     string

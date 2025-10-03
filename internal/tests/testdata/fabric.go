@@ -127,6 +127,13 @@ func (f *Fabric) UpdateUserCommand(user *entities.User) services.UpdateUserCmd {
 		Build()
 }
 
+func (f *Fabric) RequestAccessCommand(datasetID, userID uint64) services.RequestAccessCmd {
+	return NewRequestAccessCmdBuilder().
+		WithDataset(datasetID).
+		WithUser(userID).
+		Build()
+}
+
 func (f *Fabric) RegularUser() *entities.User {
 	return NewUserBuilder().
 		WithID(f.advanceID()).
