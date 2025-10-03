@@ -195,6 +195,40 @@ func (b *UpdateCategoryCmdBuilder) Build() services.UpdateCategoryCmd {
 	}
 }
 
+type NotifySubscribersCmdBuilder struct {
+	datasetID uint64
+	message   string
+}
+
+func NewNotifySubscribersCmdBuilder() *NotifySubscribersCmdBuilder {
+	return &NotifySubscribersCmdBuilder{
+		datasetID: 1,
+		message:   "dataset updated",
+	}
+}
+
+func (b *NotifySubscribersCmdBuilder) WithDataset(id uint64) *NotifySubscribersCmdBuilder {
+	b.datasetID = id
+	return b
+}
+
+func (b *NotifySubscribersCmdBuilder) WithMessage(msg string) *NotifySubscribersCmdBuilder {
+	b.message = msg
+	return b
+}
+
+func (b *NotifySubscribersCmdBuilder) WithoutMessage() *NotifySubscribersCmdBuilder {
+	b.message = ""
+	return b
+}
+
+func (b *NotifySubscribersCmdBuilder) Build() services.NotifySubscribersCmd {
+	return services.NotifySubscribersCmd{
+		DatasetID: b.datasetID,
+		Message:   b.message,
+	}
+}
+
 type DatasetVersionBuilder struct {
 	id         uint64
 	number     string

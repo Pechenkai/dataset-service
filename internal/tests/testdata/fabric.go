@@ -65,6 +65,20 @@ func (f *Fabric) InvalidUpdateCategoryCommand(cat *entities.Category) services.U
 		Build()
 }
 
+func (f *Fabric) NotifySubscribersCommand(datasetID uint64, message string) services.NotifySubscribersCmd {
+	return NewNotifySubscribersCmdBuilder().
+		WithDataset(datasetID).
+		WithMessage(message).
+		Build()
+}
+
+func (f *Fabric) InvalidNotifySubscribersCommand(datasetID uint64) services.NotifySubscribersCmd {
+	return NewNotifySubscribersCmdBuilder().
+		WithDataset(datasetID).
+		WithoutMessage().
+		Build()
+}
+
 func (f *Fabric) RegularUser() *entities.User {
 	return NewUserBuilder().
 		WithID(f.advanceID()).
