@@ -104,6 +104,29 @@ func (f *Fabric) UpdateReviewCommand(review *entities.Review, rating entities.Ra
 		Build()
 }
 
+func (f *Fabric) RegisterUserCommand() services.RegisterUserCmd {
+	return NewRegisterUserCmdBuilder().Build()
+}
+
+func (f *Fabric) InvalidRegisterUserCommand() services.RegisterUserCmd {
+	return NewRegisterUserCmdBuilder().WithoutEmail().Build()
+}
+
+func (f *Fabric) AuthenticateUserCommand(email, password string) services.AuthenticateUserCmd {
+	return NewAuthenticateUserCmdBuilder().WithEmail(email).WithPassword(password).Build()
+}
+
+func (f *Fabric) UpdateUserCommand(user *entities.User) services.UpdateUserCmd {
+	return NewUpdateUserCmdBuilder().
+		WithID(user.ID).
+		WithUsername(user.Username + "_updated").
+		WithEmail(user.Email).
+		WithCountry("US").
+		Blocked(false).
+		WithRole(user.Role).
+		Build()
+}
+
 func (f *Fabric) RegularUser() *entities.User {
 	return NewUserBuilder().
 		WithID(f.advanceID()).

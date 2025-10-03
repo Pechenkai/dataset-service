@@ -311,6 +311,166 @@ func (b *UpdateReviewCmdBuilder) Build() services.UpdateReviewCmd {
 	}
 }
 
+type RegisterUserCmdBuilder struct {
+	username string
+	email    string
+	password string
+	country  string
+	role     string
+}
+
+func NewRegisterUserCmdBuilder() *RegisterUserCmdBuilder {
+	return &RegisterUserCmdBuilder{
+		username: randomString("user"),
+		email:    randomString("user") + "@example.com",
+		password: "password123",
+		country:  "RU",
+		role:     entities.RoleUser,
+	}
+}
+
+func (b *RegisterUserCmdBuilder) WithUsername(username string) *RegisterUserCmdBuilder {
+	b.username = username
+	return b
+}
+
+func (b *RegisterUserCmdBuilder) WithEmail(email string) *RegisterUserCmdBuilder {
+	b.email = email
+	return b
+}
+
+func (b *RegisterUserCmdBuilder) WithPassword(password string) *RegisterUserCmdBuilder {
+	b.password = password
+	return b
+}
+
+func (b *RegisterUserCmdBuilder) WithCountry(country string) *RegisterUserCmdBuilder {
+	b.country = country
+	return b
+}
+
+func (b *RegisterUserCmdBuilder) WithRole(role string) *RegisterUserCmdBuilder {
+	b.role = role
+	return b
+}
+
+func (b *RegisterUserCmdBuilder) WithoutEmail() *RegisterUserCmdBuilder {
+	b.email = ""
+	return b
+}
+
+func (b *RegisterUserCmdBuilder) Build() services.RegisterUserCmd {
+	return services.RegisterUserCmd{
+		Username: b.username,
+		Email:    b.email,
+		Password: b.password,
+		Country:  b.country,
+		Role:     b.role,
+	}
+}
+
+type AuthenticateUserCmdBuilder struct {
+	email    string
+	password string
+}
+
+func NewAuthenticateUserCmdBuilder() *AuthenticateUserCmdBuilder {
+	return &AuthenticateUserCmdBuilder{
+		email:    randomString("user") + "@example.com",
+		password: "password123",
+	}
+}
+
+func (b *AuthenticateUserCmdBuilder) WithEmail(email string) *AuthenticateUserCmdBuilder {
+	b.email = email
+	return b
+}
+
+func (b *AuthenticateUserCmdBuilder) WithPassword(password string) *AuthenticateUserCmdBuilder {
+	b.password = password
+	return b
+}
+
+func (b *AuthenticateUserCmdBuilder) Build() services.AuthenticateUserCmd {
+	return services.AuthenticateUserCmd{
+		Email:    b.email,
+		Password: b.password,
+	}
+}
+
+type UpdateUserCmdBuilder struct {
+	id        uint64
+	username  string
+	email     string
+	password  string
+	country   string
+	isBlocked bool
+	role      string
+}
+
+func NewUpdateUserCmdBuilder() *UpdateUserCmdBuilder {
+	return &UpdateUserCmdBuilder{
+		id:       1,
+		username: randomString("user"),
+		email:    randomString("user") + "@example.com",
+		password: "newPassword123",
+		country:  "RU",
+		role:     entities.RoleUser,
+	}
+}
+
+func (b *UpdateUserCmdBuilder) WithID(id uint64) *UpdateUserCmdBuilder {
+	b.id = id
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) WithUsername(username string) *UpdateUserCmdBuilder {
+	b.username = username
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) WithEmail(email string) *UpdateUserCmdBuilder {
+	b.email = email
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) WithoutEmail() *UpdateUserCmdBuilder {
+	b.email = ""
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) WithPassword(password string) *UpdateUserCmdBuilder {
+	b.password = password
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) WithCountry(country string) *UpdateUserCmdBuilder {
+	b.country = country
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) Blocked(blocked bool) *UpdateUserCmdBuilder {
+	b.isBlocked = blocked
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) WithRole(role string) *UpdateUserCmdBuilder {
+	b.role = role
+	return b
+}
+
+func (b *UpdateUserCmdBuilder) Build() services.UpdateUserCmd {
+	return services.UpdateUserCmd{
+		ID:        b.id,
+		Username:  b.username,
+		Email:     b.email,
+		Password:  b.password,
+		Country:   b.country,
+		IsBlocked: b.isBlocked,
+		Role:      b.role,
+	}
+}
+
 type DatasetVersionBuilder struct {
 	id         uint64
 	number     string
