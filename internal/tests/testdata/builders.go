@@ -229,6 +229,88 @@ func (b *NotifySubscribersCmdBuilder) Build() services.NotifySubscribersCmd {
 	}
 }
 
+type CreateReviewCmdBuilder struct {
+	userID    uint64
+	datasetID uint64
+	rating    entities.Rating
+	text      string
+}
+
+func NewCreateReviewCmdBuilder() *CreateReviewCmdBuilder {
+	return &CreateReviewCmdBuilder{
+		userID:    1,
+		datasetID: 1,
+		rating:    entities.Rating4,
+		text:      "solid dataset",
+	}
+}
+
+func (b *CreateReviewCmdBuilder) WithUser(id uint64) *CreateReviewCmdBuilder {
+	b.userID = id
+	return b
+}
+
+func (b *CreateReviewCmdBuilder) WithDataset(id uint64) *CreateReviewCmdBuilder {
+	b.datasetID = id
+	return b
+}
+
+func (b *CreateReviewCmdBuilder) WithRating(r entities.Rating) *CreateReviewCmdBuilder {
+	b.rating = r
+	return b
+}
+
+func (b *CreateReviewCmdBuilder) WithText(text string) *CreateReviewCmdBuilder {
+	b.text = text
+	return b
+}
+
+func (b *CreateReviewCmdBuilder) Build() services.CreateReviewCmd {
+	return services.CreateReviewCmd{
+		UserID:    b.userID,
+		DatasetID: b.datasetID,
+		Rating:    b.rating,
+		Text:      b.text,
+	}
+}
+
+type UpdateReviewCmdBuilder struct {
+	reviewID uint64
+	rating   entities.Rating
+	text     string
+}
+
+func NewUpdateReviewCmdBuilder() *UpdateReviewCmdBuilder {
+	return &UpdateReviewCmdBuilder{
+		reviewID: 1,
+		rating:   entities.Rating5,
+		text:     "updated feedback",
+	}
+}
+
+func (b *UpdateReviewCmdBuilder) WithID(id uint64) *UpdateReviewCmdBuilder {
+	b.reviewID = id
+	return b
+}
+
+func (b *UpdateReviewCmdBuilder) WithRating(r entities.Rating) *UpdateReviewCmdBuilder {
+	b.rating = r
+	return b
+}
+
+func (b *UpdateReviewCmdBuilder) WithText(text string) *UpdateReviewCmdBuilder {
+	b.text = text
+	return b
+}
+
+func (b *UpdateReviewCmdBuilder) Build() services.UpdateReviewCmd {
+	return services.UpdateReviewCmd{
+		ReviewID: b.reviewID,
+		Rating:   b.rating,
+		Text:     b.text,
+	}
+}
+
 type DatasetVersionBuilder struct {
 	id         uint64
 	number     string

@@ -79,6 +79,31 @@ func (f *Fabric) InvalidNotifySubscribersCommand(datasetID uint64) services.Noti
 		Build()
 }
 
+func (f *Fabric) CreateReviewCommand(user *entities.User, dataset *entities.Dataset, rating entities.Rating) services.CreateReviewCmd {
+	return NewCreateReviewCmdBuilder().
+		WithUser(user.ID).
+		WithDataset(dataset.ID).
+		WithRating(rating).
+		WithText("great dataset").
+		Build()
+}
+
+func (f *Fabric) InvalidCreateReviewCommand(user *entities.User, dataset *entities.Dataset) services.CreateReviewCmd {
+	return NewCreateReviewCmdBuilder().
+		WithUser(user.ID).
+		WithDataset(dataset.ID).
+		WithRating(entities.Rating(0)).
+		Build()
+}
+
+func (f *Fabric) UpdateReviewCommand(review *entities.Review, rating entities.Rating) services.UpdateReviewCmd {
+	return NewUpdateReviewCmdBuilder().
+		WithID(review.ID).
+		WithRating(rating).
+		WithText(review.Text + " updated").
+		Build()
+}
+
 func (f *Fabric) RegularUser() *entities.User {
 	return NewUserBuilder().
 		WithID(f.advanceID()).
