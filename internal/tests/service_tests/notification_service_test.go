@@ -162,7 +162,8 @@ func (s *NotificationServiceSuite) TestNotifySubscribers_CreateError(t provider.
 
 func (s *NotificationServiceSuite) TestNotifySubscribers_ClassicStyle(t provider.T) {
 	repo := &inMemoryNotificationRepo{}
-	subRepo := &inMemorySubscriptionRepo{subs: map[uint64][]uint64{42: {1, 2}}}
+	subRepo := newFakeSubscriptionRepo()
+	subRepo.subs[42] = []uint64{1, 2}
 	svc := services.NewNotificationService(repo, subRepo, zap.NewNop())
 	cmd := services.NotifySubscribersCmd{DatasetID: 42, Message: "update"}
 
@@ -378,62 +379,6 @@ func (r *inMemoryNotificationRepo) FindByUserID(ctx context.Context, userID uint
 	for _, notif := range r.notifications {
 		if notif.UserID == userID {
 			result = append(result, notif)
-		}
-	}
-	return result, nil
-}
-
-type inMemorySubscriptionRepo struct {
-	subs map[uint64][]uint64
-}
-
-func (r *inMemorySubscriptionRepo) ensure() {
-	if r.subs == nil {
-		r.subs = make(map[uint64][]uint64)
-	}
-}
-
-func (r *inMemorySubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
-	r.ensure()
-	r.subs[s.DatasetID] = append(r.subs[s.DatasetID], s.UserID)
-	return nil
-}
-
-func (r *inMemorySubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error) {
-	r.ensure()
-	for _, u := range r.subs[datasetID] {
-		if u == userID {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (r *inMemorySubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
-	r.ensure()
-	return append([]uint64(nil), r.subs[datasetID]...), nil
-}
-
-func (r *inMemorySubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {
-	r.ensure()
-	users := r.subs[datasetID]
-	for i, u := range users {
-		if u == userID {
-			r.subs[datasetID] = append(users[:i], users[i+1:]...)
-			return nil
-		}
-	}
-	return nil
-}
-
-func (r *inMemorySubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
-	r.ensure()
-	var result []uint64
-	for datasetID, users := range r.subs {
-		for _, u := range users {
-			if u == userID {
-				result = append(result, datasetID)
-			}
 		}
 	}
 	return result, nil
