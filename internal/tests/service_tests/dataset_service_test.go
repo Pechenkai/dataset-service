@@ -664,8 +664,6 @@ func TestDatasetServiceSuite(t *testing.T) {
 	suite.RunSuite(t, new(DatasetServiceSuite))
 }
 
-// --- Classic-style in-memory fakes ------------------------------------------------
-
 type inMemoryDatasetRepo struct {
 	datasets []*entities.Dataset
 }
@@ -729,8 +727,6 @@ func (r *inMemoryDatasetRepo) FindByCategoryID(ctx context.Context, categoryID u
 	return result, nil
 }
 
-// ---
-
 type inMemoryVersionRepo struct {
 	versions []*entities.DatasetVersion
 }
@@ -767,8 +763,6 @@ func (r *inMemoryVersionRepo) FindByDatasetID(ctx context.Context, datasetID uin
 	return result, nil
 }
 
-// ---
-
 type inMemoryMetadataRepo struct{}
 
 func (r *inMemoryMetadataRepo) Create(ctx context.Context, m *entities.Metadata) error { return nil }
@@ -780,8 +774,6 @@ func (r *inMemoryMetadataRepo) FindByID(ctx context.Context, id uint64) (*entiti
 func (r *inMemoryMetadataRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.Metadata, error) {
 	return nil, nil
 }
-
-// ---
 
 type inMemoryStorage struct{}
 
