@@ -385,8 +385,6 @@ func TestCategoryServiceSuite(t *testing.T) {
 	suite.RunSuite(t, new(CategoryServiceSuite))
 }
 
-// --- Classic-style fake -----------------------------------------------------------
-
 type inMemoryCategoryRepo struct {
 	categories []*entities.Category
 }

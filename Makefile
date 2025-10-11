@@ -83,7 +83,7 @@ test-dataset-allure:
 	@echo "=> Running service Allure suites"
 	$(RM) $(ALLURE_RESULTS_DIR)
 	$(RM) internal/tests/service_tests/$(ALLURE_RESULTS_DIR)
-	GO_TEST_RUNNER=allure ALLURE_OUTPUT_PATH=$(CURDIR) $(GO) test -shuffle=on -p 10 ./internal/tests/service_tests -run Test.*ServiceSuite
+	- GO_TEST_RUNNER=allure ALLURE_OUTPUT_PATH=$(CURDIR) $(GO) test -shuffle=on -p 1 ./internal/tests/service_tests -run Test.*ServiceSuite
 
 .PHONY: allure-report
 allure-report: test-dataset-allure

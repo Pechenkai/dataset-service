@@ -339,8 +339,6 @@ func TestNotificationServiceSuite(t *testing.T) {
 	suite.RunSuite(t, new(NotificationServiceSuite))
 }
 
-// --- Classic-style fakes ----------------------------------------------------------
-
 type inMemoryNotificationRepo struct {
 	notifications []*entities.Notification
 }

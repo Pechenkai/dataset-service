@@ -658,8 +658,6 @@ func TestUserServiceSuite(t *testing.T) {
 	suite.RunSuite(t, new(UserServiceSuite))
 }
 
-// --- Classic-style fake -----------------------------------------------------------
-
 type inMemoryUserRepo struct {
 	nextID  uint64
 	users   map[uint64]*entities.User

@@ -468,8 +468,6 @@ func TestReviewServiceSuite(t *testing.T) {
 	suite.RunSuite(t, new(ReviewServiceSuite))
 }
 
-// --- Classic-style fake -----------------------------------------------------------
-
 type inMemoryReviewRepo struct {
 	reviews []*entities.Review
 }

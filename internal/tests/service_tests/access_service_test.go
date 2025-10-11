@@ -554,8 +554,6 @@ func TestAccessServiceSuite(t *testing.T) {
 	suite.RunSuite(t, new(AccessServiceSuite))
 }
 
-// --- Classic-style fakes -----------------------------------------------------------
-
 type fakeDatasetRepo struct {
 	datasets map[uint64]*entities.Dataset
 }
