@@ -5,6 +5,9 @@ package integration
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -27,14 +30,15 @@ type MinioContainer struct {
 func StartMinio(t *testing.T, bucket string) *MinioContainer {
 	t.Helper()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err, "failed to connect to Docker daemon")
-
 	const (
 		accessKey = "minioadmin"
 		secretKey = "minioadmin"
-		region    = "ru-central"
+		region    = "us-east-1"
 	)
+
+	pool, err := dockertest.NewPool("")
+	require.NoError(t, err, "failed to connect to Docker daemon")
+	pool.MaxWait = 3 * time.Minute
 
 	resource, err := pool.RunWithOptions(
 		&dockertest.RunOptions{
@@ -42,43 +46,53 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 			Tag:        "latest",
 			Cmd:        []string{"server", "/data", "--console-address", ":9001"},
 			Env: []string{
-				fmt.Sprintf("MINIO_ROOT_USER=%s", accessKey),
-				fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", secretKey),
+				"MINIO_ROOT_USER=" + accessKey,
+				"MINIO_ROOT_PASSWORD=" + secretKey,
 			},
 		},
-		func(h *docker.HostConfig) {
-			h.AutoRemove = true
-		},
+		func(h *docker.HostConfig) { h.AutoRemove = true },
 	)
 	require.NoError(t, err, "failed to start minio container")
 
-	t.Cleanup(func() {
-		_ = pool.Purge(resource)
-	})
+	t.Cleanup(func() { _ = pool.Purge(resource) })
 
-	endpoint := fmt.Sprintf("localhost:%s", resource.GetPort("9000/tcp"))
+	hostPort := resource.GetHostPort("9000/tcp") // например "127.0.0.1:49177"
+	require.NotEmpty(t, hostPort, "no mapped host port for 9000/tcp")
 
-	var client *minio.Client
+	// Ждём готовности: TCP + HTTP /minio/health/ready
 	require.NoError(t, pool.Retry(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		var err error
-		client, err = minio.New(endpoint, &minio.Options{
-			Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-			Secure: false,
-			Region: region,
-		})
+		// TCP
+		d := net.Dialer{Timeout: 2 * time.Second}
+		conn, err := d.Dial("tcp", hostPort)
 		if err != nil {
 			return err
 		}
+		_ = conn.Close()
 
-		_, err = client.ListBuckets(ctx)
-		return err
+		// HTTP
+		client := &http.Client{Timeout: 3 * time.Second}
+		req, _ := http.NewRequest(http.MethodGet, "http://"+hostPort+"/minio/health/ready", nil)
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("ready status %d", resp.StatusCode)
+		}
+		return nil
 	}), "minio container did not become ready in time")
 
+	cli, err := minio.New(hostPort, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: false,
+		Region: region,
+	})
+	require.NoError(t, err, "failed to init minio client")
+
 	storageCfg := config.Storage{
-		Endpoint:  endpoint,
+		Endpoint:  hostPort,
 		AccessKey: accessKey,
 		SecretKey: secretKey,
 		Region:    region,
@@ -88,10 +102,11 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{Region: region})
+	// Создаём бакет, если отсутствует
+	err = cli.MakeBucket(ctx, bucket, minio.MakeBucketOptions{Region: region})
 	if err != nil {
-		exists, bucketErr := client.BucketExists(ctx, bucket)
-		require.NoError(t, bucketErr, "failed to check existing bucket")
+		exists, bucketErr := cli.BucketExists(ctx, bucket)
+		require.NoError(t, bucketErr, "failed to check bucket existence")
 		if !exists {
 			require.NoError(t, err, "failed to create minio bucket")
 		}
@@ -100,7 +115,7 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 	return &MinioContainer{
 		Pool:     pool,
 		Resource: resource,
-		Client:   client,
+		Client:   cli,
 		Config:   storageCfg,
 	}
 }
