@@ -33,7 +33,7 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 	const (
 		accessKey = "minioadmin"
 		secretKey = "minioadmin"
-		region    = "us-east-1"
+		region    = "russia"
 	)
 
 	pool, err := dockertest.NewPool("")
@@ -59,9 +59,7 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 	hostPort := resource.GetHostPort("9000/tcp") // например "127.0.0.1:49177"
 	require.NotEmpty(t, hostPort, "no mapped host port for 9000/tcp")
 
-	// Ждём готовности: TCP + HTTP /minio/health/ready
 	require.NoError(t, pool.Retry(func() error {
-		// TCP
 		d := net.Dialer{Timeout: 2 * time.Second}
 		conn, err := d.Dial("tcp", hostPort)
 		if err != nil {
@@ -69,7 +67,6 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 		}
 		_ = conn.Close()
 
-		// HTTP
 		client := &http.Client{Timeout: 3 * time.Second}
 		req, _ := http.NewRequest(http.MethodGet, "http://"+hostPort+"/minio/health/ready", nil)
 		resp, err := client.Do(req)
