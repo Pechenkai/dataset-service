@@ -71,10 +71,10 @@ func TestE2E_PublicDatasetJourney(t *testing.T) {
 
 	client := server.Client()
 
-	status, categories := httpGetJSON[[]dto.CategoryResponse](t, client, fmt.Sprintf("%s/categories", server.URL))
+	status, categories := httpGetJSON[dto.CategoriesResponse](t, client, fmt.Sprintf("%s/categories", server.URL))
 	require.Equal(t, http.StatusOK, status)
-	require.Len(t, categories, 1)
-	assert.Equal(t, category.ID, categories[0].ID)
+	require.Len(t, categories.Categories, 1)
+	assert.Equal(t, category.ID, categories.Categories[0].ID)
 
 	status, datasets := httpGetJSON[dto.DatasetsResponse](t, client, fmt.Sprintf("%s/datasets?public=true", server.URL))
 	require.Equal(t, http.StatusOK, status)

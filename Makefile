@@ -17,6 +17,8 @@ RM     := rm -rf
 
 ALLURE_RESULTS_DIR := allure-results
 ALLURE_REPORT_DIR  := allure-report
+ALLURE_HISTORY_DIR := allure-history
+ALLURE_BRIDGE_CMD := go run ./cmd/allurebridge
 
 TEST_PHASE ?= unit
 
@@ -112,12 +114,25 @@ test-dataset-allure:
 	@echo "=> Running service Allure suites"
 	$(RM) $(ALLURE_RESULTS_DIR)
 	$(RM) internal/tests/service_tests/$(ALLURE_RESULTS_DIR)
+	$(MKDIR) $(ALLURE_RESULTS_DIR)
+	if [ -d $(ALLURE_HISTORY_DIR)/history ]; then \
+	  cp -R $(ALLURE_HISTORY_DIR)/history $(ALLURE_RESULTS_DIR)/; \
+	fi
 	- GO_TEST_RUNNER=allure ALLURE_OUTPUT_PATH=$(CURDIR) $(GO) test -shuffle=on -p 1 ./internal/tests/service_tests -run Test.*ServiceSuite
+	@echo "=> Capturing integration tests to Allure"
+	@bash -c 'set -o pipefail; GOCACHE=$$(mktemp -d) $(GO) test -json -tags=integration ./internal/tests/access_tests/... ./internal/tests/integration_tests | $(ALLURE_BRIDGE_CMD) --suite integration --output $(CURDIR)/$(ALLURE_RESULTS_DIR)'
+	@echo "=> Capturing e2e tests to Allure"
+	@bash -c 'set -o pipefail; GOCACHE=$$(mktemp -d) $(GO) test -json -tags=e2e ./internal/tests/e2e | $(ALLURE_BRIDGE_CMD) --suite e2e --output $(CURDIR)/$(ALLURE_RESULTS_DIR)'
 
 .PHONY: allure-report
 allure-report: test-dataset-allure
 	@echo "=> Generating Allure report"
 	allure generate $(ALLURE_RESULTS_DIR) -o $(ALLURE_REPORT_DIR) --clean
+	$(RM) -r $(ALLURE_HISTORY_DIR)
+	$(MKDIR) $(ALLURE_HISTORY_DIR)
+	if [ -d $(ALLURE_REPORT_DIR)/history ]; then \
+	  cp -R $(ALLURE_REPORT_DIR)/history $(ALLURE_HISTORY_DIR)/; \
+	fi
 
 .PHONY: clean-logs
 clean-logs:

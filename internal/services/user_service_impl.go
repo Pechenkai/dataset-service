@@ -250,6 +250,10 @@ func (s *userService) GetUserByID(ctx context.Context, id uint64) (*entities.Use
 
 	user, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		if errors.Is(err, repositories.ErrUserNotFound) {
+			s.logger.Warn("user not found", zap.Uint64("user_id", id))
+			return nil, ErrUserNotFound
+		}
 		s.logger.Error("error fetching user by ID",
 			zap.Error(err),
 			zap.Uint64("user_id", id),

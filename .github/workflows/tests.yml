@@ -126,6 +126,10 @@ jobs:
       - name: Collect allure results
         run: |
           docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e DOCKER_HOST=unix:///var/run/docker.sock \
+            -e DOCKER_TLS_CERTDIR= \
             -e GOCACHE=/tmp/.gocache \
             -v "${GITHUB_WORKSPACE}/allure-results:/app/allure-results" \
             ppo-tests allure
