@@ -1,6 +1,6 @@
 .idea*
 .gocache/
-allure-report/
+allure-report/*
 allure-results/
 logs/
 
