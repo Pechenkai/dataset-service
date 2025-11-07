@@ -18,14 +18,43 @@ RM     := rm -rf
 ALLURE_RESULTS_DIR := allure-results
 ALLURE_REPORT_DIR  := allure-report
 
+TEST_PHASE ?= unit
 
 .PHONY: all clean dirs \
         build-dataaccess-archive build-services-archive \
-        build-cli build-api build-gui info
+        build-cli build-api build-gui info \
+        test test-unit test-integration test-e2e test-allure
 
 all: dirs build-dataaccess-archive build-services-archive \
       build-cli build-api build-gui
 
+.PHONY: test
+test:
+	@case "$(TEST_PHASE)" in \
+	  unit) $(MAKE) test-unit ;; \
+	  integration) $(MAKE) test-integration ;; \
+	  e2e) $(MAKE) test-e2e ;; \
+	  allure) $(MAKE) test-allure ;; \
+	  *) echo "Unknown TEST_PHASE: $(TEST_PHASE)" >&2; exit 1 ;; \
+	esac
+
+.PHONY: test-unit
+test-unit:
+	@echo "=> Running unit tests"
+	go test ./...
+
+.PHONY: test-integration
+test-integration:
+	@echo "=> Running integration tests"
+	go test -tags=integration ./internal/tests/access_tests/... ./internal/tests/integration_tests
+
+.PHONY: test-e2e
+test-e2e:
+	@echo "=> Running e2e tests"
+	go test -tags=e2e ./internal/tests/e2e
+
+.PHONY: test-allure
+test-allure: test-dataset-allure
 
 .PHONY: dirs
 dirs:
