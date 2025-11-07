@@ -2,5 +2,6 @@
 .gocache/
 allure-report/
 allure-results/
+allure-history/
 logs/
 
