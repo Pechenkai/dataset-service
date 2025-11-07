@@ -56,7 +56,7 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 
 	t.Cleanup(func() { _ = pool.Purge(resource) })
 
-	hostPort := resource.GetHostPort("9000/tcp") // например "127.0.0.1:49177"
+	hostPort := resource.GetHostPort("9000/tcp")
 	require.NotEmpty(t, hostPort, "no mapped host port for 9000/tcp")
 
 	require.NoError(t, pool.Retry(func() error {
@@ -99,7 +99,6 @@ func StartMinio(t *testing.T, bucket string) *MinioContainer {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Создаём бакет, если отсутствует
 	err = cli.MakeBucket(ctx, bucket, minio.MakeBucketOptions{Region: region})
 	if err != nil {
 		exists, bucketErr := cli.BucketExists(ctx, bucket)
