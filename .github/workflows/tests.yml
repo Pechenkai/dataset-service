@@ -1,0 +1,141 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build test image
+        run: docker build -t ppo-tests -f Dockerfile.tests .
+
+      - name: Export test image
+        run: docker save ppo-tests | gzip > ppo-tests-image.tar.gz
+
+      - name: Upload test image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppo-tests-image
+          path: ppo-tests-image.tar.gz
+          retention-days: 1
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-test-image
+    steps:
+      - name: Download test image
+        uses: actions/download-artifact@v4
+        with:
+          name: ppo-tests-image
+
+      - name: Load test image
+        run: docker load < ppo-tests-image.tar.gz
+
+      - name: Run unit tests
+        run: |
+          docker run --rm \
+            -e GOCACHE=/tmp/.gocache \
+            ppo-tests unit
+
+      - name: Cleanup image archive
+        run: rm -f ppo-tests-image.tar.gz
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: unit-tests
+    steps:
+      - name: Download test image
+        uses: actions/download-artifact@v4
+        with:
+          name: ppo-tests-image
+
+      - name: Load test image
+        run: docker load < ppo-tests-image.tar.gz
+
+      - name: Run integration tests
+        run: |
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e DOCKER_HOST=unix:///var/run/docker.sock \
+            -e DOCKER_TLS_CERTDIR= \
+            -e GOCACHE=/tmp/.gocache \
+            ppo-tests integration
+
+      - name: Cleanup image archive
+        run: rm -f ppo-tests-image.tar.gz
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: integration-tests
+    steps:
+      - name: Download test image
+        uses: actions/download-artifact@v4
+        with:
+          name: ppo-tests-image
+
+      - name: Load test image
+        run: docker load < ppo-tests-image.tar.gz
+
+      - name: Run e2e tests
+        run: |
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e DOCKER_HOST=unix:///var/run/docker.sock \
+            -e DOCKER_TLS_CERTDIR= \
+            -e GOCACHE=/tmp/.gocache \
+            ppo-tests e2e
+
+      - name: Cleanup image archive
+        run: rm -f ppo-tests-image.tar.gz
+
+  allure-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - build-test-image
+      - unit-tests
+      - integration-tests
+      - e2e-tests
+    if: ${{ always() }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download test image
+        uses: actions/download-artifact@v4
+        with:
+          name: ppo-tests-image
+
+      - name: Load test image
+        run: docker load < ppo-tests-image.tar.gz
+
+      - name: Prepare allure directory
+        run: mkdir -p allure-results
+
+      - name: Collect allure results
+        run: |
+          docker run --rm \
+            -e GOCACHE=/tmp/.gocache \
+            -v "${GITHUB_WORKSPACE}/allure-results:/app/allure-results" \
+            ppo-tests allure
+
+      - name: Upload allure artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+          if-no-files-found: ignore
+
+      - name: Cleanup image archive
+        run: rm -f ppo-tests-image.tar.gz
