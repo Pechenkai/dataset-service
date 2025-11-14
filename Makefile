@@ -112,9 +112,8 @@ clean:
 .PHONY: test-dataset-allure
 test-dataset-allure:
 	@echo "=> Running service Allure suites"
-	$(RM) $(ALLURE_RESULTS_DIR)
-	$(RM) internal/tests/service_tests/$(ALLURE_RESULTS_DIR)
-	$(MKDIR) $(ALLURE_RESULTS_DIR)
+	@bash -c 'if [ -d $(ALLURE_RESULTS_DIR) ]; then find $(ALLURE_RESULTS_DIR) -mindepth 1 -delete; else mkdir -p $(ALLURE_RESULTS_DIR); fi'
+	@bash -c 'if [ -d internal/tests/service_tests/$(ALLURE_RESULTS_DIR) ]; then find internal/tests/service_tests/$(ALLURE_RESULTS_DIR) -mindepth 1 -delete; else mkdir -p internal/tests/service_tests/$(ALLURE_RESULTS_DIR); fi'
 	if [ -d $(ALLURE_HISTORY_DIR)/history ]; then \
 	  cp -R $(ALLURE_HISTORY_DIR)/history $(ALLURE_RESULTS_DIR)/; \
 	fi
