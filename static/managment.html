@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление PPO Gateway</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Inter, "Segoe UI", sans-serif;
+            background: #f7fbff;
+            color: #0f172a;
+        }
+        header {
+            padding: 2.5rem 1rem;
+            text-align: center;
+            background: #e5f1ff;
+            border-bottom: 1px solid rgba(148,163,184,0.35);
+        }
+        h1 {
+            margin: 0;
+            font-size: clamp(1.8rem, 3vw, 2.6rem);
+        }
+        p.lead {
+            margin-top: 0.8rem;
+            color: #475569;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            padding: 2rem;
+        }
+        a.card {
+            display: block;
+            padding: 1.4rem;
+            border-radius: 18px;
+            background: #ffffff;
+            border: 1px solid rgba(148,163,184,0.5);
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        a.card:hover {
+            transform: translateY(-4px);
+            border-color: #2563eb;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.12);
+        }
+        h2 {
+            margin: 0 0 0.4rem;
+            font-size: 1.1rem;
+        }
+        p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Управление шлюзом PPO</h1>
+    <p class="lead">Быстрые ссылки для API, документации, статики и админских инструментов.</p>
+</header>
+<main class="grid">
+    <a class="card" href="/api/v1">
+        <h2>Swagger API v1</h2>
+        <p>/api/v1 — документация и совместимость с предыдущим REST API.</p>
+    </a>
+    <a class="card" href="/api/v2">
+        <h2>Swagger API v2</h2>
+        <p>/api/v2 — актуальная спецификация и маршрутизация на новый REST.</p>
+    </a>
+    <a class="card" href="/legacy">
+        <h2>Legacy UI</h2>
+        <p>/legacy — текущий MPA интерфейс (Tech UI) поверх API.</p>
+    </a>
+    <a class="card" href="/documentation">
+        <h2>Документация</h2>
+        <p>/documentation — Readme WebLab#1 в Markdown.</p>
+    </a>
+    <a class="card" href="/">
+        <h2>Главная страница</h2>
+        <p>/ — приветственный лендинг SPA с эскизами.</p>
+    </a>
+    <a class="card" href="/reserved/">
+        <h2>Reserved root</h2>
+        <p>/reserved/ — зеркалирует главную, полезно для blue/green.</p>
+    </a>
+    <a class="card" href="/admin">
+        <h2>DB Admin</h2>
+        <p>/admin — веб-админка базы данных (Adminer/pgAdmin).</p>
+    </a>
+    <a class="card" href="/status">
+        <h2>Status</h2>
+        <p>/status — метрики состояния асинхронного сервера.</p>
+    </a>
+</main>
+</body>
+</html>
