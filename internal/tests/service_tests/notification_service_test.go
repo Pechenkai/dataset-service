@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/ozontech/allure-go/pkg/framework/provider"
 	"github.com/ozontech/allure-go/pkg/framework/suite"
@@ -48,7 +49,10 @@ func (s *NotificationServiceSuite) TestNotifySubscribers_Success(t provider.T) {
 	cmd := fabric.NotifySubscribersCommand(42, "dataset updated")
 	m := newNotificationMocks(t)
 
-	subscribers := []uint64{101, 202}
+	subscribers := []*entities.Subscription{
+		{UserID: 101, DatasetID: cmd.DatasetID, CreatedAt: time.Now().UTC()},
+		{UserID: 202, DatasetID: cmd.DatasetID, CreatedAt: time.Now().UTC()},
+	}
 	notifID := uint64(500)
 
 	t.WithNewStep("Arrange mocks", func(ctx provider.StepCtx) {
@@ -81,7 +85,7 @@ func (s *NotificationServiceSuite) TestNotifySubscribers_NoSubscribers(t provide
 	m := newNotificationMocks(t)
 
 	t.WithNewStep("Arrange mocks", func(ctx provider.StepCtx) {
-		m.subRepo.On("GetSubscribers", mock.Anything, cmd.DatasetID).Return([]uint64{}, nil)
+		m.subRepo.On("GetSubscribers", mock.Anything, cmd.DatasetID).Return([]*entities.Subscription{}, nil)
 	})
 
 	var err error
@@ -121,7 +125,9 @@ func (s *NotificationServiceSuite) TestNotifySubscribers_InvalidNotification(t p
 	m := newNotificationMocks(t)
 
 	t.WithNewStep("Arrange mocks", func(ctx provider.StepCtx) {
-		m.subRepo.On("GetSubscribers", mock.Anything, cmd.DatasetID).Return([]uint64{1}, nil)
+		m.subRepo.On("GetSubscribers", mock.Anything, cmd.DatasetID).Return([]*entities.Subscription{
+			{UserID: 1, DatasetID: cmd.DatasetID, CreatedAt: time.Now().UTC()},
+		}, nil)
 	})
 
 	var err error
@@ -143,7 +149,9 @@ func (s *NotificationServiceSuite) TestNotifySubscribers_CreateError(t provider.
 	expectedErr := errors.New("insert fail")
 
 	t.WithNewStep("Arrange mocks", func(ctx provider.StepCtx) {
-		m.subRepo.On("GetSubscribers", mock.Anything, cmd.DatasetID).Return([]uint64{1}, nil)
+		m.subRepo.On("GetSubscribers", mock.Anything, cmd.DatasetID).Return([]*entities.Subscription{
+			{UserID: 1, DatasetID: cmd.DatasetID, CreatedAt: time.Now().UTC()},
+		}, nil)
 		m.notifRepo.On("Create", mock.Anything, mock.Anything).Return(expectedErr)
 	})
 
@@ -163,7 +171,10 @@ func (s *NotificationServiceSuite) TestNotifySubscribers_CreateError(t provider.
 func (s *NotificationServiceSuite) TestNotifySubscribers_ClassicStyle(t provider.T) {
 	repo := &inMemoryNotificationRepo{}
 	subRepo := newFakeSubscriptionRepo()
-	subRepo.subs[42] = []uint64{1, 2}
+	subRepo.subs[42] = []*entities.Subscription{
+		{UserID: 1, DatasetID: 42, CreatedAt: time.Now().UTC()},
+		{UserID: 2, DatasetID: 42, CreatedAt: time.Now().UTC()},
+	}
 	svc := services.NewNotificationService(repo, subRepo, zap.NewNop())
 	cmd := services.NotifySubscribersCmd{DatasetID: 42, Message: "update"}
 

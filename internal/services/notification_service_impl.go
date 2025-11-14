@@ -53,33 +53,33 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 	}
 
 	count := 0
-	for _, userID := range subscribers {
-		notif, err := entities.NewNotification(userID, cmd.DatasetID, cmd.Message, time.Now().UTC())
+	for _, sub := range subscribers {
+		notif, err := entities.NewNotification(sub.UserID, cmd.DatasetID, cmd.Message, time.Now().UTC())
 		if err != nil {
 			s.logger.Error("failed to construct notification entity",
 				zap.Error(err),
-				zap.Uint64("user_id", userID),
+				zap.Uint64("user_id", sub.UserID),
 				zap.Uint64("dataset_id", cmd.DatasetID),
 			)
-			return count, fmt.Errorf("invalid notification for user %d: %w", userID, err)
+			return count, fmt.Errorf("invalid notification for user %d: %w", sub.UserID, err)
 		}
 		s.logger.Debug("notification entity constructed",
-			zap.Uint64("user_id", userID),
+			zap.Uint64("user_id", sub.UserID),
 			zap.Uint64("dataset_id", cmd.DatasetID),
 		)
 
 		if err := s.notifRepo.Create(ctx, notif); err != nil {
 			s.logger.Error("failed to create notification in repository",
 				zap.Error(err),
-				zap.Uint64("user_id", userID),
+				zap.Uint64("user_id", sub.UserID),
 				zap.Uint64("dataset_id", cmd.DatasetID),
 			)
-			return count, fmt.Errorf("create notification for user %d: %w", userID, err)
+			return count, fmt.Errorf("create notification for user %d: %w", sub.UserID, err)
 		}
 
 		count++
 		s.logger.Info("notification created",
-			zap.Uint64("user_id", userID),
+			zap.Uint64("user_id", sub.UserID),
 			zap.Uint64("dataset_id", cmd.DatasetID),
 			zap.Uint64("notification_id", notif.ID),
 		)
@@ -113,8 +113,8 @@ func (s *notificationService) GetNotificationsByUser(ctx context.Context, userID
 	return notifs, nil
 }
 
-func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uint64) error {
-	s.logger.Debug("MarkAsRead called",
+func (s *notificationService) GetNotificationByID(ctx context.Context, notificationID uint64) (*entities.Notification, error) {
+	s.logger.Debug("GetNotificationByID called",
 		zap.Uint64("notification_id", notificationID),
 	)
 
@@ -124,22 +124,48 @@ func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uin
 			s.logger.Warn("notification not found when fetching",
 				zap.Uint64("notification_id", notificationID),
 			)
-			return ErrNotificationNotFound
+			return nil, ErrNotificationNotFound
 		}
 		s.logger.Error("failed to fetch notification",
 			zap.Error(err),
 			zap.Uint64("notification_id", notificationID),
 		)
-		return fmt.Errorf("fetch notification: %w", err)
+		return nil, fmt.Errorf("fetch notification: %w", err)
 	}
 	if notif == nil {
 		s.logger.Warn("notification is nil after fetch",
 			zap.Uint64("notification_id", notificationID),
 		)
-		return ErrNotificationNotFound
+		return nil, ErrNotificationNotFound
 	}
 
-	notif.IsRead = true
+	s.logger.Info("notification fetched successfully",
+		zap.Uint64("notification_id", notif.ID),
+		zap.Uint64("user_id", notif.UserID),
+	)
+	return notif, nil
+}
+
+func (s *notificationService) SetReadStatus(ctx context.Context, notificationID uint64, isRead bool) error {
+	s.logger.Debug("SetReadStatus called",
+		zap.Uint64("notification_id", notificationID),
+		zap.Bool("is_read", isRead),
+	)
+
+	notif, err := s.GetNotificationByID(ctx, notificationID)
+	if err != nil {
+		return err
+	}
+
+	if notif.IsRead == isRead {
+		s.logger.Debug("notification already has requested state",
+			zap.Uint64("notification_id", notificationID),
+			zap.Bool("is_read", isRead),
+		)
+		return nil
+	}
+
+	notif.IsRead = isRead
 	if err := s.notifRepo.Update(ctx, notif); err != nil {
 		if errors.Is(err, repositories.ErrNotificationNotFound) {
 			s.logger.Warn("notification not found when updating",
@@ -151,13 +177,18 @@ func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uin
 			zap.Error(err),
 			zap.Uint64("notification_id", notificationID),
 		)
-		return fmt.Errorf("mark as read: %w", err)
+		return fmt.Errorf("set read status: %w", err)
 	}
 
-	s.logger.Info("notification marked as read successfully",
+	s.logger.Info("notification read status updated",
 		zap.Uint64("notification_id", notificationID),
+		zap.Bool("is_read", isRead),
 	)
 	return nil
+}
+
+func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uint64) error {
+	return s.SetReadStatus(ctx, notificationID, true)
 }
 
 func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID uint64, message string) error {

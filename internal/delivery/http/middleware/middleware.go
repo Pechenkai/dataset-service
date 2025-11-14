@@ -12,8 +12,10 @@ import (
 
 type HandlerWithError func(w http.ResponseWriter, r *http.Request) error
 
-func mapErrorToStatus(err error) int {
+func MapErrorToStatus(err error) int {
 	switch {
+	case isBadRequestError(err):
+		return http.StatusBadRequest
 	// ================================
 	// === 400 Bad Request: ошибки валидации ===
 	// ================================
@@ -31,6 +33,8 @@ func mapErrorToStatus(err error) int {
 	case errors.Is(err, services.ErrInvalidCredentials),
 		errors.Is(err, services.ErrInvalidPassword):
 		return http.StatusUnauthorized
+	case errors.Is(err, services.ErrTokenInvalid):
+		return http.StatusUnauthorized
 
 	// =======================================================
 	// === 404 Not Found: когда чего-то не существует       ===
@@ -42,6 +46,8 @@ func mapErrorToStatus(err error) int {
 		errors.Is(err, services.ErrCategoryNotFound),
 		errors.Is(err, services.ErrNotificationNotFound),
 		errors.Is(err, services.ErrNotSubscribed):
+		return http.StatusNotFound
+	case errors.Is(err, services.ErrTokenNotFound):
 		return http.StatusNotFound
 
 	// ================================================================
@@ -69,10 +75,18 @@ func mapErrorToStatus(err error) int {
 func WrapHandler(h HandlerWithError) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := h(w, r); err != nil {
-			status := mapErrorToStatus(err)
+			status := MapErrorToStatus(err)
 			dto.WriteStatusError(w, status, err)
 		}
 	}
+}
+
+func isBadRequestError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var badReq *dto.BadRequestError
+	return errors.As(err, &badReq)
 }
 
 func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {

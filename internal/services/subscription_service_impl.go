@@ -146,7 +146,7 @@ func (s *subscriptionService) Unsubscribe(ctx context.Context, userID, datasetID
 	return nil
 }
 
-func (s *subscriptionService) ListSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
+func (s *subscriptionService) ListSubscribers(ctx context.Context, datasetID uint64) ([]*entities.Subscription, error) {
 	s.logger.Debug("ListSubscribers called",
 		zap.Uint64("dataset_id", datasetID),
 	)
@@ -174,7 +174,7 @@ func (s *subscriptionService) ListSubscribers(ctx context.Context, datasetID uin
 	return subs, nil
 }
 
-func (s *subscriptionService) ListSubscriptions(ctx context.Context, userID uint64) ([]uint64, error) {
+func (s *subscriptionService) ListSubscriptions(ctx context.Context, userID uint64) ([]*entities.Subscription, error) {
 	s.logger.Debug("ListSubscriptions called",
 		zap.Uint64("user_id", userID),
 	)
@@ -200,6 +200,19 @@ func (s *subscriptionService) ListSubscriptions(ctx context.Context, userID uint
 		zap.Int("count", len(ds)),
 	)
 	return ds, nil
+}
+
+func (s *subscriptionService) ListAllSubscriptions(ctx context.Context) ([]*entities.Subscription, error) {
+	s.logger.Debug("ListAllSubscriptions called")
+
+	subs, err := s.repo.GetAll(ctx)
+	if err != nil {
+		s.logger.Error("failed to list all subscriptions from repository", zap.Error(err))
+		return nil, fmt.Errorf("list all subscriptions: %w", err)
+	}
+
+	s.logger.Info("all subscriptions fetched", zap.Int("count", len(subs)))
+	return subs, nil
 }
 
 func (s *subscriptionService) IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error) {

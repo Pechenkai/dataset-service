@@ -6,10 +6,11 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"ppo/internal/delivery/cli/api"
 	"ppo/internal/services"
 )
 
-func NewUserCommand(svc services.UserService) *cobra.Command {
+func NewUserCommand(client *api.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user",
 		Short: "User operations",
@@ -25,7 +26,7 @@ func NewUserCommand(svc services.UserService) *cobra.Command {
 			country, _ := cmd.Flags().GetString("country")
 			role, _ := cmd.Flags().GetString("role")
 
-			newID, err := svc.Register(context.Background(), services.RegisterUserCmd{
+			newID, err := client.RegisterUser(context.Background(), services.RegisterUserCmd{
 				Username: username,
 				Email:    email,
 				Password: password,
@@ -55,15 +56,14 @@ func NewUserCommand(svc services.UserService) *cobra.Command {
 			email, _ := cmd.Flags().GetString("email")
 			password, _ := cmd.Flags().GetString("password")
 
-			user, err := svc.Authenticate(context.Background(), services.AuthenticateUserCmd{
+			user, err := client.Authenticate(context.Background(), services.AuthenticateUserCmd{
 				Email:    email,
 				Password: password,
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Authenticated user: ID=%d, Username=%s, Email=%s, Role=%s\n",
-				user.ID, user.Username, user.Email, user.Role)
+			fmt.Printf("Authenticated user: ID=%d, Username=%s, token saved.\n", user.ID, user.Username)
 			return nil
 		},
 	}
@@ -71,6 +71,18 @@ func NewUserCommand(svc services.UserService) *cobra.Command {
 	loginCmd.Flags().String("password", "", "Password (required)")
 	loginCmd.MarkFlagRequired("email")
 	loginCmd.MarkFlagRequired("password")
+
+	logoutCmd := &cobra.Command{
+		Use:   "logout",
+		Short: "Clear stored access token",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := client.Logout(); err != nil {
+				return err
+			}
+			fmt.Println("Token cleared.")
+			return nil
+		},
+	}
 
 	getCmd := &cobra.Command{
 		Use:   "get [id]",
@@ -81,7 +93,7 @@ func NewUserCommand(svc services.UserService) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			user, err := svc.GetUserByID(context.Background(), id)
+			user, err := client.GetUserByID(context.Background(), id)
 			if err != nil {
 				return err
 			}
@@ -107,7 +119,7 @@ func NewUserCommand(svc services.UserService) *cobra.Command {
 			role, _ := cmd.Flags().GetString("role")
 			blocked, _ := cmd.Flags().GetBool("blocked")
 
-			return svc.UpdateUser(context.Background(), services.UpdateUserCmd{
+			return client.UpdateUser(context.Background(), services.UpdateUserCmd{
 				ID:        id,
 				Username:  username,
 				Email:     email,
@@ -134,10 +146,10 @@ func NewUserCommand(svc services.UserService) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return svc.DeleteUser(context.Background(), id)
+			return client.DeleteUser(context.Background(), id)
 		},
 	}
 
-	cmd.AddCommand(registerCmd, loginCmd, getCmd, updateCmd, deleteCmd)
+	cmd.AddCommand(registerCmd, loginCmd, logoutCmd, getCmd, updateCmd, deleteCmd)
 	return cmd
 }

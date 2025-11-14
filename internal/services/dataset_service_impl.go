@@ -474,3 +474,19 @@ func (s *datasetService) GetVersionDownloadURL(ctx context.Context, versionID ui
 	}
 	return url, nil
 }
+
+func (s *datasetService) GetVersionMetadata(ctx context.Context, versionID uint64) (*entities.Metadata, error) {
+	s.logger.Debug("GetVersionMetadata called", zap.Uint64("version_id", versionID))
+	metadata, err := s.mdRepo.FindByDatasetID(ctx, versionID)
+	if err != nil {
+		s.logger.Error("failed to fetch metadata for version",
+			zap.Error(err),
+			zap.Uint64("version_id", versionID),
+		)
+		return nil, fmt.Errorf("get metadata: %w", err)
+	}
+	if len(metadata) == 0 {
+		return nil, nil
+	}
+	return metadata[0], nil
+}

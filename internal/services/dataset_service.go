@@ -51,4 +51,5 @@ type DatasetService interface {
 	GetDownloadURL(ctx context.Context, datasetID uint64) (string, error)
 	UpdateDataset(ctx context.Context, cmd UpdateDatasetCmd) error
 	GetVersionDownloadURL(ctx context.Context, versionID uint64) (string, error)
+	GetVersionMetadata(ctx context.Context, versionID uint64) (*entities.Metadata, error)
 }

@@ -48,11 +48,25 @@ func TestSubscriptionService_SubscribeAndUnsubscribeFlow(t *testing.T) {
 
 	subscribers, err := svc.ListSubscribers(ctx, dataset.ID)
 	require.NoError(t, err)
-	require.Contains(t, subscribers, user.ID)
+	var found bool
+	for _, sub := range subscribers {
+		if sub.UserID == user.ID && sub.DatasetID == dataset.ID {
+			found = true
+			break
+		}
+	}
+	require.True(t, found)
 
 	datasets, err := svc.ListSubscriptions(ctx, user.ID)
 	require.NoError(t, err)
-	require.Contains(t, datasets, dataset.ID)
+	found = false
+	for _, sub := range datasets {
+		if sub.DatasetID == dataset.ID {
+			found = true
+			break
+		}
+	}
+	require.True(t, found)
 
 	err = svc.Unsubscribe(ctx, user.ID, dataset.ID)
 	require.NoError(t, err)

@@ -85,7 +85,7 @@ func ListSubscribersHandler(svc services.SubscriptionService) middleware.Handler
 			return err // Возможны ошибки 404 (например, dataset не найден) или 500
 		}
 
-		resp := dto.ListSubscribersResponse{Subscribers: subs}
+		resp := dto.ListSubscribersResponse{Subscribers: dto.ToSubscriberIDs(subs)}
 		dto.WriteJSON(w, http.StatusOK, resp)
 		return nil
 	}
@@ -113,7 +113,7 @@ func ListSubscriptionsHandler(svc services.SubscriptionService) middleware.Handl
 			return err // 404 если юзер не найден, либо 500
 		}
 
-		resp := dto.ListSubscriptionsResponse{Subscriptions: datasets}
+		resp := dto.ListSubscriptionsResponse{Subscriptions: dto.ToDatasetIDs(datasets)}
 		dto.WriteJSON(w, http.StatusOK, resp)
 		return nil
 	}

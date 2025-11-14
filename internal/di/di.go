@@ -10,6 +10,7 @@ import (
 	httpdelivery "ppo/internal/delivery/http"
 	"ppo/internal/logger"
 	"ppo/internal/storage"
+	"time"
 
 	webui "ppo/internal/delivery/web"
 
@@ -19,6 +20,7 @@ import (
 	"ppo/internal/config"
 	"ppo/internal/dataaccess/repositories/postqbuild"
 	"ppo/internal/delivery/cli"
+	cliapi "ppo/internal/delivery/cli/api"
 	"ppo/internal/services"
 )
 
@@ -76,6 +78,11 @@ func Build(ctx context.Context) (*App, error) {
 	userSvc := services.NewUserService(userRepo, zapLogger)
 	subSvc := services.NewSubscriptionService(subRepo, zapLogger)
 	reqSvc := services.NewAccessService(dsRepo, requestRepo, zapLogger)
+	tokenTTL := cfg.Auth.AccessTokenTTL
+	if tokenTTL <= 0 {
+		tokenTTL = 24 * time.Hour
+	}
+	tokenSvc := services.NewHMACTokenService(cfg.Auth.Secret, tokenTTL)
 
 	router := httpdelivery.NewRouter(
 		catSvc,
@@ -84,6 +91,8 @@ func Build(ctx context.Context) (*App, error) {
 		revSvc,
 		userSvc,
 		subSvc,
+		tokenSvc,
+		tokenTTL,
 		zapLogger,
 	)
 
@@ -98,14 +107,15 @@ func Build(ctx context.Context) (*App, error) {
 		zapLogger,
 	)
 
-	rootCmd := cli.NewRootCommand(
-		catSvc,
-		dsSvc,
-		notifSvc,
-		revSvc,
-		userSvc,
-		subSvc,
-	)
+	tokenStore, err := cliapi.NewFileTokenStore(cfg.CLI.TokenFile)
+	if err != nil {
+		return nil, fmt.Errorf("init token store: %w", err)
+	}
+	apiClient, err := cliapi.NewClient(cfg.CLI.APIBaseURL, tokenStore)
+	if err != nil {
+		return nil, fmt.Errorf("init api client: %w", err)
+	}
+	rootCmd := cli.NewRootCommand(apiClient)
 
 	return &App{
 		Config:      cfg,

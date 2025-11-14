@@ -7,10 +7,11 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"ppo/internal/delivery/cli/api"
 	"ppo/internal/services"
 )
 
-func NewDatasetCommand(svc services.DatasetService) *cobra.Command {
+func NewDatasetCommand(client *api.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dataset",
 		Short: "Dataset operations",
@@ -43,7 +44,7 @@ func NewDatasetCommand(svc services.DatasetService) *cobra.Command {
 				MetaTags:    "",
 				MetaSize:    0,
 			}
-			id, err := svc.CreateDataset(context.Background(), cmdSvc, f, fi.Size())
+			id, err := client.CreateDataset(context.Background(), cmdSvc, f, fi.Size())
 			if err != nil {
 				return err
 			}
@@ -72,7 +73,7 @@ func NewDatasetCommand(svc services.DatasetService) *cobra.Command {
 				ownerID = &userIDVal
 			}
 
-			list, err := svc.ListDatasets(context.Background(), publicOnly, ownerID)
+			list, err := client.ListDatasets(context.Background(), publicOnly, ownerID)
 			if err != nil {
 				return err
 			}
@@ -114,7 +115,7 @@ func NewDatasetCommand(svc services.DatasetService) *cobra.Command {
 			defer f.Close()
 			fi, _ := f.Stat()
 
-			verID, err := svc.AddDatasetVersion(context.Background(),
+			verID, err := client.AddDatasetVersion(context.Background(),
 				services.AddVersionCmd{
 					DatasetID:  dsID,
 					ChangeLog:  changelog,
@@ -139,6 +140,6 @@ func NewDatasetCommand(svc services.DatasetService) *cobra.Command {
 	addVerCmd.Flags().Uint64("size", 0, "Metadata size")
 	addVerCmd.MarkFlagRequired("file")
 
-	cmd.AddCommand(createCmd, listCmd)
+	cmd.AddCommand(createCmd, listCmd, addVerCmd)
 	return cmd
 }

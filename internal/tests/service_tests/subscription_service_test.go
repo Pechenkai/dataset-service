@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/ozontech/allure-go/pkg/framework/provider"
 	"github.com/ozontech/allure-go/pkg/framework/suite"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"ppo/internal/entities"
 	"ppo/internal/repositories"
 	"ppo/internal/services"
 	"ppo/internal/tests/mocks"
@@ -258,10 +260,14 @@ func (s *SubscriptionServiceSuite) TestUnsubscribe_RepoNotFound(t provider.T) {
 
 func (s *SubscriptionServiceSuite) TestListSubscribers_Success(t provider.T) {
 	m := newSubscriptionMocks(t)
-	expected := []uint64{1, 2, 3}
+	ts := time.Now().UTC()
+	expected := []*entities.Subscription{
+		{UserID: 1, DatasetID: 10, CreatedAt: ts},
+		{UserID: 2, DatasetID: 10, CreatedAt: ts},
+	}
 
 	var (
-		result []uint64
+		result []*entities.Subscription
 		err    error
 	)
 
@@ -282,7 +288,7 @@ func (s *SubscriptionServiceSuite) TestListSubscribers_InvalidDataset(t provider
 	m := newSubscriptionMocks(t)
 
 	var (
-		result []uint64
+		result []*entities.Subscription
 		err    error
 	)
 
@@ -315,10 +321,14 @@ func (s *SubscriptionServiceSuite) TestListSubscribers_Error(t provider.T) {
 
 func (s *SubscriptionServiceSuite) TestListSubscriptions_Success(t provider.T) {
 	m := newSubscriptionMocks(t)
-	expected := []uint64{11, 22}
+	ts := time.Now().UTC()
+	expected := []*entities.Subscription{
+		{UserID: 7, DatasetID: 11, CreatedAt: ts},
+		{UserID: 7, DatasetID: 22, CreatedAt: ts},
+	}
 
 	var (
-		result []uint64
+		result []*entities.Subscription
 		err    error
 	)
 
@@ -358,6 +368,49 @@ func (s *SubscriptionServiceSuite) TestListSubscriptions_Error(t provider.T) {
 	})
 	t.WithNewStep("Act", func(ctx provider.StepCtx) {
 		_, err = m.svc.ListSubscriptions(context.Background(), 7)
+	})
+	t.WithNewStep("Assert", func(ctx provider.StepCtx) {
+		require.Error(t, err)
+		assert.ErrorIs(t, err, expected)
+		m.AssertExpectations(t)
+	})
+}
+
+func (s *SubscriptionServiceSuite) TestListAllSubscriptions_Success(t provider.T) {
+	m := newSubscriptionMocks(t)
+	ts := time.Now().UTC()
+	expected := []*entities.Subscription{
+		{UserID: 1, DatasetID: 2, CreatedAt: ts},
+	}
+
+	var (
+		result []*entities.Subscription
+		err    error
+	)
+
+	t.WithNewStep("Arrange mocks", func(ctx provider.StepCtx) {
+		m.repo.On("GetAll", mock.Anything).Return(expected, nil)
+	})
+	t.WithNewStep("Act", func(ctx provider.StepCtx) {
+		result, err = m.svc.ListAllSubscriptions(context.Background())
+	})
+	t.WithNewStep("Assert", func(ctx provider.StepCtx) {
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+		m.AssertExpectations(t)
+	})
+}
+
+func (s *SubscriptionServiceSuite) TestListAllSubscriptions_Error(t provider.T) {
+	m := newSubscriptionMocks(t)
+	expected := errors.New("boom")
+
+	var err error
+	t.WithNewStep("Arrange mocks", func(ctx provider.StepCtx) {
+		m.repo.On("GetAll", mock.Anything).Return(nil, expected)
+	})
+	t.WithNewStep("Act", func(ctx provider.StepCtx) {
+		_, err = m.svc.ListAllSubscriptions(context.Background())
 	})
 	t.WithNewStep("Assert", func(ctx provider.StepCtx) {
 		require.Error(t, err)

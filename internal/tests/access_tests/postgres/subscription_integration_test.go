@@ -4,6 +4,7 @@ package postgres_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,11 +42,22 @@ func TestSubscriptionRepository_Flow(t *testing.T) {
 
 	subscribers, err := subscriptionRepo.GetSubscribers(ctx, dataset.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []uint64{user.ID}, subscribers)
+	require.Len(t, subscribers, 1)
+	assert.Equal(t, user.ID, subscribers[0].UserID)
+	assert.Equal(t, dataset.ID, subscribers[0].DatasetID)
+	assert.WithinDuration(t, time.Now(), subscribers[0].CreatedAt, time.Minute)
 
 	userSubs, err := subscriptionRepo.GetByUser(ctx, user.ID)
 	require.NoError(t, err)
-	assert.Contains(t, userSubs, dataset.ID)
+	require.NotEmpty(t, userSubs)
+	var hasDataset bool
+	for _, sub := range userSubs {
+		if sub.DatasetID == dataset.ID {
+			hasDataset = true
+			break
+		}
+	}
+	assert.True(t, hasDataset)
 
 	err = subscriptionRepo.Create(ctx, sub)
 	require.Error(t, err)

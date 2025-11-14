@@ -7,11 +7,12 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"ppo/internal/delivery/cli/api"
 	"ppo/internal/entities"
 	"ppo/internal/services"
 )
 
-func NewReviewCommand(svc services.ReviewService) *cobra.Command {
+func NewReviewCommand(client *api.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "review",
 		Short: "Review operations",
@@ -26,7 +27,6 @@ func NewReviewCommand(svc services.ReviewService) *cobra.Command {
 			ratingVal, _ := cmd.Flags().GetInt("rating")
 			text, _ := cmd.Flags().GetString("text")
 
-			rating := entities.Rating(ratingVal)
 			if ratingVal < int(entities.Rating1) || ratingVal > int(entities.Rating5) {
 				return errors.New("rating must be between 1 and 5")
 			}
@@ -34,10 +34,10 @@ func NewReviewCommand(svc services.ReviewService) *cobra.Command {
 			crcmd := services.CreateReviewCmd{
 				UserID:    userID,
 				DatasetID: datasetID,
-				Rating:    rating,
+				Rating:    entities.Rating(ratingVal),
 				Text:      text,
 			}
-			revID, err := svc.CreateReview(context.Background(), crcmd)
+			revID, err := client.CreateReview(context.Background(), crcmd)
 			if err != nil {
 				return err
 			}
@@ -65,15 +65,16 @@ func NewReviewCommand(svc services.ReviewService) *cobra.Command {
 			ratingVal, _ := cmd.Flags().GetInt("rating")
 			text, _ := cmd.Flags().GetString("text")
 
-			if ratingVal < int(entities.Rating1) || ratingVal > int(entities.Rating5) {
+			if ratingVal != 0 && (ratingVal < int(entities.Rating1) || ratingVal > int(entities.Rating5)) {
 				return errors.New("rating must be between 1 and 5")
 			}
+
 			updcmd := services.UpdateReviewCmd{
 				ReviewID: revID,
 				Rating:   entities.Rating(ratingVal),
 				Text:     text,
 			}
-			return svc.UpdateReview(context.Background(), updcmd)
+			return client.UpdateReview(context.Background(), updcmd)
 		},
 	}
 	updateCmd.Flags().Int("rating", 0, "New rating (1-5)")
@@ -88,7 +89,7 @@ func NewReviewCommand(svc services.ReviewService) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return svc.DeleteReview(context.Background(), revID)
+			return client.DeleteReview(context.Background(), revID)
 		},
 	}
 
@@ -105,9 +106,9 @@ func NewReviewCommand(svc services.ReviewService) *cobra.Command {
 			var reviews []*entities.Review
 			var err error
 			if dsID != 0 {
-				reviews, err = svc.ListByDataset(context.Background(), dsID)
+				reviews, err = client.ListReviewsByDataset(context.Background(), dsID)
 			} else if usrID != 0 {
-				reviews, err = svc.ListByUser(context.Background(), usrID)
+				reviews, err = client.ListReviewsByUser(context.Background(), usrID)
 			} else {
 				return errors.New("need --dataset or --user flag")
 			}
@@ -133,7 +134,7 @@ func NewReviewCommand(svc services.ReviewService) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			summary, err := svc.GetRatingSummary(context.Background(), dsID)
+			summary, err := client.GetRatingSummary(context.Background(), dsID)
 			if err != nil {
 				return err
 			}

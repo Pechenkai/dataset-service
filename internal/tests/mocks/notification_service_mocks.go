@@ -58,11 +58,11 @@ func (m *SubscriptionRepository) IsSubscribed(ctx context.Context, userID, datas
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *SubscriptionRepository) GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
+func (m *SubscriptionRepository) GetSubscribers(ctx context.Context, datasetID uint64) ([]*entities.Subscription, error) {
 	args := m.Called(ctx, datasetID)
-	var list []uint64
+	var list []*entities.Subscription
 	if value := args.Get(0); value != nil {
-		list, _ = value.([]uint64)
+		list, _ = value.([]*entities.Subscription)
 	}
 	return list, args.Error(1)
 }
@@ -71,11 +71,20 @@ func (m *SubscriptionRepository) Unsubscribe(ctx context.Context, userID, datase
 	return m.Called(ctx, userID, datasetID).Error(0)
 }
 
-func (m *SubscriptionRepository) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
+func (m *SubscriptionRepository) GetByUser(ctx context.Context, userID uint64) ([]*entities.Subscription, error) {
 	args := m.Called(ctx, userID)
-	var list []uint64
+	var list []*entities.Subscription
 	if value := args.Get(0); value != nil {
-		list, _ = value.([]uint64)
+		list, _ = value.([]*entities.Subscription)
+	}
+	return list, args.Error(1)
+}
+
+func (m *SubscriptionRepository) GetAll(ctx context.Context) ([]*entities.Subscription, error) {
+	args := m.Called(ctx)
+	var list []*entities.Subscription
+	if value := args.Get(0); value != nil {
+		list, _ = value.([]*entities.Subscription)
 	}
 	return list, args.Error(1)
 }

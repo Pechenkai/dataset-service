@@ -8,60 +8,86 @@ import (
 )
 
 type fakeSubscriptionRepo struct {
-	subs map[uint64][]uint64
+	subs map[uint64][]*entities.Subscription
 }
 
 func newFakeSubscriptionRepo() *fakeSubscriptionRepo {
-	return &fakeSubscriptionRepo{subs: make(map[uint64][]uint64)}
+	return &fakeSubscriptionRepo{subs: make(map[uint64][]*entities.Subscription)}
 }
 
 func (r *fakeSubscriptionRepo) ensure() {
 	if r.subs == nil {
-		r.subs = make(map[uint64][]uint64)
+		r.subs = make(map[uint64][]*entities.Subscription)
 	}
 }
 
 func (r *fakeSubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
 	r.ensure()
-	r.subs[s.DatasetID] = append(r.subs[s.DatasetID], s.UserID)
+	r.subs[s.DatasetID] = append(r.subs[s.DatasetID], &entities.Subscription{
+		UserID:    s.UserID,
+		DatasetID: s.DatasetID,
+		CreatedAt: s.CreatedAt,
+	})
 	return nil
 }
 
 func (r *fakeSubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID uint64) (bool, error) {
 	r.ensure()
-	for _, u := range r.subs[datasetID] {
-		if u == userID {
+	for _, sub := range r.subs[datasetID] {
+		if sub.UserID == userID {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func (r *fakeSubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
+func (r *fakeSubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]*entities.Subscription, error) {
 	r.ensure()
-	return append([]uint64(nil), r.subs[datasetID]...), nil
+	list := r.subs[datasetID]
+	cp := make([]*entities.Subscription, len(list))
+	copy(cp, list)
+	return cp, nil
 }
 
 func (r *fakeSubscriptionRepo) Unsubscribe(ctx context.Context, userID, datasetID uint64) error {
 	r.ensure()
-	users := r.subs[datasetID]
-	for i, u := range users {
-		if u == userID {
-			r.subs[datasetID] = append(users[:i], users[i+1:]...)
+	list := r.subs[datasetID]
+	for i, sub := range list {
+		if sub.UserID == userID {
+			r.subs[datasetID] = append(list[:i], list[i+1:]...)
 			return nil
 		}
 	}
 	return repositories.ErrSubscriptionNotFound
 }
 
-func (r *fakeSubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
+func (r *fakeSubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]*entities.Subscription, error) {
 	r.ensure()
-	var result []uint64
-	for datasetID, users := range r.subs {
-		for _, u := range users {
-			if u == userID {
-				result = append(result, datasetID)
+	var result []*entities.Subscription
+	for _, list := range r.subs {
+		for _, sub := range list {
+			if sub.UserID == userID {
+				result = append(result, &entities.Subscription{
+					UserID:    sub.UserID,
+					DatasetID: sub.DatasetID,
+					CreatedAt: sub.CreatedAt,
+				})
 			}
+		}
+	}
+	return result, nil
+}
+
+func (r *fakeSubscriptionRepo) GetAll(ctx context.Context) ([]*entities.Subscription, error) {
+	r.ensure()
+	var result []*entities.Subscription
+	for _, list := range r.subs {
+		for _, sub := range list {
+			result = append(result, &entities.Subscription{
+				UserID:    sub.UserID,
+				DatasetID: sub.DatasetID,
+				CreatedAt: sub.CreatedAt,
+			})
 		}
 	}
 	return result, nil

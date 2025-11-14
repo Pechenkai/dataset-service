@@ -93,7 +93,7 @@ func mustCreateMetadata(t *testing.T, repo *postqbuild.MetadataRepo, versionID u
 func mustCreateSubscription(t *testing.T, repo *postqbuild.SubscriptionRepo, userID, datasetID uint64) *entities.Subscription {
 	t.Helper()
 
-	sub, err := entities.NewSubscription(userID, datasetID, time.Now().Add(-10*time.Minute))
+	sub, err := entities.NewSubscription(userID, datasetID, time.Now())
 	require.NoError(t, err)
 	require.NoError(t, repo.Create(ctx, sub))
 	return sub

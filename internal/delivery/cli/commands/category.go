@@ -6,10 +6,11 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"ppo/internal/delivery/cli/api"
 	"ppo/internal/services"
 )
 
-func NewCategoryCommand(svc services.CategoryService) *cobra.Command {
+func NewCategoryCommand(client *api.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "category",
 		Short: "Category operations",
@@ -25,7 +26,7 @@ func NewCategoryCommand(svc services.CategoryService) *cobra.Command {
 				Name:        name,
 				Description: desc,
 			}
-			id, err := svc.CreateCategory(context.Background(), cmdCat)
+			id, err := client.CreateCategory(context.Background(), cmdCat)
 			if err != nil {
 				return err
 			}
@@ -41,7 +42,7 @@ func NewCategoryCommand(svc services.CategoryService) *cobra.Command {
 		Use:   "list",
 		Short: "List all categories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cats, err := svc.ListCategories(context.Background())
+			cats, err := client.ListCategories(context.Background())
 			if err != nil {
 				return err
 			}
@@ -63,7 +64,7 @@ func NewCategoryCommand(svc services.CategoryService) *cobra.Command {
 			}
 			name, _ := cmd.Flags().GetString("name")
 			desc, _ := cmd.Flags().GetString("desc")
-			return svc.UpdateCategory(context.Background(), services.UpdateCategoryCmd{
+			return client.UpdateCategory(context.Background(), services.UpdateCategoryCmd{
 				ID:          id,
 				Name:        name,
 				Description: desc,
@@ -82,7 +83,7 @@ func NewCategoryCommand(svc services.CategoryService) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := svc.DeleteCategory(context.Background(), id); err != nil {
+			if err := client.DeleteCategory(context.Background(), id); err != nil {
 				return err
 			}
 			fmt.Printf("Category %d deleted\n", id)
@@ -90,6 +91,6 @@ func NewCategoryCommand(svc services.CategoryService) *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(createCmd, listCmd, deleteCmd)
+	cmd.AddCommand(createCmd, listCmd, updateCmd, deleteCmd)
 	return cmd
 }

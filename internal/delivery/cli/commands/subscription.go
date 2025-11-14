@@ -3,11 +3,13 @@ package commands
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/spf13/cobra"
-	"ppo/internal/services"
+	"ppo/internal/delivery/cli/api"
 )
 
-func NewSubscriptionCommand(svc services.SubscriptionService) *cobra.Command {
+func NewSubscriptionCommand(client *api.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "subscription",
 		Short: "Manage dataset subscriptions",
@@ -19,15 +21,15 @@ func NewSubscriptionCommand(svc services.SubscriptionService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			userID, _ := cmd.Flags().GetUint64("user")
 			datasetID, _ := cmd.Flags().GetUint64("dataset")
-			if err := svc.Subscribe(context.Background(), userID, datasetID); err != nil {
+			if err := client.Subscribe(context.Background(), userID, datasetID); err != nil {
 				return err
 			}
 			fmt.Printf("User %d subscribed to dataset %d\n", userID, datasetID)
 			return nil
 		},
 	}
-	subscribeCmd.Flags().Uint64("user", 0, "User ID to subscribe (required)")
-	subscribeCmd.Flags().Uint64("dataset", 0, "Dataset ID to subscribe to (required)")
+	subscribeCmd.Flags().Uint64("user", 0, "User ID (required)")
+	subscribeCmd.Flags().Uint64("dataset", 0, "Dataset ID (required)")
 	subscribeCmd.MarkFlagRequired("user")
 	subscribeCmd.MarkFlagRequired("dataset")
 
@@ -37,15 +39,15 @@ func NewSubscriptionCommand(svc services.SubscriptionService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			userID, _ := cmd.Flags().GetUint64("user")
 			datasetID, _ := cmd.Flags().GetUint64("dataset")
-			if err := svc.Unsubscribe(context.Background(), userID, datasetID); err != nil {
+			if err := client.Unsubscribe(context.Background(), userID, datasetID); err != nil {
 				return err
 			}
 			fmt.Printf("User %d unsubscribed from dataset %d\n", userID, datasetID)
 			return nil
 		},
 	}
-	unsubscribeCmd.Flags().Uint64("user", 0, "User ID to unsubscribe (required)")
-	unsubscribeCmd.Flags().Uint64("dataset", 0, "Dataset ID to unsubscribe from (required)")
+	unsubscribeCmd.Flags().Uint64("user", 0, "User ID (required)")
+	unsubscribeCmd.Flags().Uint64("dataset", 0, "Dataset ID (required)")
 	unsubscribeCmd.MarkFlagRequired("user")
 	unsubscribeCmd.MarkFlagRequired("dataset")
 
@@ -54,19 +56,21 @@ func NewSubscriptionCommand(svc services.SubscriptionService) *cobra.Command {
 		Short: "List dataset IDs a user is subscribed to",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			userID, _ := cmd.Flags().GetUint64("user")
-			dsIDs, err := svc.ListSubscriptions(context.Background(), userID)
+			list, err := client.ListSubscriptions(context.Background(), userID)
 			if err != nil {
 				return err
 			}
-			if len(dsIDs) == 0 {
+			if len(list) == 0 {
 				fmt.Println("No subscriptions found.")
 				return nil
 			}
-			fmt.Printf("User %d is subscribed to datasets: %v\n", userID, dsIDs)
+			for _, sub := range list {
+				fmt.Printf("Dataset %d (since %s)\n", sub.DatasetID, sub.CreatedAt.Format(time.RFC822))
+			}
 			return nil
 		},
 	}
-	listSubsCmd.Flags().Uint64("user", 0, "User ID to list subscriptions for (required)")
+	listSubsCmd.Flags().Uint64("user", 0, "User ID (required)")
 	listSubsCmd.MarkFlagRequired("user")
 
 	listUsersCmd := &cobra.Command{
@@ -74,19 +78,21 @@ func NewSubscriptionCommand(svc services.SubscriptionService) *cobra.Command {
 		Short: "List user IDs subscribed to a dataset",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			datasetID, _ := cmd.Flags().GetUint64("dataset")
-			userIDs, err := svc.ListSubscribers(context.Background(), datasetID)
+			list, err := client.ListSubscribers(context.Background(), datasetID)
 			if err != nil {
 				return err
 			}
-			if len(userIDs) == 0 {
+			if len(list) == 0 {
 				fmt.Println("No subscribers found.")
 				return nil
 			}
-			fmt.Printf("Dataset %d has subscribers: %v\n", datasetID, userIDs)
+			for _, sub := range list {
+				fmt.Printf("User %d\n", sub.UserID)
+			}
 			return nil
 		},
 	}
-	listUsersCmd.Flags().Uint64("dataset", 0, "Dataset ID to list subscribers for (required)")
+	listUsersCmd.Flags().Uint64("dataset", 0, "Dataset ID (required)")
 	listUsersCmd.MarkFlagRequired("dataset")
 
 	cmd.AddCommand(subscribeCmd, unsubscribeCmd, listSubsCmd, listUsersCmd)

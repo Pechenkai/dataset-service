@@ -6,10 +6,10 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"ppo/internal/services"
+	"ppo/internal/delivery/cli/api"
 )
 
-func NewNotificationCommand(svc services.NotificationService) *cobra.Command {
+func NewNotificationCommand(client *api.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "notification",
 		Short: "Notification operations",
@@ -21,11 +21,7 @@ func NewNotificationCommand(svc services.NotificationService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dsID, _ := cmd.Flags().GetUint64("dataset")
 			message, _ := cmd.Flags().GetString("message")
-			notifcmd := services.NotifySubscribersCmd{
-				dsID,
-				message,
-			}
-			count, err := svc.NotifySubscribers(context.Background(), notifcmd)
+			count, err := client.NotifySubscribers(context.Background(), dsID, message)
 			if err != nil {
 				return err
 			}
@@ -43,7 +39,7 @@ func NewNotificationCommand(svc services.NotificationService) *cobra.Command {
 		Short: "List notifications for a user",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			userID, _ := cmd.Flags().GetUint64("user")
-			notifs, err := svc.GetNotificationsByUser(context.Background(), userID)
+			notifs, err := client.ListNotifications(context.Background(), userID)
 			if err != nil {
 				return err
 			}
@@ -74,7 +70,7 @@ func NewNotificationCommand(svc services.NotificationService) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := svc.MarkAsRead(context.Background(), id); err != nil {
+			if err := client.MarkNotification(context.Background(), id, true); err != nil {
 				return err
 			}
 			fmt.Printf("Notification %d marked as read\n", id)

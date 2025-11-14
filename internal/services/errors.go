@@ -38,6 +38,10 @@ var (
 	ErrAlreadySubscribed = errors.New("user already subscribed to dataset")
 	ErrNotSubscribed     = errors.New("subscription not found")
 
+	// Auth errors
+	ErrTokenNotFound = errors.New("token not found")
+	ErrTokenInvalid  = errors.New("invalid token")
+
 	// Access request errors
 	ErrRequestNotFound      = errors.New("not found")
 	ErrBadRequest           = errors.New("bad request")
