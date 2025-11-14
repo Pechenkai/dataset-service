@@ -138,3 +138,14 @@ allure-report: test-dataset-allure
 clean-logs:
 	@echo "=> Cleaning logs directory…"
 	$(RM) logs/*
+
+.PHONY: e2e-capture
+e2e-capture:
+	@echo "=> Running HTTP scenario and capturing traffic"
+	LOG_FILE=logs/e2e_capture_example.txt ./scripts/e2e_capture.sh
+
+.PHONY: e2e-wireshark
+e2e-wireshark:
+	@echo "=> Running HTTP scenario with PCAP capture for Wireshark"
+	LOG_FILE=logs/e2e_capture_example.txt PCAP_FILE=logs/e2e_capture.pcap ./scripts/e2e_capture.sh
+	@echo "=> Open logs/e2e_capture.pcap in Wireshark to inspect the traffic"
