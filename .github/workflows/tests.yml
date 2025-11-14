@@ -78,6 +78,9 @@ jobs:
     timeout-minutes: 25
     needs: integration-tests
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download test image
         uses: actions/download-artifact@v4
         with:
@@ -85,6 +88,21 @@ jobs:
 
       - name: Load test image
         run: docker load < ppo-tests-image.tar.gz
+
+      - name: Start application stack
+        run: |
+          docker compose -f docker-compose.yml up -d --build db mongo minio api
+
+      - name: Wait for API
+        run: |
+          for attempt in {1..30}; do
+            if curl -fsS http://localhost:8080/categories >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready on http://localhost:8080" >&2
+          exit 1
 
       - name: Run e2e tests
         run: |
@@ -94,7 +112,12 @@ jobs:
             -e DOCKER_HOST=unix:///var/run/docker.sock \
             -e DOCKER_TLS_CERTDIR= \
             -e GOCACHE=/tmp/.gocache \
+            -e E2E_BASE_URL=http://localhost:8080 \
             ppo-tests e2e
+
+      - name: Stop application stack
+        if: ${{ always() }}
+        run: docker compose -f docker-compose.yml down -v
 
       - name: Cleanup image archive
         run: rm -f ppo-tests-image.tar.gz
