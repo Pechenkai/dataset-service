@@ -19,24 +19,51 @@ type SubscriptionRepo struct {
 	logger *zap.Logger
 }
 
+type subscriptionRow struct {
+	UserID    uint64
+	DatasetID uint64
+	CreatedAt time.Time
+}
+
+func subscriptionRowFromEntity(s *entities.Subscription) subscriptionRow {
+	if s == nil {
+		return subscriptionRow{}
+	}
+	return subscriptionRow{
+		UserID:    s.UserID,
+		DatasetID: s.DatasetID,
+		CreatedAt: s.CreatedAt,
+	}
+}
+
+func (row subscriptionRow) toEntity() *entities.Subscription {
+	return &entities.Subscription{
+		UserID:    row.UserID,
+		DatasetID: row.DatasetID,
+		CreatedAt: row.CreatedAt,
+	}
+}
+
 func NewSubscriptionRepo(pool *pgxpool.Pool, logger *zap.Logger) *SubscriptionRepo {
 	logger.Debug("NewSubscriptionRepo initialized")
 	return &SubscriptionRepo{db: pool, logger: logger}
 }
 
 func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription) error {
-	if s.CreatedAt.IsZero() {
-		s.CreatedAt = time.Now().UTC()
+	row := subscriptionRowFromEntity(s)
+	if row.CreatedAt.IsZero() {
+		row.CreatedAt = time.Now().UTC()
+		s.CreatedAt = row.CreatedAt
 	}
 	r.logger.Debug("Create Subscription called",
-		zap.Uint64("user_id", s.UserID),
-		zap.Uint64("dataset_id", s.DatasetID),
+		zap.Uint64("user_id", row.UserID),
+		zap.Uint64("dataset_id", row.DatasetID),
 	)
 
 	query := psql.
 		Insert("subscriptions").
 		Columns("user_id", "dataset_id", "created_at").
-		Values(s.UserID, s.DatasetID, s.CreatedAt)
+		Values(row.UserID, row.DatasetID, row.CreatedAt)
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
@@ -66,8 +93,8 @@ func (r *SubscriptionRepo) Create(ctx context.Context, s *entities.Subscription)
 	}
 
 	r.logger.Info("subscription created successfully",
-		zap.Uint64("user_id", s.UserID),
-		zap.Uint64("dataset_id", s.DatasetID),
+		zap.Uint64("user_id", row.UserID),
+		zap.Uint64("dataset_id", row.DatasetID),
 	)
 	return nil
 }
@@ -162,13 +189,13 @@ func (r *SubscriptionRepo) IsSubscribed(ctx context.Context, userID, datasetID u
 	return true, nil
 }
 
-func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]uint64, error) {
+func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64) ([]*entities.Subscription, error) {
 	r.logger.Debug("GetSubscribers called",
 		zap.Uint64("dataset_id", datasetID),
 	)
 
 	query := psql.
-		Select("user_id").
+		Select("user_id", "dataset_id", "created_at").
 		From("subscriptions").
 		Where(sq.Eq{"dataset_id": datasetID})
 
@@ -191,16 +218,16 @@ func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64)
 	}
 	defer rows.Close()
 
-	var list []uint64
+	var list []*entities.Subscription
 	for rows.Next() {
-		var uid uint64
-		if err := rows.Scan(&uid); err != nil {
+		row := subscriptionRow{}
+		if err := rows.Scan(&row.UserID, &row.DatasetID, &row.CreatedAt); err != nil {
 			r.logger.Error("failed to scan subscriber row",
 				zap.Error(err),
 			)
 			return nil, fmt.Errorf("scan subscriber row: %w", err)
 		}
-		list = append(list, uid)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating subscriber rows",
@@ -216,13 +243,13 @@ func (r *SubscriptionRepo) GetSubscribers(ctx context.Context, datasetID uint64)
 	return list, nil
 }
 
-func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint64, error) {
+func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]*entities.Subscription, error) {
 	r.logger.Debug("GetByUser called",
 		zap.Uint64("user_id", userID),
 	)
 
 	query := psql.
-		Select("dataset_id").
+		Select("user_id", "dataset_id", "created_at").
 		From("subscriptions").
 		Where(sq.Eq{"user_id": userID})
 
@@ -245,16 +272,16 @@ func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint
 	}
 	defer rows.Close()
 
-	var datasets []uint64
+	var datasets []*entities.Subscription
 	for rows.Next() {
-		var dsid uint64
-		if err := rows.Scan(&dsid); err != nil {
+		row := subscriptionRow{}
+		if err := rows.Scan(&row.UserID, &row.DatasetID, &row.CreatedAt); err != nil {
 			r.logger.Error("failed to scan subscription row",
 				zap.Error(err),
 			)
 			return nil, fmt.Errorf("scan subscription: %w", err)
 		}
-		datasets = append(datasets, dsid)
+		datasets = append(datasets, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating subscription rows",
@@ -268,4 +295,47 @@ func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]uint
 		zap.Int("count", len(datasets)),
 	)
 	return datasets, nil
+}
+
+func (r *SubscriptionRepo) GetAll(ctx context.Context) ([]*entities.Subscription, error) {
+	r.logger.Debug("GetAll subscriptions called")
+
+	query := psql.
+		Select("user_id", "dataset_id", "created_at").
+		From("subscriptions").
+		OrderBy("created_at DESC")
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		r.logger.Error("failed to build get all subscriptions SQL",
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("build get all subscriptions sql: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
+	if err != nil {
+		r.logger.Error("failed to execute get all subscriptions query",
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("get all subscriptions: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*entities.Subscription
+	for rows.Next() {
+		row := subscriptionRow{}
+		if err := rows.Scan(&row.UserID, &row.DatasetID, &row.CreatedAt); err != nil {
+			r.logger.Error("failed to scan subscription row", zap.Error(err))
+			return nil, fmt.Errorf("scan subscription row: %w", err)
+		}
+		result = append(result, row.toEntity())
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("error iterating subscription rows", zap.Error(err))
+		return nil, fmt.Errorf("iterate subscription rows: %w", err)
+	}
+
+	r.logger.Info("all subscriptions fetched successfully", zap.Int("count", len(result)))
+	return result, nil
 }

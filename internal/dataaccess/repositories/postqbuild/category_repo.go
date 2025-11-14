@@ -19,6 +19,31 @@ type CategoryRepo struct {
 	logger *zap.Logger
 }
 
+type categoryRow struct {
+	ID          uint64
+	Name        string
+	Description string
+}
+
+func categoryRowFromEntity(c *entities.Category) categoryRow {
+	if c == nil {
+		return categoryRow{}
+	}
+	return categoryRow{
+		ID:          c.ID,
+		Name:        c.Name,
+		Description: c.Description,
+	}
+}
+
+func (row categoryRow) toEntity() *entities.Category {
+	return &entities.Category{
+		ID:          row.ID,
+		Name:        row.Name,
+		Description: row.Description,
+	}
+}
+
 func NewCategoryRepo(pool *pgxpool.Pool, logger *zap.Logger) *CategoryRepo {
 	logger.Debug("NewCategoryRepo initialized")
 	return &CategoryRepo{
@@ -28,15 +53,16 @@ func NewCategoryRepo(pool *pgxpool.Pool, logger *zap.Logger) *CategoryRepo {
 }
 
 func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
+	row := categoryRowFromEntity(c)
 	r.logger.Debug("Create Category called",
-		zap.String("name", c.Name),
-		zap.String("description", c.Description),
+		zap.String("name", row.Name),
+		zap.String("description", row.Description),
 	)
 
 	query := psql.
 		Insert("categories").
 		Columns("name", "description").
-		Values(c.Name, c.Description).
+		Values(row.Name, row.Description).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
@@ -48,7 +74,7 @@ func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
 		return fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&c.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -65,31 +91,33 @@ func (r *CategoryRepo) Create(ctx context.Context, c *entities.Category) error {
 		return fmt.Errorf("%w: %v", repositories.ErrCategoryCreate, err)
 	}
 
+	c.ID = row.ID
 	r.logger.Info("category created successfully",
-		zap.Uint64("id", c.ID),
-		zap.String("name", c.Name),
+		zap.Uint64("id", row.ID),
+		zap.String("name", row.Name),
 	)
 	return nil
 }
 
 func (r *CategoryRepo) Update(ctx context.Context, c *entities.Category) error {
+	row := categoryRowFromEntity(c)
 	r.logger.Debug("Update Category called",
-		zap.Uint64("id", c.ID),
-		zap.String("name", c.Name),
-		zap.String("description", c.Description),
+		zap.Uint64("id", row.ID),
+		zap.String("name", row.Name),
+		zap.String("description", row.Description),
 	)
 
 	query := psql.
 		Update("categories").
-		Set("name", c.Name).
-		Set("description", c.Description).
-		Where(sq.Eq{"id": c.ID})
+		Set("name", row.Name).
+		Set("description", row.Description).
+		Where(sq.Eq{"id": row.ID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		r.logger.Error("failed to build update category query",
 			zap.Error(err),
-			zap.Uint64("id", c.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
@@ -106,20 +134,20 @@ func (r *CategoryRepo) Update(ctx context.Context, c *entities.Category) error {
 		}
 		r.logger.Error("failed to execute update category query",
 			zap.Error(err),
-			zap.Uint64("id", c.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return fmt.Errorf("%w: %v", repositories.ErrCategoryUpdate, err)
 	}
 	if cmd.RowsAffected() == 0 {
 		r.logger.Warn("no category found to update",
-			zap.Uint64("id", c.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrCategoryNotFound
 	}
 
 	r.logger.Info("category updated successfully",
-		zap.Uint64("id", c.ID),
-		zap.String("name", c.Name),
+		zap.Uint64("id", row.ID),
+		zap.String("name", row.Name),
 	)
 	return nil
 }
@@ -188,8 +216,8 @@ func (r *CategoryRepo) FindByID(ctx context.Context, id uint64) (*entities.Categ
 		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryQueryBuild, err)
 	}
 
-	c := &entities.Category{}
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&c.ID, &c.Name, &c.Description)
+	row := &categoryRow{}
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID, &row.Name, &row.Description)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.logger.Warn("category not found by ID",
@@ -204,11 +232,12 @@ func (r *CategoryRepo) FindByID(ctx context.Context, id uint64) (*entities.Categ
 		return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryFind, err)
 	}
 
+	entity := row.toEntity()
 	r.logger.Info("category fetched successfully",
-		zap.Uint64("id", c.ID),
-		zap.String("name", c.Name),
+		zap.Uint64("id", entity.ID),
+		zap.String("name", entity.Name),
 	)
-	return c, nil
+	return entity, nil
 }
 
 func (r *CategoryRepo) FindAll(ctx context.Context) ([]*entities.Category, error) {
@@ -238,14 +267,14 @@ func (r *CategoryRepo) FindAll(ctx context.Context) ([]*entities.Category, error
 
 	var list []*entities.Category
 	for rows.Next() {
-		c := &entities.Category{}
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description); err != nil {
+		row := categoryRow{}
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description); err != nil {
 			r.logger.Error("failed to scan category row",
 				zap.Error(err),
 			)
 			return nil, fmt.Errorf("%w: %v", repositories.ErrCategoryScan, err)
 		}
-		list = append(list, c)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over category rows",

@@ -17,26 +17,62 @@ type VersionRepo struct {
 	logger *zap.Logger
 }
 
+type versionRow struct {
+	ID         uint64
+	Number     string
+	UploadDate time.Time
+	Filepath   string
+	DatasetID  uint64
+	ChangeLog  string
+}
+
+func versionRowFromEntity(v *entities.DatasetVersion) versionRow {
+	if v == nil {
+		return versionRow{}
+	}
+	return versionRow{
+		ID:         v.ID,
+		Number:     v.Number,
+		UploadDate: v.UploadDate,
+		Filepath:   v.Filepath,
+		DatasetID:  v.DatasetID,
+		ChangeLog:  v.ChangeLog,
+	}
+}
+
+func (row versionRow) toEntity() *entities.DatasetVersion {
+	return &entities.DatasetVersion{
+		ID:         row.ID,
+		Number:     row.Number,
+		UploadDate: row.UploadDate,
+		Filepath:   row.Filepath,
+		DatasetID:  row.DatasetID,
+		ChangeLog:  row.ChangeLog,
+	}
+}
+
 func NewVersionRepo(pool *pgxpool.Pool, logger *zap.Logger) *VersionRepo {
 	logger.Debug("NewVersionRepo initialized")
 	return &VersionRepo{db: pool, logger: logger}
 }
 
 func (r *VersionRepo) Create(ctx context.Context, v *entities.DatasetVersion) error {
-	if v.UploadDate.IsZero() {
-		v.UploadDate = time.Now().UTC()
+	row := versionRowFromEntity(v)
+	if row.UploadDate.IsZero() {
+		row.UploadDate = time.Now().UTC()
+		v.UploadDate = row.UploadDate
 	}
 	r.logger.Debug("Create Version called",
-		zap.String("number", v.Number),
-		zap.Uint64("dataset_id", v.DatasetID),
-		zap.String("filepath", v.Filepath),
-		zap.String("change_log", v.ChangeLog),
+		zap.String("number", row.Number),
+		zap.Uint64("dataset_id", row.DatasetID),
+		zap.String("filepath", row.Filepath),
+		zap.String("change_log", row.ChangeLog),
 	)
 
 	query := psql.
 		Insert("dataset_versions").
 		Columns("number", "upload_date", "filepath", "dataset_id", "change_log").
-		Values(v.Number, v.UploadDate, v.Filepath, v.DatasetID, v.ChangeLog).
+		Values(row.Number, row.UploadDate, row.Filepath, row.DatasetID, row.ChangeLog).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
@@ -47,7 +83,7 @@ func (r *VersionRepo) Create(ctx context.Context, v *entities.DatasetVersion) er
 		return repositories.ErrVersionQueryBuild
 	}
 
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&v.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		r.logger.Error("failed to execute create version query",
 			zap.Error(err),
@@ -55,39 +91,42 @@ func (r *VersionRepo) Create(ctx context.Context, v *entities.DatasetVersion) er
 		return repositories.ErrVersionCreate
 	}
 
+	v.ID = row.ID
 	r.logger.Info("version created successfully",
-		zap.Uint64("id", v.ID),
-		zap.String("number", v.Number),
-		zap.Uint64("dataset_id", v.DatasetID),
+		zap.Uint64("id", row.ID),
+		zap.String("number", row.Number),
+		zap.Uint64("dataset_id", row.DatasetID),
 	)
 	return nil
 }
 
 func (r *VersionRepo) Update(ctx context.Context, v *entities.DatasetVersion) error {
-	if v.UploadDate.IsZero() {
-		v.UploadDate = time.Now().UTC()
+	row := versionRowFromEntity(v)
+	if row.UploadDate.IsZero() {
+		row.UploadDate = time.Now().UTC()
+		v.UploadDate = row.UploadDate
 	}
 	r.logger.Debug("Update Version called",
-		zap.Uint64("id", v.ID),
-		zap.String("number", v.Number),
-		zap.Uint64("dataset_id", v.DatasetID),
-		zap.String("filepath", v.Filepath),
-		zap.String("change_log", v.ChangeLog),
+		zap.Uint64("id", row.ID),
+		zap.String("number", row.Number),
+		zap.Uint64("dataset_id", row.DatasetID),
+		zap.String("filepath", row.Filepath),
+		zap.String("change_log", row.ChangeLog),
 	)
 
 	query := psql.
 		Update("dataset_versions").
-		Set("number", v.Number).
-		Set("upload_date", v.UploadDate).
-		Set("filepath", v.Filepath).
-		Set("change_log", v.ChangeLog).
-		Where(sq.Eq{"id": v.ID})
+		Set("number", row.Number).
+		Set("upload_date", row.UploadDate).
+		Set("filepath", row.Filepath).
+		Set("change_log", row.ChangeLog).
+		Where(sq.Eq{"id": row.ID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		r.logger.Error("failed to build update version SQL",
 			zap.Error(err),
-			zap.Uint64("id", v.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrVersionQueryBuild
 	}
@@ -96,20 +135,20 @@ func (r *VersionRepo) Update(ctx context.Context, v *entities.DatasetVersion) er
 	if err != nil {
 		r.logger.Error("failed to execute update version query",
 			zap.Error(err),
-			zap.Uint64("id", v.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrVersionUpdate
 	}
 	if cmd.RowsAffected() == 0 {
 		r.logger.Warn("no version found to update",
-			zap.Uint64("id", v.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrVersionNotFound
 	}
 
 	r.logger.Info("version updated successfully",
-		zap.Uint64("id", v.ID),
-		zap.String("number", v.Number),
+		zap.Uint64("id", row.ID),
+		zap.String("number", row.Number),
 	)
 	return nil
 }
@@ -172,14 +211,14 @@ func (r *VersionRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 		return nil, repositories.ErrVersionQueryBuild
 	}
 
-	v := &entities.DatasetVersion{}
+	row := &versionRow{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&v.ID,
-		&v.Number,
-		&v.UploadDate,
-		&v.Filepath,
-		&v.DatasetID,
-		&v.ChangeLog,
+		&row.ID,
+		&row.Number,
+		&row.UploadDate,
+		&row.Filepath,
+		&row.DatasetID,
+		&row.ChangeLog,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -195,11 +234,12 @@ func (r *VersionRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 		return nil, repositories.ErrVersionScan
 	}
 
+	entity := row.toEntity()
 	r.logger.Info("version fetched successfully",
-		zap.Uint64("id", v.ID),
-		zap.String("number", v.Number),
+		zap.Uint64("id", entity.ID),
+		zap.String("number", entity.Number),
 	)
-	return v, nil
+	return entity, nil
 }
 
 func (r *VersionRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.DatasetVersion, error) {
@@ -234,21 +274,21 @@ func (r *VersionRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]
 
 	var list []*entities.DatasetVersion
 	for rows.Next() {
-		v := &entities.DatasetVersion{}
+		row := versionRow{}
 		if err := rows.Scan(
-			&v.ID,
-			&v.Number,
-			&v.UploadDate,
-			&v.Filepath,
-			&v.DatasetID,
-			&v.ChangeLog,
+			&row.ID,
+			&row.Number,
+			&row.UploadDate,
+			&row.Filepath,
+			&row.DatasetID,
+			&row.ChangeLog,
 		); err != nil {
 			r.logger.Error("failed to scan version row",
 				zap.Error(err),
 			)
 			return nil, repositories.ErrVersionScan
 		}
-		list = append(list, v)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over version rows",

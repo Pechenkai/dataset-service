@@ -18,27 +18,66 @@ type DatasetRepo struct {
 	logger *zap.Logger
 }
 
+type datasetRow struct {
+	ID          uint64
+	Name        string
+	Description string
+	OwnerID     uint64
+	CategoryID  uint64
+	IsPublic    bool
+	CreatedAt   time.Time
+}
+
+func datasetRowFromEntity(d *entities.Dataset) datasetRow {
+	if d == nil {
+		return datasetRow{}
+	}
+	return datasetRow{
+		ID:          d.ID,
+		Name:        d.Name,
+		Description: d.Description,
+		OwnerID:     d.OwnerID,
+		CategoryID:  d.CategoryID,
+		IsPublic:    d.IsPublic,
+		CreatedAt:   d.CreatedAt,
+	}
+}
+
+func (row datasetRow) toEntity() *entities.Dataset {
+	return &entities.Dataset{
+		ID:          row.ID,
+		Name:        row.Name,
+		Description: row.Description,
+		OwnerID:     row.OwnerID,
+		CategoryID:  row.CategoryID,
+		IsPublic:    row.IsPublic,
+		CreatedAt:   row.CreatedAt,
+	}
+}
+
 func NewDatasetRepo(pool *pgxpool.Pool, logger *zap.Logger) *DatasetRepo {
 	logger.Debug("NewDatasetRepo initialized")
 	return &DatasetRepo{db: pool, logger: logger}
 }
 
 func (r *DatasetRepo) Create(ctx context.Context, d *entities.Dataset) error {
-	if d.CreatedAt.IsZero() {
-		d.CreatedAt = time.Now().UTC()
+	row := datasetRowFromEntity(d)
+	if row.CreatedAt.IsZero() {
+		row.CreatedAt = time.Now().UTC()
+		d.CreatedAt = row.CreatedAt
 	}
 	r.logger.Debug("Create Dataset called",
-		zap.String("name", d.Name),
-		zap.String("description", d.Description),
-		zap.Uint64("owner_id", d.OwnerID),
-		zap.Uint64("category_id", d.CategoryID),
-		zap.Bool("is_public", d.IsPublic),
+		zap.String("name", row.Name),
+		zap.String("description", row.Description),
+		zap.Uint64("owner_id", row.OwnerID),
+		zap.Uint64("category_id", row.CategoryID),
+		zap.Bool("is_public", row.IsPublic),
 	)
 
 	query := psql.
 		Insert("datasets").
 		Columns("name", "description", "owner_id", "category_id", "is_public", "created_at").
-		Values(d.Name, d.Description, d.OwnerID, d.CategoryID, d.IsPublic, d.CreatedAt).
+		Values(row.Name, row.Description, row.OwnerID, row.CategoryID, row.IsPublic, row.CreatedAt).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
@@ -49,7 +88,7 @@ func (r *DatasetRepo) Create(ctx context.Context, d *entities.Dataset) error {
 		return repositories.ErrDatasetQueryBuild
 	}
 
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&d.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		r.logger.Error("failed to execute create dataset query",
 			zap.Error(err),
@@ -57,35 +96,37 @@ func (r *DatasetRepo) Create(ctx context.Context, d *entities.Dataset) error {
 		return repositories.ErrDatasetCreate
 	}
 
+	d.ID = row.ID
 	r.logger.Info("dataset created successfully",
-		zap.Uint64("id", d.ID),
-		zap.String("name", d.Name),
+		zap.Uint64("id", row.ID),
+		zap.String("name", row.Name),
 	)
 	return nil
 }
 
 func (r *DatasetRepo) Update(ctx context.Context, d *entities.Dataset) error {
+	row := datasetRowFromEntity(d)
 	r.logger.Debug("Update Dataset called",
-		zap.Uint64("id", d.ID),
-		zap.String("name", d.Name),
-		zap.String("description", d.Description),
-		zap.Uint64("category_id", d.CategoryID),
-		zap.Bool("is_public", d.IsPublic),
+		zap.Uint64("id", row.ID),
+		zap.String("name", row.Name),
+		zap.String("description", row.Description),
+		zap.Uint64("category_id", row.CategoryID),
+		zap.Bool("is_public", row.IsPublic),
 	)
 
 	query := psql.
 		Update("datasets").
-		Set("name", d.Name).
-		Set("description", d.Description).
-		Set("category_id", d.CategoryID).
-		Set("is_public", d.IsPublic).
-		Where(sq.Eq{"id": d.ID})
+		Set("name", row.Name).
+		Set("description", row.Description).
+		Set("category_id", row.CategoryID).
+		Set("is_public", row.IsPublic).
+		Where(sq.Eq{"id": row.ID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		r.logger.Error("failed to build update dataset query",
 			zap.Error(err),
-			zap.Uint64("id", d.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrDatasetQueryBuild
 	}
@@ -94,20 +135,20 @@ func (r *DatasetRepo) Update(ctx context.Context, d *entities.Dataset) error {
 	if err != nil {
 		r.logger.Error("failed to execute update dataset query",
 			zap.Error(err),
-			zap.Uint64("id", d.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrDatasetUpdate
 	}
 	if cmd.RowsAffected() == 0 {
 		r.logger.Warn("no dataset found to update",
-			zap.Uint64("id", d.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrDatasetNotFound
 	}
 
 	r.logger.Info("dataset updated successfully",
-		zap.Uint64("id", d.ID),
-		zap.String("name", d.Name),
+		zap.Uint64("id", row.ID),
+		zap.String("name", row.Name),
 	)
 	return nil
 }
@@ -168,11 +209,11 @@ func (r *DatasetRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 		return nil, repositories.ErrDatasetQueryBuild
 	}
 
-	d := &entities.Dataset{}
+	row := &datasetRow{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&d.ID, &d.Name, &d.Description,
-		&d.OwnerID, &d.CategoryID, &d.IsPublic,
-		&d.CreatedAt,
+		&row.ID, &row.Name, &row.Description,
+		&row.OwnerID, &row.CategoryID, &row.IsPublic,
+		&row.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -188,11 +229,12 @@ func (r *DatasetRepo) FindByID(ctx context.Context, id uint64) (*entities.Datase
 		return nil, repositories.ErrDatasetScan
 	}
 
+	entity := row.toEntity()
 	r.logger.Info("dataset fetched successfully",
-		zap.Uint64("id", d.ID),
-		zap.String("name", d.Name),
+		zap.Uint64("id", entity.ID),
+		zap.String("name", entity.Name),
 	)
-	return d, nil
+	return entity, nil
 }
 
 func (r *DatasetRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entities.Dataset, error) {
@@ -227,18 +269,18 @@ func (r *DatasetRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entit
 
 	var list []*entities.Dataset
 	for rows.Next() {
-		d := &entities.Dataset{}
+		row := datasetRow{}
 		if err := rows.Scan(
-			&d.ID, &d.Name, &d.Description,
-			&d.OwnerID, &d.CategoryID, &d.IsPublic,
-			&d.CreatedAt,
+			&row.ID, &row.Name, &row.Description,
+			&row.OwnerID, &row.CategoryID, &row.IsPublic,
+			&row.CreatedAt,
 		); err != nil {
 			r.logger.Error("failed to scan dataset row",
 				zap.Error(err),
 			)
 			return nil, repositories.ErrDatasetScan
 		}
-		list = append(list, d)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over dataset rows",
@@ -281,18 +323,18 @@ func (r *DatasetRepo) FindAll(ctx context.Context) ([]*entities.Dataset, error) 
 
 	var list []*entities.Dataset
 	for rows.Next() {
-		d := &entities.Dataset{}
+		row := datasetRow{}
 		if err := rows.Scan(
-			&d.ID, &d.Name, &d.Description,
-			&d.OwnerID, &d.CategoryID, &d.IsPublic,
-			&d.CreatedAt,
+			&row.ID, &row.Name, &row.Description,
+			&row.OwnerID, &row.CategoryID, &row.IsPublic,
+			&row.CreatedAt,
 		); err != nil {
 			r.logger.Error("failed to scan dataset row",
 				zap.Error(err),
 			)
 			return nil, repositories.ErrDatasetList
 		}
-		list = append(list, d)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over dataset rows",
@@ -334,18 +376,18 @@ func (r *DatasetRepo) FindPublic(ctx context.Context) ([]*entities.Dataset, erro
 
 	var list []*entities.Dataset
 	for rows.Next() {
-		d := &entities.Dataset{}
+		row := datasetRow{}
 		if err := rows.Scan(
-			&d.ID, &d.Name, &d.Description,
-			&d.OwnerID, &d.CategoryID, &d.IsPublic,
-			&d.CreatedAt,
+			&row.ID, &row.Name, &row.Description,
+			&row.OwnerID, &row.CategoryID, &row.IsPublic,
+			&row.CreatedAt,
 		); err != nil {
 			r.logger.Error("failed to scan public dataset row",
 				zap.Error(err),
 			)
 			return nil, repositories.ErrDatasetScan
 		}
-		list = append(list, d)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over public dataset rows",
@@ -384,16 +426,16 @@ func (r *DatasetRepo) FindByCategoryID(ctx context.Context, categoryID uint64) (
 
 	var list []*entities.Dataset
 	for rows.Next() {
-		d := &entities.Dataset{}
+		row := datasetRow{}
 		if err := rows.Scan(
-			&d.ID, &d.Name, &d.Description,
-			&d.OwnerID, &d.CategoryID, &d.IsPublic,
-			&d.CreatedAt,
+			&row.ID, &row.Name, &row.Description,
+			&row.OwnerID, &row.CategoryID, &row.IsPublic,
+			&row.CreatedAt,
 		); err != nil {
 			r.logger.Error("failed to scan dataset row", zap.Error(err))
 			return nil, repositories.ErrDatasetScan
 		}
-		list = append(list, d)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over dataset rows", zap.Error(err))

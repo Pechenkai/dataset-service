@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -20,22 +21,58 @@ type AccessRequestRepo struct {
 	logger *zap.Logger
 }
 
+type accessRequestRow struct {
+	ID        uint64
+	DatasetID uint64
+	UserID    uint64
+	Status    string
+	CreatedAt time.Time
+}
+
+func accessRequestRowFromEntity(ar *entities.AccessRequest) accessRequestRow {
+	if ar == nil {
+		return accessRequestRow{}
+	}
+	return accessRequestRow{
+		ID:        ar.ID,
+		DatasetID: ar.DatasetID,
+		UserID:    ar.UserID,
+		Status:    string(ar.Status),
+		CreatedAt: ar.CreatedAt,
+	}
+}
+
+func (row accessRequestRow) toEntity() *entities.AccessRequest {
+	status := entities.AccessStatus(row.Status)
+	if _, ok := entities.ValidAccessStatuses[status]; !ok {
+		status = entities.AccessStatusPending
+	}
+	return &entities.AccessRequest{
+		ID:        row.ID,
+		DatasetID: row.DatasetID,
+		UserID:    row.UserID,
+		Status:    status,
+		CreatedAt: row.CreatedAt,
+	}
+}
+
 func NewAccessRequestRepo(pool *pgxpool.Pool, logger *zap.Logger) *AccessRequestRepo {
 	logger.Debug("NewAccessRequestRepo initialized")
 	return &AccessRequestRepo{db: pool, logger: logger}
 }
 
 func (r *AccessRequestRepo) Create(ctx context.Context, ar *entities.AccessRequest) error {
+	row := accessRequestRowFromEntity(ar)
 	r.logger.Debug("Create AccessRequest called",
-		zap.Uint64("dataset_id", ar.DatasetID),
-		zap.Uint64("user_id", ar.UserID),
-		zap.String("status", string(ar.Status)),
+		zap.Uint64("dataset_id", row.DatasetID),
+		zap.Uint64("user_id", row.UserID),
+		zap.String("status", row.Status),
 	)
 
 	query := psql.
 		Insert("access_requests").
 		Columns("dataset_id", "user_id", "status", "created_at").
-		Values(ar.DatasetID, ar.UserID, string(ar.Status), ar.CreatedAt).
+		Values(row.DatasetID, row.UserID, row.Status, row.CreatedAt).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
@@ -43,12 +80,13 @@ func (r *AccessRequestRepo) Create(ctx context.Context, ar *entities.AccessReque
 		r.logger.Error("failed to build Create query", zap.Error(err))
 		return repositories.ErrRequestQueryBuild
 	}
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&ar.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		r.logger.Error("failed to execute Create query", zap.Error(err))
 		return fmt.Errorf("create access_request: %w", err)
 	}
-	r.logger.Info("AccessRequest created", zap.Uint64("id", ar.ID))
+	ar.ID = row.ID
+	r.logger.Info("AccessRequest created", zap.Uint64("id", row.ID))
 	return nil
 }
 
@@ -69,9 +107,9 @@ func (r *AccessRequestRepo) Find(ctx context.Context, datasetID, userID uint64) 
 		return nil, repositories.ErrRequestQueryBuild
 	}
 
-	var ar entities.AccessRequest
+	var row accessRequestRow
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&ar.ID, &ar.DatasetID, &ar.UserID, &ar.Status, &ar.CreatedAt,
+		&row.ID, &row.DatasetID, &row.UserID, &row.Status, &row.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -82,8 +120,9 @@ func (r *AccessRequestRepo) Find(ctx context.Context, datasetID, userID uint64) 
 		return nil, fmt.Errorf("find access_request: %w", err)
 	}
 
-	r.logger.Info("AccessRequest fetched", zap.Uint64("id", ar.ID))
-	return &ar, nil
+	entity := row.toEntity()
+	r.logger.Info("AccessRequest fetched", zap.Uint64("id", entity.ID))
+	return entity, nil
 }
 
 func (r *AccessRequestRepo) ListPendingByOwner(ctx context.Context, ownerID uint64) ([]*entities.AccessRequest, error) {
@@ -112,12 +151,12 @@ func (r *AccessRequestRepo) ListPendingByOwner(ctx context.Context, ownerID uint
 
 	var list []*entities.AccessRequest
 	for rows.Next() {
-		ar := &entities.AccessRequest{}
-		if err := rows.Scan(&ar.ID, &ar.DatasetID, &ar.UserID, &ar.Status, &ar.CreatedAt); err != nil {
+		row := accessRequestRow{}
+		if err := rows.Scan(&row.ID, &row.DatasetID, &row.UserID, &row.Status, &row.CreatedAt); err != nil {
 			r.logger.Error("failed to scan row", zap.Error(err))
 			return nil, repositories.ErrRequestScan
 		}
-		list = append(list, ar)
+		list = append(list, row.toEntity())
 	}
 	if rows.Err() != nil {
 		r.logger.Error("error iterating rows", zap.Error(rows.Err()))
@@ -166,9 +205,9 @@ func (r *AccessRequestRepo) FindByRequestID(ctx context.Context, requestID uint6
 		return nil, repositories.ErrRequestQueryBuild
 	}
 
-	ar := &entities.AccessRequest{}
+	row := &accessRequestRow{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&ar.ID, &ar.DatasetID, &ar.UserID, &ar.Status, &ar.CreatedAt,
+		&row.ID, &row.DatasetID, &row.UserID, &row.Status, &row.CreatedAt,
 	)
 	if err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "P0002" {
@@ -179,6 +218,7 @@ func (r *AccessRequestRepo) FindByRequestID(ctx context.Context, requestID uint6
 		return nil, fmt.Errorf("find access_request by id: %w", err)
 	}
 
-	r.logger.Info("AccessRequest fetched by ID", zap.Uint64("request_id", ar.ID))
-	return ar, nil
+	entity := row.toEntity()
+	r.logger.Info("AccessRequest fetched by ID", zap.Uint64("request_id", entity.ID))
+	return entity, nil
 }

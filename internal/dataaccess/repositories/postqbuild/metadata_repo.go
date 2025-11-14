@@ -18,23 +18,55 @@ type MetadataRepo struct {
 	logger *zap.Logger
 }
 
+type metadataRow struct {
+	ID               uint64
+	Format           string
+	Size             uint64
+	Tags             string
+	DatasetVersionID uint64
+}
+
+func metadataRowFromEntity(m *entities.Metadata) metadataRow {
+	if m == nil {
+		return metadataRow{}
+	}
+	return metadataRow{
+		ID:               m.ID,
+		Format:           m.Format,
+		Size:             m.Size,
+		Tags:             m.Tags,
+		DatasetVersionID: m.DatasetVersionID,
+	}
+}
+
+func (row metadataRow) toEntity() *entities.Metadata {
+	return &entities.Metadata{
+		ID:               row.ID,
+		Format:           row.Format,
+		Size:             row.Size,
+		Tags:             row.Tags,
+		DatasetVersionID: row.DatasetVersionID,
+	}
+}
+
 func NewMetadataRepo(pool *pgxpool.Pool, logger *zap.Logger) *MetadataRepo {
 	logger.Debug("NewMetadataRepo initialized")
 	return &MetadataRepo{db: pool, logger: logger}
 }
 
 func (r *MetadataRepo) Create(ctx context.Context, m *entities.Metadata) error {
+	row := metadataRowFromEntity(m)
 	r.logger.Debug("Create Metadata called",
-		zap.String("format", m.Format),
-		zap.Uint64("size", m.Size),
-		zap.String("tags", m.Tags),
-		zap.Uint64("dataset_version_id", m.DatasetVersionID),
+		zap.String("format", row.Format),
+		zap.Uint64("size", row.Size),
+		zap.String("tags", row.Tags),
+		zap.Uint64("dataset_version_id", row.DatasetVersionID),
 	)
 
 	query := psql.
 		Insert("metadata").
 		Columns("format", "size", "tags", "dataset_version_id").
-		Values(m.Format, m.Size, m.Tags, m.DatasetVersionID).
+		Values(row.Format, row.Size, row.Tags, row.DatasetVersionID).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
@@ -45,7 +77,7 @@ func (r *MetadataRepo) Create(ctx context.Context, m *entities.Metadata) error {
 		return repositories.ErrMetadataQueryBuild
 	}
 
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&m.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		r.logger.Error("failed to execute create metadata query",
 			zap.Error(err),
@@ -53,33 +85,35 @@ func (r *MetadataRepo) Create(ctx context.Context, m *entities.Metadata) error {
 		return repositories.ErrMetadataCreate
 	}
 
+	m.ID = row.ID
 	r.logger.Info("metadata created successfully",
-		zap.Uint64("id", m.ID),
-		zap.Uint64("dataset_version_id", m.DatasetVersionID),
+		zap.Uint64("id", row.ID),
+		zap.Uint64("dataset_version_id", row.DatasetVersionID),
 	)
 	return nil
 }
 
 func (r *MetadataRepo) Update(ctx context.Context, m *entities.Metadata) error {
+	row := metadataRowFromEntity(m)
 	r.logger.Debug("Update Metadata called",
-		zap.Uint64("id", m.ID),
-		zap.String("format", m.Format),
-		zap.Uint64("size", m.Size),
-		zap.String("tags", m.Tags),
+		zap.Uint64("id", row.ID),
+		zap.String("format", row.Format),
+		zap.Uint64("size", row.Size),
+		zap.String("tags", row.Tags),
 	)
 
 	query := psql.
 		Update("metadata").
-		Set("format", m.Format).
-		Set("size", m.Size).
-		Set("tags", m.Tags).
-		Where(sq.Eq{"id": m.ID})
+		Set("format", row.Format).
+		Set("size", row.Size).
+		Set("tags", row.Tags).
+		Where(sq.Eq{"id": row.ID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		r.logger.Error("failed to build update metadata query",
 			zap.Error(err),
-			zap.Uint64("id", m.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrMetadataQueryBuild
 	}
@@ -88,7 +122,7 @@ func (r *MetadataRepo) Update(ctx context.Context, m *entities.Metadata) error {
 	if err != nil {
 		r.logger.Error("failed to execute update metadata query",
 			zap.Error(err),
-			zap.Uint64("id", m.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrMetadataUpdate
 	}
@@ -100,7 +134,7 @@ func (r *MetadataRepo) Update(ctx context.Context, m *entities.Metadata) error {
 	}
 
 	r.logger.Info("metadata updated successfully",
-		zap.Uint64("id", m.ID),
+		zap.Uint64("id", row.ID),
 	)
 	return nil
 }
@@ -161,13 +195,13 @@ func (r *MetadataRepo) FindByID(ctx context.Context, id uint64) (*entities.Metad
 		return nil, repositories.ErrMetadataQueryBuild
 	}
 
-	m := &entities.Metadata{}
+	row := &metadataRow{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&m.ID,
-		&m.Format,
-		&m.Size,
-		&m.Tags,
-		&m.DatasetVersionID,
+		&row.ID,
+		&row.Format,
+		&row.Size,
+		&row.Tags,
+		&row.DatasetVersionID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -183,11 +217,12 @@ func (r *MetadataRepo) FindByID(ctx context.Context, id uint64) (*entities.Metad
 		return nil, repositories.ErrMetadataScan
 	}
 
+	entity := row.toEntity()
 	r.logger.Info("metadata fetched successfully",
-		zap.Uint64("id", m.ID),
-		zap.Uint64("dataset_version_id", m.DatasetVersionID),
+		zap.Uint64("id", entity.ID),
+		zap.Uint64("dataset_version_id", entity.DatasetVersionID),
 	)
-	return m, nil
+	return entity, nil
 }
 
 func (r *MetadataRepo) FindByDatasetID(ctx context.Context, datasetVersionID uint64) ([]*entities.Metadata, error) {
@@ -222,20 +257,20 @@ func (r *MetadataRepo) FindByDatasetID(ctx context.Context, datasetVersionID uin
 
 	var list []*entities.Metadata
 	for rows.Next() {
-		m := &entities.Metadata{}
+		row := metadataRow{}
 		if err := rows.Scan(
-			&m.ID,
-			&m.Format,
-			&m.Size,
-			&m.Tags,
-			&m.DatasetVersionID,
+			&row.ID,
+			&row.Format,
+			&row.Size,
+			&row.Tags,
+			&row.DatasetVersionID,
 		); err != nil {
 			r.logger.Error("failed to scan metadata row",
 				zap.Error(err),
 			)
 			return nil, repositories.ErrMetadataScan
 		}
-		list = append(list, m)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over metadata rows",

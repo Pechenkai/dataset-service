@@ -20,20 +20,56 @@ type ReviewRepo struct {
 	logger *zap.Logger
 }
 
+type reviewRow struct {
+	ID        uint64
+	UserID    uint64
+	DatasetID uint64
+	Rating    int
+	CreatedAt time.Time
+	Text      string
+}
+
+func reviewRowFromEntity(rv *entities.Review) reviewRow {
+	if rv == nil {
+		return reviewRow{}
+	}
+	return reviewRow{
+		ID:        rv.ID,
+		UserID:    rv.UserID,
+		DatasetID: rv.DatasetID,
+		Rating:    int(rv.Rating),
+		CreatedAt: rv.CreatedAt,
+		Text:      rv.Text,
+	}
+}
+
+func (row reviewRow) toEntity() *entities.Review {
+	return &entities.Review{
+		ID:        row.ID,
+		UserID:    row.UserID,
+		DatasetID: row.DatasetID,
+		Rating:    entities.Rating(row.Rating),
+		CreatedAt: row.CreatedAt,
+		Text:      row.Text,
+	}
+}
+
 func NewReviewRepo(pool *pgxpool.Pool, logger *zap.Logger) *ReviewRepo {
 	logger.Debug("NewReviewRepo initialized")
 	return &ReviewRepo{db: pool, logger: logger}
 }
 
 func (r *ReviewRepo) Create(ctx context.Context, rv *entities.Review) error {
-	if rv.CreatedAt.IsZero() {
-		rv.CreatedAt = time.Now().UTC()
+	row := reviewRowFromEntity(rv)
+	if row.CreatedAt.IsZero() {
+		row.CreatedAt = time.Now().UTC()
+		rv.CreatedAt = row.CreatedAt
 	}
 	r.logger.Debug("Create Review called",
-		zap.Uint64("user_id", rv.UserID),
-		zap.Uint64("dataset_id", rv.DatasetID),
-		zap.Int("rating", int(rv.Rating)),
-		zap.String("text", rv.Text),
+		zap.Uint64("user_id", row.UserID),
+		zap.Uint64("dataset_id", row.DatasetID),
+		zap.Int("rating", row.Rating),
+		zap.String("text", row.Text),
 	)
 
 	query := psql.
@@ -46,11 +82,11 @@ func (r *ReviewRepo) Create(ctx context.Context, rv *entities.Review) error {
 			"text",
 		).
 		Values(
-			rv.UserID,
-			rv.DatasetID,
-			rv.Rating,
-			rv.CreatedAt,
-			rv.Text,
+			row.UserID,
+			row.DatasetID,
+			row.Rating,
+			row.CreatedAt,
+			row.Text,
 		).
 		Suffix("RETURNING id")
 
@@ -62,7 +98,7 @@ func (r *ReviewRepo) Create(ctx context.Context, rv *entities.Review) error {
 		return fmt.Errorf("build insert review sql: %w", err)
 	}
 
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&rv.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		r.logger.Error("failed to execute insert review query",
 			zap.Error(err),
@@ -70,33 +106,35 @@ func (r *ReviewRepo) Create(ctx context.Context, rv *entities.Review) error {
 		return fmt.Errorf("create review: %w", err)
 	}
 
+	rv.ID = row.ID
 	r.logger.Info("review created successfully",
-		zap.Uint64("id", rv.ID),
-		zap.Uint64("user_id", rv.UserID),
-		zap.Uint64("dataset_id", rv.DatasetID),
-		zap.Int("rating", int(rv.Rating)),
+		zap.Uint64("id", row.ID),
+		zap.Uint64("user_id", row.UserID),
+		zap.Uint64("dataset_id", row.DatasetID),
+		zap.Int("rating", row.Rating),
 	)
 	return nil
 }
 
 func (r *ReviewRepo) Update(ctx context.Context, rv *entities.Review) error {
+	row := reviewRowFromEntity(rv)
 	r.logger.Debug("Update Review called",
-		zap.Uint64("id", rv.ID),
-		zap.Int("rating", int(rv.Rating)),
-		zap.String("text", rv.Text),
+		zap.Uint64("id", row.ID),
+		zap.Int("rating", row.Rating),
+		zap.String("text", row.Text),
 	)
 
 	query := psql.
 		Update("reviews").
-		Set("rating", rv.Rating).
-		Set("text", rv.Text).
-		Where(sq.Eq{"id": rv.ID})
+		Set("rating", row.Rating).
+		Set("text", row.Text).
+		Where(sq.Eq{"id": row.ID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		r.logger.Error("failed to build update review SQL",
 			zap.Error(err),
-			zap.Uint64("id", rv.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return fmt.Errorf("build update review sql: %w", err)
 	}
@@ -105,19 +143,19 @@ func (r *ReviewRepo) Update(ctx context.Context, rv *entities.Review) error {
 	if err != nil {
 		r.logger.Error("failed to execute update review query",
 			zap.Error(err),
-			zap.Uint64("id", rv.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return fmt.Errorf("update review: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
 		r.logger.Warn("no review found to update",
-			zap.Uint64("id", rv.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrReviewNotFound
 	}
 
 	r.logger.Info("review updated successfully",
-		zap.Uint64("id", rv.ID),
+		zap.Uint64("id", row.ID),
 	)
 	return nil
 }
@@ -178,14 +216,14 @@ func (r *ReviewRepo) FindByID(ctx context.Context, id uint64) (*entities.Review,
 		return nil, fmt.Errorf("build find review by id sql: %w", err)
 	}
 
-	rv := &entities.Review{}
+	row := &reviewRow{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&rv.ID,
-		&rv.UserID,
-		&rv.DatasetID,
-		&rv.Rating,
-		&rv.CreatedAt,
-		&rv.Text,
+		&row.ID,
+		&row.UserID,
+		&row.DatasetID,
+		&row.Rating,
+		&row.CreatedAt,
+		&row.Text,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -201,13 +239,14 @@ func (r *ReviewRepo) FindByID(ctx context.Context, id uint64) (*entities.Review,
 		return nil, fmt.Errorf("find review by id: %w", err)
 	}
 
+	entity := row.toEntity()
 	r.logger.Info("review fetched successfully",
-		zap.Uint64("id", rv.ID),
-		zap.Uint64("user_id", rv.UserID),
-		zap.Uint64("dataset_id", rv.DatasetID),
-		zap.Int("rating", int(rv.Rating)),
+		zap.Uint64("id", entity.ID),
+		zap.Uint64("user_id", entity.UserID),
+		zap.Uint64("dataset_id", entity.DatasetID),
+		zap.Int("rating", int(entity.Rating)),
 	)
-	return rv, nil
+	return entity, nil
 }
 
 func (r *ReviewRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.Review, error) {
@@ -242,21 +281,21 @@ func (r *ReviewRepo) FindByDatasetID(ctx context.Context, datasetID uint64) ([]*
 
 	var list []*entities.Review
 	for rows.Next() {
-		rItem := &entities.Review{}
+		row := reviewRow{}
 		if err := rows.Scan(
-			&rItem.ID,
-			&rItem.UserID,
-			&rItem.DatasetID,
-			&rItem.Rating,
-			&rItem.CreatedAt,
-			&rItem.Text,
+			&row.ID,
+			&row.UserID,
+			&row.DatasetID,
+			&row.Rating,
+			&row.CreatedAt,
+			&row.Text,
 		); err != nil {
 			r.logger.Error("failed to scan review row",
 				zap.Error(err),
 			)
 			return nil, fmt.Errorf("scan review row: %w", err)
 		}
-		list = append(list, rItem)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over review rows",
@@ -305,21 +344,21 @@ func (r *ReviewRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entiti
 
 	var list []*entities.Review
 	for rows.Next() {
-		rItem := &entities.Review{}
+		row := reviewRow{}
 		if err := rows.Scan(
-			&rItem.ID,
-			&rItem.UserID,
-			&rItem.DatasetID,
-			&rItem.Rating,
-			&rItem.CreatedAt,
-			&rItem.Text,
+			&row.ID,
+			&row.UserID,
+			&row.DatasetID,
+			&row.Rating,
+			&row.CreatedAt,
+			&row.Text,
 		); err != nil {
 			r.logger.Error("failed to scan review row",
 				zap.Error(err),
 			)
 			return nil, fmt.Errorf("scan review row: %w", err)
 		}
-		list = append(list, rItem)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over review rows",

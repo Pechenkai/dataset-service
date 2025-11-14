@@ -21,26 +21,62 @@ type NotificationRepo struct {
 	logger *zap.Logger
 }
 
+type notificationRow struct {
+	ID        uint64
+	UserID    uint64
+	DatasetID uint64
+	Message   string
+	IsRead    bool
+	CreatedAt time.Time
+}
+
+func notificationRowFromEntity(n *entities.Notification) notificationRow {
+	if n == nil {
+		return notificationRow{}
+	}
+	return notificationRow{
+		ID:        n.ID,
+		UserID:    n.UserID,
+		DatasetID: n.DatasetID,
+		Message:   n.Message,
+		IsRead:    n.IsRead,
+		CreatedAt: n.CreatedAt,
+	}
+}
+
+func (row notificationRow) toEntity() *entities.Notification {
+	return &entities.Notification{
+		ID:        row.ID,
+		UserID:    row.UserID,
+		DatasetID: row.DatasetID,
+		Message:   row.Message,
+		IsRead:    row.IsRead,
+		CreatedAt: row.CreatedAt,
+	}
+}
+
 func NewNotificationRepo(pool *pgxpool.Pool, logger *zap.Logger) *NotificationRepo {
 	logger.Debug("NewNotificationRepo initialized")
 	return &NotificationRepo{db: pool, logger: logger}
 }
 
 func (r *NotificationRepo) Create(ctx context.Context, n *entities.Notification) error {
-	if n.CreatedAt.IsZero() {
-		n.CreatedAt = time.Now().UTC()
+	row := notificationRowFromEntity(n)
+	if row.CreatedAt.IsZero() {
+		row.CreatedAt = time.Now().UTC()
+		n.CreatedAt = row.CreatedAt
 	}
 	r.logger.Debug("Create Notification called",
-		zap.Uint64("user_id", n.UserID),
-		zap.Uint64("dataset_id", n.DatasetID),
-		zap.String("message", n.Message),
-		zap.Bool("is_read", n.IsRead),
+		zap.Uint64("user_id", row.UserID),
+		zap.Uint64("dataset_id", row.DatasetID),
+		zap.String("message", row.Message),
+		zap.Bool("is_read", row.IsRead),
 	)
 
 	query := psql.
 		Insert("notifications").
 		Columns("user_id", "dataset_id", "message", "is_read", "created_at").
-		Values(n.UserID, n.DatasetID, n.Message, n.IsRead, n.CreatedAt).
+		Values(row.UserID, row.DatasetID, row.Message, row.IsRead, row.CreatedAt).
 		Suffix("RETURNING id")
 
 	sqlStr, args, err := query.ToSql()
@@ -51,7 +87,7 @@ func (r *NotificationRepo) Create(ctx context.Context, n *entities.Notification)
 		return repositories.ErrNotificationQueryBuild
 	}
 
-	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&n.ID)
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&row.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -66,10 +102,11 @@ func (r *NotificationRepo) Create(ctx context.Context, n *entities.Notification)
 		return repositories.ErrNotificationCreate
 	}
 
+	n.ID = row.ID
 	r.logger.Info("notification created successfully",
-		zap.Uint64("id", n.ID),
-		zap.Uint64("user_id", n.UserID),
-		zap.Uint64("dataset_id", n.DatasetID),
+		zap.Uint64("id", row.ID),
+		zap.Uint64("user_id", row.UserID),
+		zap.Uint64("dataset_id", row.DatasetID),
 	)
 	return nil
 }
@@ -93,14 +130,14 @@ func (r *NotificationRepo) FindByID(ctx context.Context, id uint64) (*entities.N
 		return nil, repositories.ErrNotificationQueryBuild
 	}
 
-	n := &entities.Notification{}
+	row := &notificationRow{}
 	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(
-		&n.ID,
-		&n.UserID,
-		&n.DatasetID,
-		&n.Message,
-		&n.IsRead,
-		&n.CreatedAt,
+		&row.ID,
+		&row.UserID,
+		&row.DatasetID,
+		&row.Message,
+		&row.IsRead,
+		&row.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -116,11 +153,12 @@ func (r *NotificationRepo) FindByID(ctx context.Context, id uint64) (*entities.N
 		return nil, repositories.ErrNotificationCreate
 	}
 
+	entity := row.toEntity()
 	r.logger.Info("notification fetched successfully",
-		zap.Uint64("id", n.ID),
-		zap.Uint64("user_id", n.UserID),
+		zap.Uint64("id", entity.ID),
+		zap.Uint64("user_id", entity.UserID),
 	)
-	return n, nil
+	return entity, nil
 }
 
 func (r *NotificationRepo) FindByUserID(ctx context.Context, userID uint64) ([]*entities.Notification, error) {
@@ -155,21 +193,21 @@ func (r *NotificationRepo) FindByUserID(ctx context.Context, userID uint64) ([]*
 
 	var list []*entities.Notification
 	for rows.Next() {
-		n := &entities.Notification{}
+		row := notificationRow{}
 		if err := rows.Scan(
-			&n.ID,
-			&n.UserID,
-			&n.DatasetID,
-			&n.Message,
-			&n.IsRead,
-			&n.CreatedAt,
+			&row.ID,
+			&row.UserID,
+			&row.DatasetID,
+			&row.Message,
+			&row.IsRead,
+			&row.CreatedAt,
 		); err != nil {
 			r.logger.Error("failed to scan notification row",
 				zap.Error(err),
 			)
 			return nil, repositories.ErrNotificationScanRow
 		}
-		list = append(list, n)
+		list = append(list, row.toEntity())
 	}
 	if err := rows.Err(); err != nil {
 		r.logger.Error("error iterating over notification rows",
@@ -186,23 +224,24 @@ func (r *NotificationRepo) FindByUserID(ctx context.Context, userID uint64) ([]*
 }
 
 func (r *NotificationRepo) Update(ctx context.Context, n *entities.Notification) error {
+	row := notificationRowFromEntity(n)
 	r.logger.Debug("Update Notification called",
-		zap.Uint64("id", n.ID),
-		zap.String("message", n.Message),
-		zap.Bool("is_read", n.IsRead),
+		zap.Uint64("id", row.ID),
+		zap.String("message", row.Message),
+		zap.Bool("is_read", row.IsRead),
 	)
 
 	query := psql.
 		Update("notifications").
-		Set("message", n.Message).
-		Set("is_read", n.IsRead).
-		Where(sq.Eq{"id": n.ID})
+		Set("message", row.Message).
+		Set("is_read", row.IsRead).
+		Where(sq.Eq{"id": row.ID})
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
 		r.logger.Error("failed to build update notification query",
 			zap.Error(err),
-			zap.Uint64("id", n.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrNotificationQueryBuild
 	}
@@ -211,7 +250,7 @@ func (r *NotificationRepo) Update(ctx context.Context, n *entities.Notification)
 	if err != nil {
 		r.logger.Error("failed to execute update notification query",
 			zap.Error(err),
-			zap.Uint64("id", n.ID),
+			zap.Uint64("id", row.ID),
 		)
 		return repositories.ErrNotificationUpdateFail
 	}
@@ -223,7 +262,7 @@ func (r *NotificationRepo) Update(ctx context.Context, n *entities.Notification)
 	}
 
 	r.logger.Info("notification updated successfully",
-		zap.Uint64("id", n.ID),
+		zap.Uint64("id", row.ID),
 	)
 	return nil
 }
