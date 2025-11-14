@@ -72,6 +72,8 @@ services:
       CLI_API_BASE_URL: http://nginx/api/v2
     expose:
       - "8080"
+    ports:
+      - "8080:8080"
 
   legacy-ui:
     image: ppo-app
