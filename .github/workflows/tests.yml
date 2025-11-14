@@ -146,6 +146,21 @@ jobs:
       - name: Prepare allure directory
         run: mkdir -p allure-results
 
+      - name: Start application stack
+        run: |
+          docker compose -f docker-compose.yml up -d --build db mongo minio api
+
+      - name: Wait for API
+        run: |
+          for attempt in {1..30}; do
+            if curl -fsS http://localhost:8080/categories >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready on http://localhost:8080" >&2
+          exit 1
+
       - name: Collect allure results
         run: |
           docker run --rm \
@@ -156,6 +171,10 @@ jobs:
             -e GOCACHE=/tmp/.gocache \
             -v "${GITHUB_WORKSPACE}/allure-results:/app/allure-results" \
             ppo-tests allure
+
+      - name: Stop application stack
+        if: ${{ always() }}
+        run: docker compose -f docker-compose.yml down -v
 
       - name: Upload allure artifacts
         uses: actions/upload-artifact@v4
