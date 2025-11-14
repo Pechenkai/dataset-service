@@ -32,3 +32,11 @@ log:
 techui:
   host: "0.0.0.0"
   port: 8090
+
+auth:
+  secret: "change-me"
+  access_token_ttl: "24h"
+
+cli:
+  api_base_url: "http://localhost:8080/api/v2"
+  token_file: ""
