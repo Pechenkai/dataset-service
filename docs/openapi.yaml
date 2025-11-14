@@ -1,0 +1,2185 @@
+openapi: 3.1.1
+info:
+  title: Dataset Platform Public API
+  version: "1.0.0"
+  description: |
+    REST API сервиса для публикации и распространения датасетов.
+servers:
+  - url: https://api.dataset-platform.local
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Categories
+    description: Управление доменными категориями датасетов.
+  - name: Datasets
+    description: CRUD-операции над датасетами.
+  - name: Versions
+    description: Управление версиями датасетов.
+  - name: Notifications
+    description: Работа с уведомлениями пользователей.
+  - name: Reviews
+    description: Работа с пользовательскими отзывами и рейтингами.
+  - name: Subscriptions
+    description: Подписки пользователей на датасеты.
+  - name: Users
+    description: Управление пользователями платформы.
+  - name: Auth
+    description: Аутентификация и управление токенами доступа.
+security:
+  - bearerAuth: []
+paths:
+  /api/v2/categories:
+    get:
+      tags: [Categories]
+      summary: List categories
+      description: Возвращает страницы категорий с возможностью поиска по названию.
+      parameters:
+        - in: query
+          name: limit
+          description: Количество элементов на странице.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - in: query
+          name: offset
+          description: Смещение для пагинации.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: search
+          description: Фильтр по части названия категории.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Список категорий.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        "400":
+          description: Неверные параметры.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Categories]
+      summary: Create category
+      description: Создаёт новую категорию для классификации датасетов.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        "201":
+          description: Категория создана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Категория с таким названием уже существует.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/categories/{categoryId}:
+    parameters:
+      - in: path
+        name: categoryId
+        description: Идентификатор категории.
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Categories]
+      summary: Get category
+      description: Возвращает категорию по идентификатору.
+      responses:
+        "200":
+          description: Категория найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        "400":
+          description: Некорректный идентификатор.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Категория не найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Categories]
+      summary: Update category
+      description: Частично обновляет поля категории.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        "200":
+          description: Категория обновлена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Категория не найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Конфликт уникальности.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Categories]
+      summary: Delete category
+      description: Удаляет категорию по идентификатору.
+      responses:
+        "204":
+          description: Категория удалена.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Категория не найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets:
+    get:
+      tags: [Datasets]
+      summary: List datasets
+      description: Возвращает страницу датасетов с фильтрами по владельцу, категории и доступности. В ответ встроено поле rating_summary, которое кэширует средний рейтинг и количество отзывов для быстрого фильтра и сортировки.
+      parameters:
+        - in: query
+          name: limit
+          description: Количество элементов на странице.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+        - in: query
+          name: offset
+          description: Смещение для пагинации.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: category_id
+          description: Фильтр по категории.
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: owner_id
+          description: Фильтр по владельцу.
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: is_public
+          description: Возвращать только публичные датасеты.
+          schema:
+            type: boolean
+        - in: query
+          name: search
+          description: Поиск по названию или описанию.
+          schema:
+            type: string
+        - in: query
+          name: min_rating
+          description: Минимальное среднее значение рейтинга.
+          schema:
+            $ref: '#/components/schemas/Rating'
+        - in: query
+          name: max_rating
+          description: Максимальное среднее значение рейтинга.
+          schema:
+            $ref: '#/components/schemas/Rating'
+      responses:
+        "200":
+          description: Список датасетов вместе с агрегированным рейтингом.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetsResponse'
+        "400":
+          description: Неверные параметры.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Datasets]
+      summary: Create dataset
+      description: Загружает новый датасет вместе с начальной версией.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetRequest'
+      responses:
+        "201":
+          description: Датасет создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetResponse'
+        "400":
+          description: Неверные данные запроса или файл.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Датасет с таким именем уже существует.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}:
+    parameters:
+      - in: path
+        name: datasetId
+        description: Идентификатор датасета.
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Datasets]
+      summary: Get dataset
+      description: Возвращает информацию о датасете, включая кэшированную сводку рейтинга.
+      responses:
+        "200":
+          description: Датасет найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Datasets]
+      summary: Update dataset
+      description: Частично обновляет метаданные датасета.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatasetRequest'
+      responses:
+        "200":
+          description: Датасет обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Конфликт уникальности.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Datasets]
+      summary: Delete dataset
+      description: Удаляет датасет и все связанные версии.
+      responses:
+        "204":
+          description: Датасет удалён.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/versions:
+    parameters:
+      - in: path
+        name: datasetId
+        description: Идентификатор датасета.
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Versions]
+      summary: List dataset versions
+      description: Возвращает список версий выбранного датасета.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Количество версий на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список версий.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetVersionsResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Versions]
+      summary: Add dataset version
+      description: Загружает новую версию файла для выбранного датасета.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetVersionRequest'
+      responses:
+        "201":
+          description: Версия добавлена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetVersionResponse'
+        "400":
+          description: Неверные данные запроса или файл.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/versions/{versionId}:
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        description: Идентификатор датасета.
+        schema:
+          type: integer
+          minimum: 1
+      - in: path
+        name: versionId
+        required: true
+        description: Идентификатор версии.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Versions]
+      summary: Get dataset version
+      description: Возвращает информацию о конкретной версии датасета.
+      responses:
+        "200":
+          description: Версия найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetVersionResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет или версия не найдены.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/notifications:
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        description: Идентификатор датасета.
+        schema:
+          type: integer
+          minimum: 1
+    post:
+      tags: [Notifications]
+      summary: Notify dataset subscribers
+      description: Отправляет уведомление всем подписчикам выбранного датасета.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotifySubscribersRequest'
+      responses:
+        "202":
+          description: Уведомление поставлено в очередь на отправку.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotifySubscribersResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/subscribers:
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        description: Идентификатор датасета.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Subscriptions]
+      summary: List dataset subscribers
+      description: Возвращает пользователей, подписанных на обновления датасета.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+          description: Количество подписчиков на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список подписчиков.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscribersResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      description: Возвращает уведомления с фильтрами по пользователю, датасету и статусу прочтения.
+      parameters:
+        - in: query
+          name: user_id
+          required: true
+          description: Фильтр по идентификатору пользователя.
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: dataset_id
+          description: Фильтр по идентификатору датасета.
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: is_read
+          description: Фильтр по статусу прочтения.
+          schema:
+            type: boolean
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Количество уведомлений на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список уведомлений.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        "400":
+          description: Неверные параметры фильтрации.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/notifications/{notificationId}:
+    parameters:
+      - in: path
+        name: notificationId
+        required: true
+        description: Идентификатор уведомления.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Notifications]
+      summary: Get notification
+      description: Возвращает уведомление по идентификатору.
+      responses:
+        "200":
+          description: Уведомление найдено.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Уведомление не найдено.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Notifications]
+      summary: Update notification
+      description: Отмечает уведомление прочитанным или непрочитанным.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPatchRequest'
+      responses:
+        "200":
+          description: Статус уведомления обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Уведомление не найдено.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/reviews:
+    get:
+      tags: [Reviews]
+      summary: List reviews
+      description: Возвращает отзывы с фильтрами по пользователю и датасету.
+      parameters:
+        - in: query
+          name: dataset_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Фильтр по датасету.
+        - in: query
+          name: user_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Фильтр по автору.
+        - in: query
+          name: min_rating
+          schema:
+            $ref: '#/components/schemas/Rating'
+          description: Минимальный рейтинг.
+        - in: query
+          name: max_rating
+          schema:
+            $ref: '#/components/schemas/Rating'
+          description: Максимальный рейтинг.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Количество отзывов на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список отзывов.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewsResponse'
+        "400":
+          description: Неверные параметры.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Reviews]
+      summary: Create review
+      description: Создаёт новый отзыв на датасет.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        "201":
+          description: Отзыв создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Указанный датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/reviews/{reviewId}:
+    parameters:
+      - in: path
+        name: reviewId
+        required: true
+        description: Идентификатор отзыва.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Reviews]
+      summary: Get review
+      description: Возвращает отзыв по идентификатору.
+      responses:
+        "200":
+          description: Отзыв найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Отзыв не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Reviews]
+      summary: Update review
+      description: Частично обновляет рейтинг и/или текст отзыва.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+      responses:
+        "200":
+          description: Отзыв обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Отзыв не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Reviews]
+      summary: Delete review
+      description: Удаляет отзыв по идентификатору.
+      responses:
+        "204":
+          description: Отзыв удалён.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Отзыв не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: List subscriptions
+      description: Возвращает подписки с фильтрами по пользователю и датасету.
+      parameters:
+        - in: query
+          name: user_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Фильтр по пользователю.
+        - in: query
+          name: dataset_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Фильтр по датасету.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Количество подписок на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список подписок.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionsResponse'
+        "400":
+          description: Неверные параметры.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Subscriptions]
+      summary: Create subscription
+      description: Подписывает пользователя на обновления датасета.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        "201":
+          description: Подписка создана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь или датасет не найдены.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Подписка уже существует.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/subscriptions/{subscriptionId}:
+    parameters:
+      - in: path
+        name: subscriptionId
+        required: true
+        description: Идентификатор подписки.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Subscriptions]
+      summary: Get subscription
+      description: Возвращает подписку по идентификатору.
+      responses:
+        "200":
+          description: Подписка найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Подписка не найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Subscriptions]
+      summary: Delete subscription
+      description: Отписывает пользователя от датасета.
+      responses:
+        "204":
+          description: Подписка удалена.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Подписка не найдена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: Возвращает пользователей с базовыми фильтрами.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Количество пользователей на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [guest, user, admin]
+          description: Фильтр по роли.
+        - in: query
+          name: email
+          schema:
+            type: string
+            format: email
+          description: Поиск по email.
+        - in: query
+          name: country
+          schema:
+            type: string
+          description: Фильтр по стране.
+        - in: query
+          name: is_blocked
+          schema:
+            type: boolean
+          description: Фильтр по статусу блокировки.
+      responses:
+        "200":
+          description: Список пользователей.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        "400":
+          description: Неверные параметры.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [Users]
+      summary: Register user
+      description: Регистрирует нового пользователя платформы.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        "201":
+          description: Пользователь создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Email уже используется.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/users/{userId}:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        description: Идентификатор пользователя.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Users]
+      summary: Get user
+      description: Возвращает данные пользователя по идентификатору.
+      responses:
+        "200":
+          description: Пользователь найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/users/{userId}/notifications:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        description: Идентификатор пользователя.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Users]
+      summary: List user notifications
+      description: Возвращает уведомления для конкретного пользователя.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Количество уведомлений на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список уведомлений пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/users/{userId}/reviews:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        description: Идентификатор пользователя.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Users]
+      summary: List user reviews
+      description: Возвращает отзывы, оставленные пользователем.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Количество отзывов на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список отзывов пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewsResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/users/{userId}/subscriptions:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        description: Идентификатор пользователя.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Users]
+      summary: List user subscriptions
+      description: Возвращает подписки пользователя на датасеты.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Количество подписок на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список подписок пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionsResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Users]
+      summary: Update user
+      description: Частично обновляет данные пользователя.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        "200":
+          description: Пользователь обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Email уже используется.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Users]
+      summary: Delete user
+      description: Удаляет пользователя по идентификатору.
+      responses:
+        "204":
+          description: Пользователь удалён.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/auth/tokens:
+    post:
+      tags: [Auth]
+      summary: Issue access token
+      description: Аутентифицирует пользователя и возвращает токен доступа.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthenticateRequest'
+      responses:
+        "200":
+          description: Токен выдан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticateResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Неверные учётные данные.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/auth/tokens/revoke:
+    post:
+      tags: [Auth]
+      summary: Revoke access token
+      description: >-
+        Инвалидация ранее выданного токена доступа.
+        Идентификатор токена передаётся только в теле запроса, чтобы не логировать его в URL.
+        Если `token_id` не указан, отзывается текущий токен из заголовка Authorization.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeTokenRequest'
+      responses:
+        "204":
+          description: Токен отозван или будет отозван асинхронно.
+        "400":
+          description: Некорректный идентификатор токена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Токен не найден или уже отозван.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: validation_error
+        message:
+          type: string
+          example: "Поле name обязательно"
+    PaginationMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          example: 120
+        limit:
+          type: integer
+          minimum: 0
+          example: 20
+        offset:
+          type: integer
+          minimum: 0
+          example: 0
+    CategoryResponse:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          type: integer
+          example: 10
+        name:
+          type: string
+          maxLength: 50
+          example: Геопространственные данные
+        description:
+          type: string
+          maxLength: 255
+          example: Датасеты с географической привязкой
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CategoriesResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 255
+    UpdateCategoryRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 255
+    DatasetMetadata:
+      type: object
+      properties:
+        format:
+          type: string
+          example: csv
+        tags:
+          type: array
+          items:
+            type: string
+        size:
+          type: integer
+          description: Размер в байтах.
+    DatasetResponse:
+      type: object
+      required: [id, name, category_id, owner_id, is_public]
+      properties:
+        id:
+          type: integer
+          example: 42
+        name:
+          type: string
+          example: Данные о трафике
+        description:
+          type: string
+          maxLength: 2000
+        category_id:
+          type: integer
+        owner_id:
+          type: integer
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        latest_version:
+          $ref: '#/components/schemas/DatasetVersionResponse'
+        metadata:
+          $ref: '#/components/schemas/DatasetMetadata'
+        rating_summary:
+          $ref: '#/components/schemas/DatasetRatingSummary'
+    DatasetRatingSummary:
+      type: object
+      required: [average, count, synced_at]
+      properties:
+        average:
+          type: number
+          format: float
+          description: Средний рейтинг на момент синхронизации.
+        count:
+          type: integer
+          description: Количество учтённых отзывов.
+        synced_at:
+          type: string
+          format: date-time
+          description: Время последней синхронизации значения.
+    DatasetsResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DatasetResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateDatasetRequest:
+      type: object
+      required: [name, category_id, file]
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        category_id:
+          type: integer
+        is_public:
+          type: boolean
+          default: false
+        file:
+          type: string
+          format: binary
+          description: Архив или файл с данными.
+        meta_format:
+          type: string
+        meta_tags:
+          type: array
+          items:
+            type: string
+        meta_size:
+          type: integer
+    UpdateDatasetRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        category_id:
+          type: integer
+        is_public:
+          type: boolean
+        metadata:
+          $ref: '#/components/schemas/DatasetMetadata'
+    DatasetVersionResponse:
+      type: object
+      required: [id, dataset_id, number]
+      properties:
+        id:
+          type: integer
+        dataset_id:
+          type: integer
+        number:
+          type: string
+          example: v2.1
+        change_log:
+          type: string
+        file_url:
+          type: string
+          format: uri
+        uploaded_by:
+          type: integer
+        upload_date:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/DatasetMetadata'
+    DatasetVersionsResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DatasetVersionResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateDatasetVersionRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        change_log:
+          type: string
+        meta_format:
+          type: string
+        meta_tags:
+          type: array
+          items:
+            type: string
+        meta_size:
+          type: integer
+    NotifySubscribersRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 2000
+    NotifySubscribersResponse:
+      type: object
+      properties:
+        sent:
+          type: integer
+          description: Количество получателей уведомления.
+    NotificationResponse:
+      type: object
+      required: [id, user_id, message, is_read]
+      properties:
+        id:
+          type: integer
+        dataset_id:
+          type: integer
+        user_id:
+          type: integer
+        message:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    NotificationsResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    NotificationPatchRequest:
+      type: object
+      required: [is_read]
+      properties:
+        is_read:
+          type: boolean
+    Rating:
+      type: integer
+      enum: [1, 2, 3, 4, 5]
+    ReviewResponse:
+      type: object
+      required: [id, dataset_id, user_id, rating]
+      properties:
+        id:
+          type: integer
+        dataset_id:
+          type: integer
+        user_id:
+          type: integer
+        rating:
+          $ref: '#/components/schemas/Rating'
+        text:
+          type: string
+          maxLength: 1000
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ReviewsResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateReviewRequest:
+      type: object
+      required: [dataset_id, rating]
+      properties:
+        dataset_id:
+          type: integer
+        user_id:
+          type: integer
+          description: Может быть опущен, если определяется по токену.
+        rating:
+          $ref: '#/components/schemas/Rating'
+        text:
+          type: string
+          maxLength: 1000
+    UpdateReviewRequest:
+      type: object
+      minProperties: 1
+      properties:
+        rating:
+          $ref: '#/components/schemas/Rating'
+        text:
+          type: string
+          maxLength: 1000
+    SubscriptionResponse:
+      type: object
+      required: [id, dataset_id, user_id]
+      properties:
+        id:
+          type: integer
+        dataset_id:
+          type: integer
+        user_id:
+          type: integer
+        subscribed_at:
+          type: string
+          format: date-time
+    SubscriberResponse:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: integer
+    SubscribersResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriberResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    SubscriptionsResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateSubscriptionRequest:
+      type: object
+      required: [dataset_id, user_id]
+      properties:
+        dataset_id:
+          type: integer
+        user_id:
+          type: integer
+    UserResponse:
+      type: object
+      required: [id, username, email, country, role, is_blocked]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        country:
+          type: string
+        role:
+          type: string
+          enum: [guest, user, admin]
+        registration_date:
+          type: string
+          format: date-time
+        is_blocked:
+          type: boolean
+    UsersResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateUserRequest:
+      type: object
+      required: [username, email, password, country, role]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        country:
+          type: string
+        role:
+          type: string
+          enum: [guest, user, admin]
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        country:
+          type: string
+        role:
+          type: string
+          enum: [guest, user, admin]
+        is_blocked:
+          type: boolean
+    AuthenticateRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+    AuthenticateResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserResponse'
+    RevokeTokenRequest:
+      type: object
+      properties:
+        token_id:
+          type: string
+          description: Идентификатор токена (jti). Если не указан — отзывается текущий токен из заголовка Authorization.

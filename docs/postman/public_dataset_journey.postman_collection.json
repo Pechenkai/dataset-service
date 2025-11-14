@@ -1,0 +1,145 @@
+{
+  "info": {
+    "_postman_id": "2a4e4f67-26f4-4e4d-a584-4d3f851ac001",
+    "name": "Public Dataset Journey",
+    "description": "Requests that mirror the E2E scenario from internal/tests/e2e/user_journey_e2e_test.go. Populate userId/datasetId via `go run ./cmd/e2e_seed` before running the collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "datasetId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "List categories",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "categories"
+          ]
+        }
+      }
+    },
+    {
+      "name": "List public datasets",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/datasets?public=true",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "datasets"
+          ],
+          "query": [
+            {
+              "key": "public",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get dataset versions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/datasets/{{datasetId}}/versions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "datasets",
+            "{{datasetId}}",
+            "versions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Subscribe to dataset",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{userId}},\n  \"dataset_id\": {{datasetId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/subscriptions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "subscriptions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create review",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{userId}},\n  \"dataset_id\": {{datasetId}},\n  \"rating\": 5,\n  \"text\": \"Great dataset for prototyping models\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reviews",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reviews"
+          ]
+        }
+      }
+    }
+  ]
+}
