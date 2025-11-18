@@ -328,7 +328,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         "403":
-          description: Недостаточно прав: токен не принадлежит владельцу и не обладает правами администратора.
+          description: Токен не принадлежит владельцу и не обладает правами администратора.
           content:
             application/json:
               schema:
