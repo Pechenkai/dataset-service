@@ -22,6 +22,8 @@ tags:
     description: Работа с пользовательскими отзывами и рейтингами.
   - name: Subscriptions
     description: Подписки пользователей на датасеты.
+  - name: AccessRequests
+    description: Запросы доступа к приватным датасетам.
   - name: Users
     description: Управление пользователями платформы.
   - name: Auth
@@ -34,6 +36,9 @@ paths:
       tags: [Categories]
       summary: List categories
       description: Возвращает страницы категорий с возможностью поиска по названию.
+      security:
+        - bearerAuth: []
+        - {}
       parameters:
         - in: query
           name: limit
@@ -68,12 +73,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         "500":
           description: Внутренняя ошибка.
           content:
@@ -83,7 +82,7 @@ paths:
     post:
       tags: [Categories]
       summary: Create category
-      description: Создаёт новую категорию для классификации датасетов.
+      description: Создаёт новую категорию для классификации датасетов. Доступно только администраторам.
       requestBody:
         required: true
         content:
@@ -105,6 +104,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён.
           content:
             application/json:
               schema:
@@ -134,6 +139,9 @@ paths:
       tags: [Categories]
       summary: Get category
       description: Возвращает категорию по идентификатору.
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200":
           description: Категория найдена.
@@ -143,12 +151,6 @@ paths:
                 $ref: '#/components/schemas/CategoryResponse'
         "400":
           description: Некорректный идентификатор.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "401":
-          description: Требуется аутентификация.
           content:
             application/json:
               schema:
@@ -168,7 +170,7 @@ paths:
     patch:
       tags: [Categories]
       summary: Update category
-      description: Частично обновляет поля категории.
+      description: Частично обновляет поля категории. Доступно только администраторам.
       requestBody:
         required: true
         content:
@@ -194,6 +196,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "404":
           description: Категория не найдена.
           content:
@@ -215,12 +223,18 @@ paths:
     delete:
       tags: [Categories]
       summary: Delete category
-      description: Удаляет категорию по идентификатору.
+      description: Удаляет категорию по идентификатору. Доступно только администраторам.
       responses:
         "204":
           description: Категория удалена.
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён.
           content:
             application/json:
               schema:
@@ -241,7 +255,15 @@ paths:
     get:
       tags: [Datasets]
       summary: List datasets
-      description: Возвращает страницу датасетов с фильтрами по владельцу, категории и доступности. В ответ встроено поле rating_summary, которое кэширует средний рейтинг и количество отзывов для быстрого фильтра и сортировки.
+      description: |-
+        Возвращает страницу датасетов с фильтрами по владельцу, категории и доступности.
+        Анонимные запросы всегда получают только публичные датасеты (любой указанный `owner_id` или `is_public=false` игнорируется).
+        Чтобы увидеть непубличные записи, необходимо выполнить запрос от имени владельца датасета или администратора;
+        попытка получить такие данные без необходимых прав заканчивается ошибкой 403. В ответ встроено поле `rating_summary`,
+        которое кэширует средний рейтинг и количество отзывов для быстрого фильтра и сортировки.
+      security:
+        - bearerAuth: []
+        - {}
       parameters:
         - in: query
           name: limit
@@ -266,13 +288,15 @@ paths:
             minimum: 1
         - in: query
           name: owner_id
-          description: Фильтр по владельцу.
+          description: >-
+            Фильтр по владельцу. Применяется только для администратора или самого владельца.
           schema:
             type: integer
             minimum: 1
         - in: query
           name: is_public
-          description: Возвращать только публичные датасеты.
+          description: >-
+            Возвращать только публичные датасеты. Значение false доступно только владельцу и администратору.
           schema:
             type: boolean
         - in: query
@@ -297,14 +321,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetsResponse'
-        "400":
-          description: Неверные параметры.
+        "401":
+          description: Требуется аутентификация для доступа к непубличным датасетам.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "401":
-          description: Требуется аутентификация.
+        "403":
+          description: Недостаточно прав: токен не принадлежит владельцу и не обладает правами администратора.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: Неверные параметры.
           content:
             application/json:
               schema:
@@ -368,7 +398,12 @@ paths:
     get:
       tags: [Datasets]
       summary: Get dataset
-      description: Возвращает информацию о датасете, включая кэшированную сводку рейтинга.
+      description: |-
+        Возвращает информацию о датасете, включая кэшированную сводку рейтинга.
+        Публичные датасеты доступны всем, но для приватных требуется авторизация владельца или администратора.
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200":
           description: Датасет найден.
@@ -377,7 +412,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/DatasetResponse'
         "401":
-          description: Требуется аутентификация.
+          description: Требуется аутентификация для доступа к приватному датасету.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Недостаточно прав для просмотра приватного датасета.
           content:
             application/json:
               schema:
@@ -397,7 +438,7 @@ paths:
     patch:
       tags: [Datasets]
       summary: Update dataset
-      description: Частично обновляет метаданные датасета.
+      description: Частично обновляет метаданные датасета. Доступно владельцу датасета и администраторам.
       requestBody:
         required: true
         content:
@@ -423,6 +464,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (недостаточно прав для изменения указанного датасета).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "404":
           description: Датасет не найден.
           content:
@@ -444,12 +491,18 @@ paths:
     delete:
       tags: [Datasets]
       summary: Delete dataset
-      description: Удаляет датасет и все связанные версии.
+      description: Удаляет датасет и все связанные версии. Доступно владельцу датасета и администраторам.
       responses:
         "204":
           description: Датасет удалён.
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (недостаточно прав для удаления указанного датасета).
           content:
             application/json:
               schema:
@@ -479,6 +532,9 @@ paths:
       tags: [Versions]
       summary: List dataset versions
       description: Возвращает список версий выбранного датасета.
+      security:
+        - bearerAuth: []
+        - {}
       parameters:
         - in: query
           name: limit
@@ -503,7 +559,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/DatasetVersionsResponse'
         "401":
-          description: Требуется аутентификация.
+          description: Требуется аутентификация для доступа к приватным версиям.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Недостаточно прав для просмотра версий приватного датасета.
           content:
             application/json:
               schema:
@@ -523,7 +585,7 @@ paths:
     post:
       tags: [Versions]
       summary: Add dataset version
-      description: Загружает новую версию файла для выбранного датасета.
+      description: Загружает новую версию файла для выбранного датасета. Доступно владельцу датасета и администраторам.
       requestBody:
         required: true
         content:
@@ -545,6 +607,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на обновление выбранного датасета).
           content:
             application/json:
               schema:
@@ -581,6 +649,9 @@ paths:
       tags: [Versions]
       summary: Get dataset version
       description: Возвращает информацию о конкретной версии датасета.
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200":
           description: Версия найдена.
@@ -589,7 +660,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/DatasetVersionResponse'
         "401":
-          description: Требуется аутентификация.
+          description: Требуется аутентификация для приватного датасета.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Недостаточно прав для просмотра указанной версии.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет или версия не найдены.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/versions/{versionId}/content:
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        description: Идентификатор датасета.
+        schema:
+          type: integer
+          minimum: 1
+      - in: path
+        name: versionId
+        required: true
+        description: Идентификатор версии.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Versions]
+      summary: Download dataset version
+      description: |-
+        Возвращает бинарное содержимое указанной версии датасета.
+        Для приватных датасетов требуется авторизация владельца или администратора.
+        Если файл хранится во внешнем S3-совместимом хранилище, сервер может вернуть подписанную ссылку с редиректом 302.
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Бинарное содержимое датасета (прямая выдача файла).
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "302":
+          description: Клиенту следует перейти по предоставленной подписанной ссылке (Location) для скачивания.
+        "401":
+          description: Требуется аутентификация для приватной версии.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Недостаточно прав для скачивания указанной версии.
           content:
             application/json:
               schema:
@@ -617,8 +748,10 @@ paths:
           minimum: 1
     post:
       tags: [Notifications]
-      summary: Notify dataset subscribers
-      description: Отправляет уведомление всем подписчикам выбранного датасета.
+      summary: Create dataset notification
+      description: |-
+        Создаёт уведомление, адресованное подписчикам выбранного датасета, и сохраняет его в журнале уведомлений.
+        Доступно владельцу датасета и администраторам; доставка подписчикам выполняется асинхронно.
       requestBody:
         required: true
         content:
@@ -626,12 +759,18 @@ paths:
             schema:
               $ref: '#/components/schemas/NotifySubscribersRequest'
       responses:
-        "202":
-          description: Уведомление поставлено в очередь на отправку.
+        "201":
+          description: Уведомление создано.
+          headers:
+            Location:
+              description: URI созданного уведомления.
+              schema:
+                type: string
+                format: uri
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotifySubscribersResponse'
+                $ref: '#/components/schemas/NotificationResponse'
         "400":
           description: Неверные данные запроса.
           content:
@@ -640,6 +779,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на рассылку подписчикам указанного датасета).
           content:
             application/json:
               schema:
@@ -668,7 +813,7 @@ paths:
     get:
       tags: [Subscriptions]
       summary: List dataset subscribers
-      description: Возвращает пользователей, подписанных на обновления датасета.
+      description: Возвращает пользователей, подписанных на обновления датасета. Доступно владельцу датасета и администраторам.
       parameters:
         - in: query
           name: limit
@@ -698,6 +843,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр подписчиков указанного датасета).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "404":
           description: Датасет не найден.
           content:
@@ -714,11 +865,15 @@ paths:
     get:
       tags: [Notifications]
       summary: List notifications
-      description: Возвращает уведомления с фильтрами по пользователю, датасету и статусу прочтения.
+      description: |-
+        Возвращает уведомления с фильтрами по пользователю, датасету и статусу прочтения.
+        Если `user_id` не указан, используется идентификатор текущего аутентифицированного пользователя.
+        Указать `user_id`, отличающийся от текущего, может только администратор.
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: user_id
-          required: true
           description: Фильтр по идентификатору пользователя.
           schema:
             type: integer
@@ -768,6 +923,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр уведомлений указанного пользователя).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "500":
           description: Внутренняя ошибка.
           content:
@@ -786,7 +947,7 @@ paths:
     get:
       tags: [Notifications]
       summary: Get notification
-      description: Возвращает уведомление по идентификатору.
+      description: Возвращает уведомление по идентификатору. Доступно только владельцу уведомления и администраторам.
       responses:
         "200":
           description: Уведомление найдено.
@@ -796,6 +957,12 @@ paths:
                 $ref: '#/components/schemas/NotificationResponse'
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр указанного уведомления).
           content:
             application/json:
               schema:
@@ -857,7 +1024,11 @@ paths:
     get:
       tags: [Reviews]
       summary: List reviews
-      description: Возвращает отзывы с фильтрами по пользователю и датасету.
+      description: |
+        Возвращает отзывы с фильтрами по пользователю и датасету.
+        Если `dataset_id` указан, но `user_id` отсутствует, возвращаются отзывы всех пользователей по выбранному датасету.
+        При отсутствии обоих фильтров выдаются все публичные отзывы.
+      security: []
       parameters:
         - in: query
           name: dataset_id
@@ -909,12 +1080,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         "500":
           description: Внутренняя ошибка.
           content:
@@ -924,7 +1089,7 @@ paths:
     post:
       tags: [Reviews]
       summary: Create review
-      description: Создаёт новый отзыв на датасет.
+      description: Создаёт новый отзыв на датасет от имени текущего аутентифицированного пользователя.
       requestBody:
         required: true
         content:
@@ -1127,7 +1292,9 @@ paths:
     post:
       tags: [Subscriptions]
       summary: Create subscription
-      description: Подписывает пользователя на обновления датасета.
+      description: |-
+        Подписывает пользователя на обновления датасета.
+        По умолчанию используется текущий аутентифицированный пользователь; администратор может указать `user_id` вручную.
       requestBody:
         required: true
         content:
@@ -1149,6 +1316,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нельзя создать подписку за другого пользователя).
           content:
             application/json:
               schema:
@@ -1234,11 +1407,224 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/access-requests:
+    get:
+      tags: [AccessRequests]
+      summary: List access requests
+      description: >-
+        Возвращает запросы доступа с фильтрами по датасету, статусу и пользователю.
+        По умолчанию выдаются только запросы к датасетам текущего аутентифицированного владельца; администратор может снять ограничение.
+      parameters:
+        - in: query
+          name: dataset_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Фильтр по датасету.
+        - in: query
+          name: user_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Фильтр по автору запроса.
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, denied]
+          description: Фильтр по статусу запроса.
+        - in: query
+          name: owned_only
+          schema:
+            type: boolean
+            default: true
+          description: >-
+            Оставьте значение true, чтобы увидеть запросы только к собственным датасетам.
+            Администратор может установить false, чтобы просматривать все заявки.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Количество записей на странице.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Смещение для пагинации.
+      responses:
+        "200":
+          description: Список запросов доступа.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequestsResponse'
+        "400":
+          description: Неверные параметры.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр заявок для выбранных фильтров).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [AccessRequests]
+      summary: Request dataset access
+      description: Создаёт запрос доступа к закрытому датасету от имени текущего пользователя.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccessRequest'
+      responses:
+        "201":
+          description: Запрос доступа создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequestResponse'
+        "400":
+          description: Некорректные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Запрос уже существует.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/access-requests/{requestId}:
+    parameters:
+      - in: path
+        name: requestId
+        required: true
+        description: Идентификатор запроса доступа.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [AccessRequests]
+      summary: Get access request
+      description: Возвращает запрос доступа по идентификатору.
+      responses:
+        "200":
+          description: Запрос доступа найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequestResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Запрос доступа не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [AccessRequests]
+      summary: Update access request status
+      description: >-
+        Меняет статус запроса доступа. Доступно только владельцу датасета.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccessRequest'
+      responses:
+        "200":
+          description: Статус обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequestResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Запрос доступа не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v2/users:
     get:
       tags: [Users]
       summary: List users
-      description: Возвращает пользователей с базовыми фильтрами.
+      description: Возвращает пользователей с базовыми фильтрами. Доступно только администраторам.
       parameters:
         - in: query
           name: limit
@@ -1296,6 +1682,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "500":
           description: Внутренняя ошибка.
           content:
@@ -1305,7 +1697,9 @@ paths:
     post:
       tags: [Users]
       summary: Register user
-      description: Регистрирует нового пользователя платформы.
+      description: |-
+        Регистрирует нового пользователя платформы.
+        Роль всегда назначается автоматически (`user`), независимо от переданных данных.
       security: []
       requestBody:
         required: true
@@ -1350,7 +1744,7 @@ paths:
     get:
       tags: [Users]
       summary: Get user
-      description: Возвращает данные пользователя по идентификатору.
+      description: Возвращает данные пользователя по идентификатору. Доступно самому пользователю и администраторам.
       responses:
         "200":
           description: Пользователь найден.
@@ -1360,6 +1754,96 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         "401":
           description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр указанного пользователя).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [Users]
+      summary: Update user
+      description: Обновляет профиль пользователя. Доступно только администраторам.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        "200":
+          description: Пользователь обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на редактирование указанного пользователя).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Пользователь не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Email уже используется.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Users]
+      summary: Delete user
+      description: Удаляет пользователя и связанные данные. Доступно администраторам.
+      responses:
+        "204":
+          description: Пользователь удалён.
+        "401":
+          description: Требуется аутентификация.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён.
           content:
             application/json:
               schema:
@@ -1388,7 +1872,7 @@ paths:
     get:
       tags: [Users]
       summary: List user notifications
-      description: Возвращает уведомления для конкретного пользователя.
+      description: Возвращает уведомления для конкретного пользователя. Доступно самому пользователю и администраторам.
       parameters:
         - in: query
           name: limit
@@ -1418,6 +1902,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр уведомлений указанного пользователя).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "404":
           description: Пользователь не найден.
           content:
@@ -1442,7 +1932,7 @@ paths:
     get:
       tags: [Users]
       summary: List user reviews
-      description: Возвращает отзывы, оставленные пользователем.
+      description: Возвращает отзывы, оставленные пользователем. Доступно самому пользователю и администраторам.
       parameters:
         - in: query
           name: limit
@@ -1472,6 +1962,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Доступ запрещён (нет прав на просмотр отзывов указанного пользователя).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "404":
           description: Пользователь не найден.
           content:
@@ -1496,7 +1992,7 @@ paths:
     get:
       tags: [Users]
       summary: List user subscriptions
-      description: Возвращает подписки пользователя на датасеты.
+      description: Возвращает подписки пользователя на датасеты. Доступно самому пользователю и администраторам.
       parameters:
         - in: query
           name: limit
@@ -1526,74 +2022,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Пользователь не найден.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Внутренняя ошибка.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    patch:
-      tags: [Users]
-      summary: Update user
-      description: Частично обновляет данные пользователя.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserRequest'
-      responses:
-        "200":
-          description: Пользователь обновлён.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-        "400":
-          description: Неверные данные запроса.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Пользователь не найден.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "409":
-          description: Email уже используется.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Внутренняя ошибка.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    delete:
-      tags: [Users]
-      summary: Delete user
-      description: Удаляет пользователя по идентификатору.
-      responses:
-        "204":
-          description: Пользователь удалён.
-        "401":
-          description: Требуется аутентификация.
+        "403":
+          description: Доступ запрещён (нет прав на просмотр подписок указанного пользователя).
           content:
             application/json:
               schema:
@@ -1736,12 +2166,6 @@ components:
           type: string
           maxLength: 255
           example: Датасеты с географической привязкой
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
     CategoriesResponse:
       type: object
       required: [items, meta]
@@ -1814,6 +2238,9 @@ components:
           $ref: '#/components/schemas/DatasetVersionResponse'
         metadata:
           $ref: '#/components/schemas/DatasetMetadata'
+          readOnly: true
+          description: >-
+            Метаданные последней версии датасета (копируются из соответствующей записи о версии).
         rating_summary:
           $ref: '#/components/schemas/DatasetRatingSummary'
     DatasetRatingSummary:
@@ -1860,14 +2287,9 @@ components:
           type: string
           format: binary
           description: Архив или файл с данными.
-        meta_format:
-          type: string
-        meta_tags:
-          type: array
-          items:
-            type: string
-        meta_size:
-          type: integer
+        metadata:
+          $ref: '#/components/schemas/DatasetMetadata'
+          description: Метаданные, которые будут закреплены за первой версией датасета.
     UpdateDatasetRequest:
       type: object
       minProperties: 1
@@ -1882,8 +2304,6 @@ components:
           type: integer
         is_public:
           type: boolean
-        metadata:
-          $ref: '#/components/schemas/DatasetMetadata'
     DatasetVersionResponse:
       type: object
       required: [id, dataset_id, number]
@@ -1900,13 +2320,17 @@ components:
         file_url:
           type: string
           format: uri
-        uploaded_by:
-          type: integer
+          description: >-
+            Прямая ссылка на файл версии. Клиент может использовать этот URL или эндпоинт
+            `GET /api/v2/datasets/{datasetId}/versions/{versionId}/content` для скачивания;
+            ссылка может быть подписанной и иметь ограниченный срок действия.
         upload_date:
           type: string
           format: date-time
         metadata:
           $ref: '#/components/schemas/DatasetMetadata'
+          description: >-
+            Источник истины: обновления метаданных выполняются только через версии датасета.
     DatasetVersionsResponse:
       type: object
       required: [items, meta]
@@ -1926,14 +2350,9 @@ components:
           format: binary
         change_log:
           type: string
-        meta_format:
-          type: string
-        meta_tags:
-          type: array
-          items:
-            type: string
-        meta_size:
-          type: integer
+        metadata:
+          $ref: '#/components/schemas/DatasetMetadata'
+          description: Метаданные, которые заменят значения в датасете после публикации версии.
     NotifySubscribersRequest:
       type: object
       required: [message]
@@ -1941,12 +2360,6 @@ components:
         message:
           type: string
           maxLength: 2000
-    NotifySubscribersResponse:
-      type: object
-      properties:
-        sent:
-          type: integer
-          description: Количество получателей уведомления.
     NotificationResponse:
       type: object
       required: [id, user_id, message, is_read]
@@ -2001,9 +2414,6 @@ components:
         created_at:
           type: string
           format: date-time
-        updated_at:
-          type: string
-          format: date-time
     ReviewsResponse:
       type: object
       required: [items, meta]
@@ -2020,9 +2430,6 @@ components:
       properties:
         dataset_id:
           type: integer
-        user_id:
-          type: integer
-          description: Может быть опущен, если определяется по токену.
         rating:
           $ref: '#/components/schemas/Rating'
         text:
@@ -2078,12 +2485,56 @@ components:
           $ref: '#/components/schemas/PaginationMeta'
     CreateSubscriptionRequest:
       type: object
-      required: [dataset_id, user_id]
+      required: [dataset_id]
       properties:
         dataset_id:
           type: integer
         user_id:
           type: integer
+          description: >-
+            Необязательное поле. Разрешено только администраторам для создания подписки за другого пользователя.
+    AccessRequestResponse:
+      type: object
+      required: [id, dataset_id, user_id, status, created_at]
+      properties:
+        id:
+          type: integer
+        dataset_id:
+          type: integer
+        user_id:
+          type: integer
+        status:
+          type: string
+          enum: [pending, approved, denied]
+        created_at:
+          type: string
+          format: date-time
+    AccessRequestsResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessRequestResponse'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CreateAccessRequest:
+      type: object
+      required: [dataset_id]
+      properties:
+        dataset_id:
+          type: integer
+          minimum: 1
+          description: Идентификатор приватного датасета.
+    UpdateAccessRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, denied]
+          description: Новый статус запроса доступа.
     UserResponse:
       type: object
       required: [id, username, email, country, role, is_blocked]
@@ -2118,7 +2569,7 @@ components:
           $ref: '#/components/schemas/PaginationMeta'
     CreateUserRequest:
       type: object
-      required: [username, email, password, country, role]
+      required: [username, email, password, country]
       properties:
         username:
           type: string
@@ -2135,6 +2586,9 @@ components:
         role:
           type: string
           enum: [guest, user, admin]
+          deprecated: true
+          description: >-
+            Поле устарело и игнорируется сервером. Все пользователи создаются с ролью user.
     UpdateUserRequest:
       type: object
       minProperties: 1
