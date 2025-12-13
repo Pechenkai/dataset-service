@@ -9,22 +9,28 @@ var swaggerTemplate = template.Must(template.New("swagger").Parse(`<!DOCTYPE htm
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dataset Platform API</title>
+  <title>Dataset Platform API v2</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>
+    .swagger-ui .topbar { display: none; }
+  </style>
 </head>
 <body>
 <div id="swagger-ui"></div>
 <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
 <script>
 window.onload = () => {
-  SwaggerUIBundle({
+  window.ui = SwaggerUIBundle({
     url: "{{.SpecURL}}",
     dom_id: '#swagger-ui',
+    deepLinking: true,
     presets: [
       SwaggerUIBundle.presets.apis,
       SwaggerUIBundle.SwaggerUIStandalonePreset
     ],
-    layout: "BaseLayout"
+    layout: "BaseLayout",
+    persistAuthorization: true,
+    tryItOutEnabled: true
   });
 };
 </script>

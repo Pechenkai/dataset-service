@@ -3,8 +3,9 @@ package v2
 import (
 	"context"
 	"net/http"
+	"strings"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 
 	"ppo/internal/delivery/http/dto"
 	"ppo/internal/entities"
@@ -35,20 +36,37 @@ func (h *Handler) ListSubscriptions(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) error {
+	currentUser, err := currentUserOrError(r.Context())
+	if err != nil {
+		return err
+	}
+
 	var req struct {
-		UserID    uint64 `json:"user_id"`
-		DatasetID uint64 `json:"dataset_id"`
+		UserID    *uint64 `json:"user_id,omitempty"`
+		DatasetID uint64  `json:"dataset_id"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		return err
 	}
-	if req.UserID == 0 || req.DatasetID == 0 {
-		return &dto.BadRequestError{Message: "user_id and dataset_id are required"}
+	if req.DatasetID == 0 {
+		return &dto.BadRequestError{Message: "dataset_id is required"}
 	}
-	if err := h.subscriptions.Subscribe(r.Context(), req.UserID, req.DatasetID); err != nil {
+
+	targetUserID := currentUser.ID
+	if req.UserID != nil {
+		if *req.UserID == 0 {
+			return &dto.BadRequestError{Message: "user_id must be positive"}
+		}
+		if !strings.EqualFold(currentUser.Role, entities.RoleAdmin) && *req.UserID != currentUser.ID {
+			return services.ErrRequestForbidden
+		}
+		targetUserID = *req.UserID
+	}
+
+	if err := h.subscriptions.Subscribe(r.Context(), targetUserID, req.DatasetID); err != nil {
 		return err
 	}
-	sub, err := h.getSubscriptionRecord(r.Context(), req.UserID, req.DatasetID)
+	sub, err := h.getSubscriptionRecord(r.Context(), targetUserID, req.DatasetID)
 	if err != nil {
 		return err
 	}
@@ -90,41 +108,13 @@ func (h *Handler) DeleteSubscription(w http.ResponseWriter, r *http.Request) err
 }
 
 func (h *Handler) collectSubscriptions(ctx context.Context, userID, datasetID *uint64) ([]SubscriptionResponse, error) {
-	switch {
-	case userID != nil:
-		datasets, err := h.subscriptions.ListSubscriptions(ctx, *userID)
-		if err != nil {
-			return nil, err
-		}
-		items := make([]SubscriptionResponse, 0, len(datasets))
-		for _, sub := range datasets {
-			if datasetID != nil && sub.DatasetID != *datasetID {
-				continue
-			}
-			items = append(items, toSubscriptionResponse(sub))
-		}
-		return items, nil
-	case datasetID != nil:
-		users, err := h.subscriptions.ListSubscribers(ctx, *datasetID)
-		if err != nil {
-			return nil, err
-		}
-		items := make([]SubscriptionResponse, 0, len(users))
-		for _, sub := range users {
-			items = append(items, toSubscriptionResponse(sub))
-		}
-		return items, nil
-	default:
-		subs, err := h.subscriptions.ListAllSubscriptions(ctx)
-		if err != nil {
-			return nil, err
-		}
-		items := make([]SubscriptionResponse, 0, len(subs))
-		for _, sub := range subs {
-			items = append(items, toSubscriptionResponse(sub))
-		}
-		return items, nil
+	if userID != nil {
+		return h.subscriptionsForUser(ctx, *userID, datasetID)
 	}
+	if datasetID != nil {
+		return h.subscribersForDataset(ctx, *datasetID)
+	}
+	return h.allSubscriptions(ctx)
 }
 
 func (h *Handler) getSubscriptionRecord(ctx context.Context, userID, datasetID uint64) (*entities.Subscription, error) {
@@ -147,6 +137,45 @@ func toSubscriptionResponse(sub *entities.Subscription) SubscriptionResponse {
 		DatasetID:    sub.DatasetID,
 		SubscribedAt: sub.CreatedAt,
 	}
+}
+
+func (h *Handler) subscriptionsForUser(ctx context.Context, userID uint64, datasetID *uint64) ([]SubscriptionResponse, error) {
+	datasets, err := h.subscriptions.ListSubscriptions(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]SubscriptionResponse, 0, len(datasets))
+	for _, sub := range datasets {
+		if datasetID != nil && sub.DatasetID != *datasetID {
+			continue
+		}
+		items = append(items, toSubscriptionResponse(sub))
+	}
+	return items, nil
+}
+
+func (h *Handler) subscribersForDataset(ctx context.Context, datasetID uint64) ([]SubscriptionResponse, error) {
+	users, err := h.subscriptions.ListSubscribers(ctx, datasetID)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]SubscriptionResponse, 0, len(users))
+	for _, sub := range users {
+		items = append(items, toSubscriptionResponse(sub))
+	}
+	return items, nil
+}
+
+func (h *Handler) allSubscriptions(ctx context.Context) ([]SubscriptionResponse, error) {
+	subs, err := h.subscriptions.ListAllSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]SubscriptionResponse, 0, len(subs))
+	for _, sub := range subs {
+		items = append(items, toSubscriptionResponse(sub))
+	}
+	return items, nil
 }
 
 func paginateSubscriptions(items []SubscriptionResponse, limit, offset int) SubscriptionsResponse {

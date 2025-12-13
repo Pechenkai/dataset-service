@@ -41,14 +41,13 @@ type DatasetRatingSummary struct {
 }
 
 type DatasetVersionResponse struct {
-	ID         uint64           `json:"id"`
-	DatasetID  uint64           `json:"dataset_id"`
-	Number     string           `json:"number"`
-	ChangeLog  string           `json:"change_log,omitempty"`
-	FileURL    string           `json:"file_url,omitempty"`
-	UploadAt   time.Time        `json:"upload_date"`
-	UploadedBy uint64           `json:"uploaded_by,omitempty"`
-	Metadata   *DatasetMetadata `json:"metadata,omitempty"`
+	ID        uint64           `json:"id"`
+	DatasetID uint64           `json:"dataset_id"`
+	Number    string           `json:"number"`
+	ChangeLog string           `json:"change_log,omitempty"`
+	FileURL   string           `json:"file_url,omitempty"`
+	UploadAt  time.Time        `json:"upload_date"`
+	Metadata  *DatasetMetadata `json:"metadata,omitempty"`
 }
 
 type DatasetResponse struct {
@@ -145,6 +144,26 @@ type AuthenticateResponse struct {
 	User      UserResponse `json:"user"`
 }
 
+type TwoFAChallengeResponse struct {
+	ChallengeID  string    `json:"challenge_id"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	AttemptsLeft int       `json:"attempts_left"`
+	Delivery     string    `json:"delivery"`
+}
+
+type AccessRequestResponse struct {
+	ID        uint64    `json:"id"`
+	DatasetID uint64    `json:"dataset_id"`
+	UserID    uint64    `json:"user_id"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type AccessRequestsResponse struct {
+	Items []AccessRequestResponse `json:"items"`
+	Meta  PaginationMeta          `json:"meta"`
+}
+
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -161,9 +180,11 @@ func writeError(w http.ResponseWriter, status int, err error) {
 func statusToCode(status int) string {
 	switch status {
 	case http.StatusBadRequest:
-		return "bad_request"
+		return "validation_error"
 	case http.StatusUnauthorized:
 		return "unauthorized"
+	case http.StatusForbidden:
+		return "forbidden"
 	case http.StatusNotFound:
 		return "not_found"
 	case http.StatusConflict:

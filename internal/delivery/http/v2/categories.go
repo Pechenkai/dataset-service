@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 
 	"ppo/internal/delivery/http/dto"
+	"ppo/internal/entities"
 	"ppo/internal/services"
 )
 
@@ -54,6 +55,10 @@ func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) error {
+	if _, err := requireAdmin(r.Context()); err != nil {
+		return err
+	}
+
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
@@ -110,15 +115,13 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	var req struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-	}
-	if err := decodeJSON(r, &req); err != nil {
+	if _, err := requireAdmin(r.Context()); err != nil {
 		return err
 	}
-	if req.Name == nil && req.Description == nil {
-		return &dto.BadRequestError{Message: "nothing to update"}
+
+	req, err := decodeUpdateCategoryRequest(r)
+	if err != nil {
+		return err
 	}
 
 	current, err := h.categories.GetCategoryByID(r.Context(), id)
@@ -126,21 +129,8 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	name := current.Name
-	desc := current.Description
-	if req.Name != nil {
-		name = *req.Name
-	}
-	if req.Description != nil {
-		desc = *req.Description
-	}
-
-	err = h.categories.UpdateCategory(r.Context(), services.UpdateCategoryCmd{
-		ID:          id,
-		Name:        name,
-		Description: desc,
-	})
-	if err != nil {
+	cmd := buildUpdateCategoryCmd(id, current, req)
+	if err := h.categories.UpdateCategory(r.Context(), cmd); err != nil {
 		return err
 	}
 
@@ -162,6 +152,10 @@ func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if _, err := requireAdmin(r.Context()); err != nil {
+		return err
+	}
+
 	if err := h.categories.DeleteCategory(r.Context(), id); err != nil {
 		return err
 	}
@@ -175,4 +169,35 @@ func parseIDParam(value string) (uint64, error) {
 		return 0, &dto.BadRequestError{Message: "invalid identifier"}
 	}
 	return id, nil
+}
+
+type updateCategoryRequest struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+}
+
+func decodeUpdateCategoryRequest(r *http.Request) (updateCategoryRequest, error) {
+	var req updateCategoryRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return updateCategoryRequest{}, err
+	}
+	if req.Name == nil && req.Description == nil {
+		return updateCategoryRequest{}, &dto.BadRequestError{Message: "nothing to update"}
+	}
+	return req, nil
+}
+
+func buildUpdateCategoryCmd(id uint64, current *entities.Category, req updateCategoryRequest) services.UpdateCategoryCmd {
+	cmd := services.UpdateCategoryCmd{
+		ID:          id,
+		Name:        current.Name,
+		Description: current.Description,
+	}
+	if req.Name != nil {
+		cmd.Name = *req.Name
+	}
+	if req.Description != nil {
+		cmd.Description = *req.Description
+	}
+	return cmd
 }

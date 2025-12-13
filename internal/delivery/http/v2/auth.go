@@ -5,15 +5,21 @@ import (
 	"net/http"
 	"strings"
 
+	chi "github.com/go-chi/chi/v5"
+
 	"ppo/internal/delivery/http/dto"
 	"ppo/internal/services"
 )
 
 var errTokenServiceDisabled = errors.New("token service is not configured")
+var errTwoFAServiceDisabled = errors.New("two-factor service is not configured")
 
-func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) RequestTwoFA(w http.ResponseWriter, r *http.Request) error {
 	if h.tokens == nil {
 		return errTokenServiceDisabled
+	}
+	if h.twofa == nil {
+		return errTwoFAServiceDisabled
 	}
 	var req struct {
 		Email    string `json:"email"`
@@ -34,6 +40,43 @@ func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	challenge, err := h.twofa.StartChallenge(r.Context(), user)
+	if err != nil {
+		return err
+	}
+
+	writeJSON(w, http.StatusAccepted, TwoFAChallengeResponse{
+		ChallengeID:  challenge.ID,
+		ExpiresAt:    challenge.ExpiresAt,
+		AttemptsLeft: challenge.AttemptsLeft,
+		Delivery:     challenge.Delivery,
+	})
+	return nil
+}
+
+func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) error {
+	if h.tokens == nil {
+		return errTokenServiceDisabled
+	}
+	if h.twofa == nil {
+		return errTwoFAServiceDisabled
+	}
+	var req struct {
+		ChallengeID string `json:"challenge_id"`
+		Code        string `json:"code"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	if strings.TrimSpace(req.ChallengeID) == "" || strings.TrimSpace(req.Code) == "" {
+		return &dto.BadRequestError{Message: "challenge_id and code are required"}
+	}
+
+	user, err := h.twofa.VerifyCode(r.Context(), req.ChallengeID, req.Code)
+	if err != nil {
+		return err
+	}
+
 	record, err := h.tokens.IssueToken(r.Context(), user.ID, h.tokenTTL)
 	if err != nil {
 		return err
@@ -44,6 +87,26 @@ func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) error {
 		ExpiresAt: record.ExpiresAt,
 		User:      toUserResponse(user),
 	})
+	return nil
+}
+
+func (h *Handler) DebugChallengeCode(w http.ResponseWriter, r *http.Request) error {
+	if h.twofa == nil {
+		return errTwoFAServiceDisabled
+	}
+	secret := r.Header.Get("X-Debug-Secret")
+	if secret == "" {
+		secret = r.URL.Query().Get("secret")
+	}
+	challengeID := strings.TrimSpace(chi.URLParam(r, "challengeId"))
+	if challengeID == "" {
+		return &dto.BadRequestError{Message: "challenge id is required"}
+	}
+	code, err := h.twofa.DebugCode(challengeID, secret)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"code": code})
 	return nil
 }
 

@@ -3,10 +3,11 @@ package v2
 import (
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 
 	"ppo/internal/delivery/http/dto"
 	"ppo/internal/entities"
+	"ppo/internal/services"
 )
 
 func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) error {
@@ -19,8 +20,17 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return err
 	}
+	current, err := currentUserOrError(r.Context())
+	if err != nil {
+		return err
+	}
 	if userID == nil {
-		return &dto.BadRequestError{Message: "user_id is required"}
+		id := current.ID
+		userID = &id
+	} else {
+		if *userID != current.ID && !isAdmin(current) {
+			return services.ErrRequestForbidden
+		}
 	}
 	datasetID, err := parseUintPtr(q, "dataset_id")
 	if err != nil {
@@ -50,6 +60,15 @@ func (h *Handler) GetNotification(w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return err
 	}
+
+	user, err := currentUserOrError(r.Context())
+	if err != nil {
+		return err
+	}
+	if notif.UserID != user.ID && !isAdmin(user) {
+		return services.ErrRequestForbidden
+	}
+
 	writeJSON(w, http.StatusOK, toNotificationResponse(notif))
 	return nil
 }
@@ -68,14 +87,27 @@ func (h *Handler) UpdateNotification(w http.ResponseWriter, r *http.Request) err
 	if req.IsRead == nil {
 		return &dto.BadRequestError{Message: "is_read is required"}
 	}
-	if err := h.notifications.SetReadStatus(r.Context(), id, *req.IsRead); err != nil {
-		return err
-	}
+
 	notif, err := h.notifications.GetNotificationByID(r.Context(), id)
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, toNotificationResponse(notif))
+	user, err := currentUserOrError(r.Context())
+	if err != nil {
+		return err
+	}
+	if notif.UserID != user.ID && !isAdmin(user) {
+		return services.ErrRequestForbidden
+	}
+
+	if err := h.notifications.SetReadStatus(r.Context(), id, *req.IsRead); err != nil {
+		return err
+	}
+	updated, err := h.notifications.GetNotificationByID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, toNotificationResponse(updated))
 	return nil
 }
 
@@ -84,6 +116,11 @@ func (h *Handler) ListUserNotifications(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return err
 	}
+	// Доступно самому пользователю и администраторам
+	if _, err := ensureUserOrAdmin(r.Context(), userID); err != nil {
+		return err
+	}
+
 	limit, offset, err := parsePagination(r, 50, 100)
 	if err != nil {
 		return err
