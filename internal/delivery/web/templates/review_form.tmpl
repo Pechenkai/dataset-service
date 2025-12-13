@@ -26,6 +26,6 @@
     </div>
 
     <button type="submit">{{ if .IsNew }}Создать{{ else }}Обновить{{ end }}</button>
-    <a href="/reviews">Отмена</a>
+    <a href="{{$.BasePath}}/reviews">Отмена</a>
 </form>
 {{ end }}

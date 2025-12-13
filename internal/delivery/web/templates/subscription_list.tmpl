@@ -14,7 +14,7 @@
     <tr>
         <td>{{ .DatasetID }}</td>
         <td>
-            <form method="POST" action="/subscriptions/{{ .DatasetID }}/unsubscribe" style="display:inline;">
+            <form method="POST" action="{{$.BasePath}}/subscriptions/{{ .DatasetID }}/unsubscribe" style="display:inline;">
                 <button type="submit" onclick="return confirm('Отписаться от датасета {{ .DatasetID }}?');">
                     Отписаться
                 </button>
@@ -26,6 +26,6 @@
 </table>
 
 <p>
-    <a href="/subscriptions/new">Новая подписка</a>
+    <a href="{{$.BasePath}}/subscriptions/new">Новая подписка</a>
 </p>
 {{ end }}

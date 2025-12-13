@@ -21,7 +21,7 @@
       <tr>
         <td>{{ .ID }}</td>
         <td>
-          <a href="/users/{{ .ID }}">{{ .Username }}</a>
+          <a href="{{$.BasePath}}/users/{{ .ID }}">{{ .Username }}</a>
         </td>
         <td>{{ .Email }}</td>
         <td>{{ .Country }}</td>
@@ -31,10 +31,10 @@
         <td>
           {{/* Редактировать/Удалить показываем либо админу, либо если это собственный профиль */}}
           {{ if or (eq $.Role "admin") (eq $.UserID .ID) }}
-            <a href="/users/{{ .ID }}/edit">Редактировать</a>
+            <a href="{{$.BasePath}}/users/{{ .ID }}/edit">Редактировать</a>
             {{ if eq $.Role "admin" }}
               |
-              <form method="POST" action="/users/{{ .ID }}/delete" style="display:inline;">
+              <form method="POST" action="{{$.BasePath}}/users/{{ .ID }}/delete" style="display:inline;">
                 <button type="submit" onclick="return confirm('Удалить пользователя?');">Удалить</button>
               </form>
             {{ end }}
@@ -50,7 +50,7 @@
 <p>
   {{/* Ссылку "Создать нового пользователя" видят только администратор */}}
   {{ if eq .Role "admin" }}
-    <a href="/users/new">Создать нового пользователя</a>
+    <a href="{{$.BasePath}}/users/new">Создать нового пользователя</a>
   {{ end }}
 </p>
 {{ end }}

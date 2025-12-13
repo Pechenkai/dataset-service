@@ -5,5 +5,5 @@
 <p><strong>Количество отзывов:</strong> {{ .Summary.Count }}</p>
 <p><strong>Средний рейтинг:</strong> {{ printf "%.2f" .Summary.Average }}</p>
 
-<p><a href="/reviews?dataset_id={{ .DatasetID }}">Все отзывы</a></p>
+<p><a href="{{$.BasePath}}/reviews?dataset_id={{ .DatasetID }}">Все отзывы</a></p>
 {{ end }}

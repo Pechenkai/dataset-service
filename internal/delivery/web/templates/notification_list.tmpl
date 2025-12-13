@@ -15,13 +15,13 @@
     <tbody>
     {{ range .Notifications }}
     <tr>
-        <td><a href="/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
+        <td><a href="{{$.BasePath}}/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
         <td>{{ .Message }}</td>
         <td>{{ if .IsRead }}Да{{ else }}Нет{{ end }}</td>
         <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
         <td>
             {{ if not .IsRead }}
-            <form method="POST" action="/notifications/{{ .ID }}/read" style="display:inline;">
+            <form method="POST" action="{{$.BasePath}}/notifications/{{ .ID }}/read" style="display:inline;">
                 <button type="submit">Отметить как прочитанное</button>
             </form>
             {{ end }}

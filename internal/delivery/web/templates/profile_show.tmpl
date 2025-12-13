@@ -30,12 +30,12 @@
 </table>
 
 <ul>
-    <li><a href="/users/{{ .UserID }}/edit">Редактировать профиль</a></li>
-    <li><a href="/my-datasets">Мои датасеты</a></li>
-    <li><a href="/subscriptions">Мои подписки</a></li>
-    <li><a href="/notifications">Мои уведомления</a></li>
+    <li><a href="{{$.BasePath}}/users/{{ .UserID }}/edit">Редактировать профиль</a></li>
+    <li><a href="{{$.BasePath}}/my-datasets">Мои датасеты</a></li>
+    <li><a href="{{$.BasePath}}/subscriptions">Мои подписки</a></li>
+    <li><a href="{{$.BasePath}}/notifications">Мои уведомления</a></li>
     {{ if eq .Role "admin" }}
-    <li><a href="/users">Список всех пользователей</a></li>
+    <li><a href="{{$.BasePath}}/users">Список всех пользователей</a></li>
     {{ end }}
 </ul>
 
@@ -67,13 +67,13 @@
     {{ range .AccessRequests }}
     <tr>
         <td>{{ .Username }}</td>
-        <td><a href="/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
+        <td><a href="{{$.BasePath}}/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
         <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
         <td>
-            <form action="/access-requests/{{ .ID }}/approve" method="post" style="display:inline;">
+            <form action="{{$.BasePath}}/access-requests/{{ .ID }}/approve" method="post" style="display:inline;">
                 <button type="submit">Принять</button>
             </form>
-            <form action="/access-requests/{{ .ID }}/deny" method="post" style="display:inline;">
+            <form action="{{$.BasePath}}/access-requests/{{ .ID }}/deny" method="post" style="display:inline;">
                 <button type="submit">Отклонить</button>
             </form>
         </td>

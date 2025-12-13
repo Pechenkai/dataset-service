@@ -6,10 +6,6 @@ database:
   health_check_period: "30s"
   connect_timeout: "5s"
 
-mongo:
-  uri: "mongodb://localhost:27017"
-  database: "myappdb"
-
 http:
   host: "0.0.0.0"
   port: 8080
@@ -21,7 +17,7 @@ storage:
   access_key: "minioadmin"
   secret_key: "minioadmin"
   region: "us-east-1"
-  bucket: "mybucket"
+  bucket: ""
 
 log:
   level: "info"
@@ -34,8 +30,20 @@ techui:
   port: 8090
 
 auth:
-  secret: "change-me"
+  secret: "secret"
   access_token_ttl: "24h"
+  twofa:
+    code_ttl: "5m"
+    max_attempts: 3
+    block_duration: "1m"
+    debug_secret: ""
+    delivery: "email"
+
+admin:
+  username: "admin"
+  email: "admin@example.com"
+  password: "admin123"
+  country: "ru"
 
 cli:
   api_base_url: "http://localhost:8080/api/v2"

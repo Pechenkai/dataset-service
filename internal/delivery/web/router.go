@@ -28,6 +28,7 @@ func NewRouter(
 
 	// Category
 	catHandler := handlers.NewCategoryHandler(catSvc, dsSvc, logger)
+	r.Get("/", catHandler.List)
 	catHandler.RegisterRoutes(r)
 
 	// Dataset

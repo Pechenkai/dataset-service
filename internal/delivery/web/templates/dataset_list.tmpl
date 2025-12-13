@@ -15,7 +15,7 @@
     <tbody>
     {{ range .Datasets }}
     <tr>
-        <td><a href="/datasets/{{ .ID }}">{{ .Name }}</a></td>
+        <td><a href="{{$.BasePath}}/datasets/{{ .ID }}">{{ .Name }}</a></td>
         <td>{{ .Description }}</td>
         <td>{{ .OwnerName }}</td>
         <td>
@@ -25,12 +25,12 @@
             {{ else if .IsPublic }}
             {{/* Публичный: подписаться/отписаться + Скачать */}}
             {{ if not .IsSubscribed }}
-            <form action="/subscriptions" method="post" style="display:inline;">
+            <form action="{{$.BasePath}}/subscriptions" method="post" style="display:inline;">
                 <input type="hidden" name="dataset_id" value="{{ .ID }}">
                 <button type="submit">Подписаться</button>
             </form>
             {{ else }}
-            <form action="/subscriptions/{{ .ID }}/unsubscribe" method="post" style="display:inline;">
+            <form action="{{$.BasePath}}/subscriptions/{{ .ID }}/unsubscribe" method="post" style="display:inline;">
                 <button type="submit">Отписаться</button>
             </form>
             {{ end }}
@@ -43,7 +43,7 @@
             {{ else if eq .AccessStatus "pending" }}
             <em>запрос отправлен</em>
             {{ else }}
-            <form action="/datasets/{{ .ID }}/request-access" method="post" style="display:inline;">
+            <form action="{{$.BasePath}}/datasets/{{ .ID }}/request-access" method="post" style="display:inline;">
                 <button type="submit">Запросить доступ</button>
             </form>
             {{ end }}
@@ -55,6 +55,6 @@
 </table>
 
 {{ if or (eq .Role "user") (eq .Role "admin") }}
-<p><a href="/my-datasets">Мои датасеты</a></p>
+<p><a href="{{$.BasePath}}/my-datasets">Мои датасеты</a></p>
 {{ end }}
 {{ end }}

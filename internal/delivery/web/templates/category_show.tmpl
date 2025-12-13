@@ -9,15 +9,15 @@
   <h3>Датасеты в этой категории</h3>
   <ul>
     {{ range .Datasets }}
-      <li><a href="/datasets/{{ .ID }}">{{ .Name }}</a></li>
+      <li><a href="{{$.BasePath}}/datasets/{{ .ID }}">{{ .Name }}</a></li>
     {{ end }}
   </ul>
   {{ end }}
 
   <p>
     {{ if eq .Role "admin" }}
-     <a href="/categories/{{ .Category.ID }}/edit">Редактировать</a> |
+     <a href="{{$.BasePath}}/categories/{{ .Category.ID }}/edit">Редактировать</a> |
     {{ end }}
-     <a href="/categories">Назад к списку</a>
+     <a href="{{$.BasePath}}/categories">Назад к списку</a>
   </p>
 {{ end }}
