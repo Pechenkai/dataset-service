@@ -1,0 +1,87 @@
+{
+  "uid": "ppo-logs",
+  "title": "PPO Logs & Traffic",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "tags": ["ppo", "loki"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Recent logs by service",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "PPO_LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{compose_project=\"ppo\", service=~\"$service\"}"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "dedupStrategy": "none",
+        "wrapLogMessage": true,
+        "showLabels": true
+      },
+      "gridPos": {"h": 14, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "title": "Log volume by service",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "PPO_LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service) (rate({compose_project=\"ppo\"}[$__rate_interval]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "color": {"mode": "palette-classic"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14}
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "PPO_LOKI"
+        },
+        "query": "label_values({compose_project=\"ppo\"}, service)",
+        "refresh": 2,
+        "hide": 0,
+        "options": [],
+        "current": {
+          "text": "*",
+          "value": "*"
+        },
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  }
+}
