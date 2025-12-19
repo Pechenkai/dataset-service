@@ -5,10 +5,10 @@ info:
   description: |
     REST API сервиса для публикации и распространения датасетов.
 servers:
+  - url: /
+    description: Local development
   - url: https://api.dataset-platform.local
     description: Production
-  - url: http://localhost:8080
-    description: Local development
 tags:
   - name: Categories
     description: Управление доменными категориями датасетов.
@@ -785,66 +785,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         "403":
           description: Доступ запрещён (нет прав на рассылку подписчикам указанного датасета).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Датасет не найден.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Внутренняя ошибка.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/v2/datasets/{datasetId}/subscribers:
-    parameters:
-      - in: path
-        name: datasetId
-        required: true
-        description: Идентификатор датасета.
-        schema:
-          type: integer
-          minimum: 1
-    get:
-      tags: [Subscriptions]
-      summary: List dataset subscribers
-      description: Возвращает пользователей, подписанных на обновления датасета. Доступно владельцу датасета и администраторам.
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 500
-            default: 50
-          description: Количество подписчиков на странице.
-        - in: query
-          name: offset
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-          description: Смещение для пагинации.
-      responses:
-        "200":
-          description: Список подписчиков.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubscribersResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "403":
-          description: Доступ запрещён (нет прав на просмотр подписчиков указанного датасета).
           content:
             application/json:
               schema:
@@ -1860,201 +1800,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/v2/users/{userId}/notifications:
-    parameters:
-      - in: path
-        name: userId
-        required: true
-        description: Идентификатор пользователя.
-        schema:
-          type: integer
-          minimum: 1
-    get:
-      tags: [Users]
-      summary: List user notifications
-      description: Возвращает уведомления для конкретного пользователя. Доступно самому пользователю и администраторам.
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 50
-          description: Количество уведомлений на странице.
-        - in: query
-          name: offset
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-          description: Смещение для пагинации.
-      responses:
-        "200":
-          description: Список уведомлений пользователя.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotificationsResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "403":
-          description: Доступ запрещён (нет прав на просмотр уведомлений указанного пользователя).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Пользователь не найден.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Внутренняя ошибка.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/v2/users/{userId}/reviews:
-    parameters:
-      - in: path
-        name: userId
-        required: true
-        description: Идентификатор пользователя.
-        schema:
-          type: integer
-          minimum: 1
-    get:
-      tags: [Users]
-      summary: List user reviews
-      description: Возвращает отзывы, оставленные пользователем. Доступно самому пользователю и администраторам.
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-          description: Количество отзывов на странице.
-        - in: query
-          name: offset
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-          description: Смещение для пагинации.
-      responses:
-        "200":
-          description: Список отзывов пользователя.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReviewsResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "403":
-          description: Доступ запрещён (нет прав на просмотр отзывов указанного пользователя).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Пользователь не найден.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Внутренняя ошибка.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/v2/users/{userId}/subscriptions:
-    parameters:
-      - in: path
-        name: userId
-        required: true
-        description: Идентификатор пользователя.
-        schema:
-          type: integer
-          minimum: 1
-    get:
-      tags: [Users]
-      summary: List user subscriptions
-      description: Возвращает подписки пользователя на датасеты. Доступно самому пользователю и администраторам.
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-          description: Количество подписок на странице.
-        - in: query
-          name: offset
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-          description: Смещение для пагинации.
-      responses:
-        "200":
-          description: Список подписок пользователя.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubscriptionsResponse'
-        "401":
-          description: Требуется аутентификация.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "403":
-          description: Доступ запрещён (нет прав на просмотр подписок указанного пользователя).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Пользователь не найден.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Внутренняя ошибка.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   /api/v2/auth/tokens:
     post:
       tags: [Auth]
-      summary: Issue access token
-      description: Аутентифицирует пользователя и возвращает токен доступа.
+      summary: Подтверждение 2FA и выдача токена
+      description: Подтверждает одноразовый код по ранее созданному челленджу и возвращает access token.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthenticateRequest'
+              $ref: '#/components/schemas/ConfirmTwoFARequest'
       responses:
         "200":
-          description: Токен выдан.
+          description: Код верный, токен выдан.
           content:
             application/json:
               schema:
@@ -2067,6 +1827,96 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         "401":
           description: Неверные учётные данные.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Челлендж не найден или истёк.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/auth/2fa/challenge:
+    post:
+      tags: [Auth]
+      summary: Запрос 2FA-челленджа
+      description: Принимает email и пароль, создаёт 2FA-челлендж и отправляет код выбранным каналом.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFAChallengeRequest'
+      responses:
+        "202":
+          description: Челлендж создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFAChallengeResponse'
+        "400":
+          description: Неверные данные запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Неверные учётные данные.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Пользователь заблокирован.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/auth/2fa/challenges/{challengeId}/code:
+    get:
+      tags: [Auth]
+      summary: Получение OTP для отладки
+      description: Возвращает одноразовый код для указанного челленджа при наличии корректного debug-секрета. Использовать только в тестах.
+      parameters:
+        - in: path
+          name: challengeId
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: X-Debug-Secret
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Код найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebugCodeResponse'
+        "401":
+          description: Неверный debug secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Челлендж не найден.
           content:
             application/json:
               schema:
@@ -2208,7 +2058,8 @@ components:
             type: string
         size:
           type: integer
-          description: Размер в байтах.
+          description: Размер в байтах; определяется сервером по загруженному файлу.
+          readOnly: true
     DatasetResponse:
       type: object
       required: [id, name, category_id, owner_id, is_public]
@@ -2610,7 +2461,7 @@ components:
           enum: [guest, user, admin]
         is_blocked:
           type: boolean
-    AuthenticateRequest:
+    TwoFAChallengeRequest:
       type: object
       required: [email, password]
       properties:
@@ -2620,6 +2471,28 @@ components:
         password:
           type: string
           minLength: 6
+    TwoFAChallengeResponse:
+      type: object
+      required: [challenge_id, expires_at, attempts_left, delivery]
+      properties:
+        challenge_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        attempts_left:
+          type: integer
+        delivery:
+          type: string
+    ConfirmTwoFARequest:
+      type: object
+      required: [challenge_id, code]
+      properties:
+        challenge_id:
+          type: string
+        code:
+          type: string
+          minLength: 4
     AuthenticateResponse:
       type: object
       required: [token, user]
@@ -2637,3 +2510,8 @@ components:
         token_id:
           type: string
           description: Идентификатор токена (jti). Если не указан — отзывается текущий токен из заголовка Authorization.
+    DebugCodeResponse:
+      type: object
+      properties:
+        code:
+          type: string
