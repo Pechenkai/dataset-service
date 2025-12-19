@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
+	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -295,6 +295,51 @@ func (r *SubscriptionRepo) GetByUser(ctx context.Context, userID uint64) ([]*ent
 		zap.Int("count", len(datasets)),
 	)
 	return datasets, nil
+}
+
+func (r *SubscriptionRepo) Delete(ctx context.Context, userID, datasetID uint64) error {
+	r.logger.Debug("Delete Subscription called",
+		zap.Uint64("user_id", userID),
+		zap.Uint64("dataset_id", datasetID),
+	)
+
+	query := psql.Delete("subscriptions").Where(sq.Eq{
+		"user_id":    userID,
+		"dataset_id": datasetID,
+	})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		r.logger.Error("failed to build delete subscription SQL",
+			zap.Error(err),
+			zap.Uint64("user_id", userID),
+			zap.Uint64("dataset_id", datasetID),
+		)
+		return fmt.Errorf("build delete subscription sql: %w", err)
+	}
+
+	cmd, err := r.db.Exec(ctx, sqlStr, args...)
+	if err != nil {
+		r.logger.Error("failed to execute delete subscription query",
+			zap.Error(err),
+			zap.Uint64("user_id", userID),
+			zap.Uint64("dataset_id", datasetID),
+		)
+		return fmt.Errorf("delete subscription: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		r.logger.Warn("no subscription found to delete",
+			zap.Uint64("user_id", userID),
+			zap.Uint64("dataset_id", datasetID),
+		)
+		return repositories.ErrSubscriptionNotFound
+	}
+
+	r.logger.Info("subscription deleted successfully",
+		zap.Uint64("user_id", userID),
+		zap.Uint64("dataset_id", datasetID),
+	)
+	return nil
 }
 
 func (r *SubscriptionRepo) GetAll(ctx context.Context) ([]*entities.Subscription, error) {

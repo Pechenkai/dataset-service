@@ -707,7 +707,7 @@ func (r *inMemoryUserRepo) FindByID(ctx context.Context, id uint64) (*entities.U
 }
 
 func (r *inMemoryUserRepo) FindAll(ctx context.Context) ([]*entities.User, error) {
-	var result []*entities.User
+	result := make([]*entities.User, 0, len(r.users))
 	for _, u := range r.users {
 		result = append(result, u)
 	}

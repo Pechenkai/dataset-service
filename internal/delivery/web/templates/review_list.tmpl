@@ -29,8 +29,8 @@
         <td>{{ .Text }}</td>
         <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
         <td>
-            <a href="{{$.BasePath}}/reviews/{{ .ID }}/edit">Редактировать</a> |
-            <form method="POST" action="{{$.BasePath}}/reviews/{{ .ID }}/delete" style="display:inline;">
+            <a href="/legacy/reviews/{{ .ID }}/edit">Редактировать</a> |
+            <form method="POST" action="/legacy/reviews/{{ .ID }}/delete" style="display:inline;">
                 <button type="submit" onclick="return confirm('Удалить отзыв?');">Удалить</button>
             </form>
         </td>
@@ -40,6 +40,6 @@
 </table>
 
 <p>
-    <a href="{{$.BasePath}}/reviews/new">Новый отзыв</a>
+    <a href="/legacy/reviews/new">Новый отзыв</a>
 </p>
 {{ end }}

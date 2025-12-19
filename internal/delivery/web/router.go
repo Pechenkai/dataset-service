@@ -1,7 +1,7 @@
 package web
 
 import (
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"
 	webmid "ppo/internal/delivery/web/middleware"

@@ -305,12 +305,17 @@ func (s *NotificationServiceSuite) TestNotifyUser_Success(t provider.T) {
 
 	notifRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Notification")).Return(nil)
 
-	var err error
+	var (
+		err    error
+		result *entities.Notification
+	)
 	t.WithNewStep("Act", func(ctx provider.StepCtx) {
-		err = svc.NotifyUser(context.Background(), 1, 2, "direct notify")
+		result, err = svc.NotifyUser(context.Background(), 1, 2, "direct notify")
 	})
 	t.WithNewStep("Assert", func(ctx provider.StepCtx) {
 		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, uint64(2), result.DatasetID)
 		notifRepo.AssertExpectations(t)
 	})
 }
@@ -320,7 +325,7 @@ func (s *NotificationServiceSuite) TestNotifyUser_InvalidPayload(t provider.T) {
 
 	var err error
 	t.WithNewStep("Act", func(ctx provider.StepCtx) {
-		err = svc.NotifyUser(context.Background(), 1, 2, "")
+		_, err = svc.NotifyUser(context.Background(), 1, 2, "")
 	})
 	t.WithNewStep("Assert", func(ctx provider.StepCtx) {
 		require.Error(t, err)
@@ -337,7 +342,7 @@ func (s *NotificationServiceSuite) TestNotifyUser_CreateError(t provider.T) {
 
 	var err error
 	t.WithNewStep("Act", func(ctx provider.StepCtx) {
-		err = svc.NotifyUser(context.Background(), 1, 2, "notify")
+		_, err = svc.NotifyUser(context.Background(), 1, 2, "notify")
 	})
 	t.WithNewStep("Assert", func(ctx provider.StepCtx) {
 		require.Error(t, err)

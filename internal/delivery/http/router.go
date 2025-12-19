@@ -4,9 +4,11 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"ppo/internal/delivery/http/middleware"
+	"ppo/internal/metrics"
+	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	docs "ppo/internal/delivery/http/docs"
@@ -22,15 +24,22 @@ func NewRouter(
 	revSvc services.ReviewService,
 	userSvc services.UserService,
 	subSvc services.SubscriptionService,
+	reqSvc services.AccessService,
 	tokenSvc services.TokenService,
 	tokenTTL time.Duration,
+	twofaSvc services.TwoFactorService,
 	logger *zap.Logger,
 ) http.Handler {
 	r := chi.NewRouter()
 
+	r.Use(metrics.Middleware)
 	r.Use(middleware.LoggingMiddleware(logger))
 
 	docs.SwaggerInfo.BasePath = "/"
+
+	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		metrics.Handler().ServeHTTP(w, r)
+	})
 
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
@@ -50,11 +59,17 @@ func NewRouter(
 		Subscriptions: subSvc,
 		Users:         userSvc,
 		Tokens:        tokenSvc,
+		TwoFA:         twofaSvc,
+		Access:        reqSvc,
 		Logger:        logger,
 		TokenTTL:      tokenTTL,
 	})
 
+	// Swagger UI для v2 API
 	r.Get("/swagger/v2", v2.SwaggerUIHandler("/api/v2/openapi.yaml"))
+	r.Get("/api/v2/swagger", v2.SwaggerUIHandler("/api/v2/openapi.yaml"))
+
+	registerSPARoutes(r)
 
 	return r
 }
@@ -110,4 +125,36 @@ func registerLegacyRoutes(
 		r.Put("/{id}", middleware.WrapHandler(handlers.UpdateReviewHandler(revSvc)))
 		r.Delete("/{id}", middleware.WrapHandler(handlers.DeleteReviewHandler(revSvc)))
 	})
+}
+
+func registerSPARoutes(r chi.Router) {
+	const spaRoot = "static/app"
+	fsRoot := http.Dir(spaRoot)
+
+	// Главная SPA страница
+	r.Get("/app", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, spaRoot+"/index.html")
+	})
+
+	// Отдача ассетов + fallback на index.html для роутера
+	r.Handle("/app/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/app")
+		path = strings.TrimPrefix(path, "/")
+		if path == "" {
+			http.ServeFile(w, r, spaRoot+"/index.html")
+			return
+		}
+
+		f, err := fsRoot.Open(path)
+		if err == nil {
+			defer f.Close()
+			if info, _ := f.Stat(); info != nil && !info.IsDir() {
+				// fs.File может не реализовывать io.ReadSeeker; используем ServeFile с прямым путём
+				http.ServeFile(w, r, spaRoot+"/"+path)
+				return
+			}
+		}
+
+		http.ServeFile(w, r, spaRoot+"/index.html")
+	}))
 }

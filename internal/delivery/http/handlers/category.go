@@ -5,7 +5,7 @@ import (
 	"ppo/internal/delivery/http/middleware"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"ppo/internal/delivery/http/dto"
 	"ppo/internal/services"
 )

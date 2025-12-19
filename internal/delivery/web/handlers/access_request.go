@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
 	"ppo/internal/delivery/web/dto"
@@ -66,7 +66,13 @@ func (h *AccessRequestHandler) RequestAccess(w http.ResponseWriter, r *http.Requ
 	user, _ := h.userSvc.GetUserByID(r.Context(), uid)
 	ds, _ := h.dsSvc.GetDataset(r.Context(), dsID)
 	msg := fmt.Sprintf("Пользователь %s запросил доступ к вашему датасету '%s'", user.Username, ds.Name)
-	_ = h.notifSvc.NotifyUser(r.Context(), ds.OwnerID, ds.ID, msg)
+	if _, err := h.notifSvc.NotifyUser(r.Context(), ds.OwnerID, ds.ID, msg); err != nil {
+		h.logger.Warn("failed to send dataset access request notification",
+			zap.Error(err),
+			zap.Uint64("dataset_id", ds.ID),
+			zap.Uint64("owner_id", ds.OwnerID),
+		)
+	}
 	http.Redirect(w, r, "/datasets/"+chi.URLParam(r, "id"), http.StatusSeeOther)
 }
 
@@ -116,7 +122,9 @@ func (h *AccessRequestHandler) Approve(w http.ResponseWriter, r *http.Request) {
 	}
 	ar, _ := h.accessSvc.FindByRequestID(r.Context(), rid)
 	msg := fmt.Sprintf("Ваш запрос #%d на доступ к датасету одобрен", rid)
-	_ = h.notifSvc.NotifyUser(r.Context(), ar.UserID, ar.DatasetID, msg)
+	if _, err := h.notifSvc.NotifyUser(r.Context(), ar.UserID, ar.DatasetID, msg); err != nil {
+		h.logger.Warn("failed to send approval notification", zap.Error(err), zap.Uint64("request_id", rid))
+	}
 	http.Redirect(w, r, "/access-requests", http.StatusSeeOther)
 }
 
@@ -129,6 +137,8 @@ func (h *AccessRequestHandler) Deny(w http.ResponseWriter, r *http.Request) {
 	}
 	ar, _ := h.accessSvc.FindByRequestID(r.Context(), rid)
 	msg := fmt.Sprintf("Ваш запрос #%d на доступ к датасету отклонён", rid)
-	_ = h.notifSvc.NotifyUser(r.Context(), ar.UserID, ar.DatasetID, msg)
+	if _, err := h.notifSvc.NotifyUser(r.Context(), ar.UserID, ar.DatasetID, msg); err != nil {
+		h.logger.Warn("failed to send deny notification", zap.Error(err), zap.Uint64("request_id", rid))
+	}
 	http.Redirect(w, r, "/access-requests", http.StatusSeeOther)
 }

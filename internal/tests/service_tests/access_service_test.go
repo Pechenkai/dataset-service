@@ -615,9 +615,19 @@ func (r *fakeAccessRequestRepo) Find(ctx context.Context, datasetID, userID uint
 }
 
 func (r *fakeAccessRequestRepo) ListPendingByOwner(ctx context.Context, ownerID uint64) ([]*entities.AccessRequest, error) {
-	var result []*entities.AccessRequest
+	result := make([]*entities.AccessRequest, 0, len(r.requests))
 	for _, ar := range r.requests {
 		result = append(result, ar)
+	}
+	return result, nil
+}
+
+func (r *fakeAccessRequestRepo) ListByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.AccessRequest, error) {
+	var result []*entities.AccessRequest
+	for _, ar := range r.requests {
+		if ar.DatasetID == datasetID {
+			result = append(result, ar)
+		}
 	}
 	return result, nil
 }

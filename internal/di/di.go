@@ -2,26 +2,27 @@ package di
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
-	httpdelivery "ppo/internal/delivery/http"
-	"ppo/internal/logger"
-	"ppo/internal/storage"
-	"time"
-
-	webui "ppo/internal/delivery/web"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/spf13/cobra"
-
 	"ppo/internal/config"
 	"ppo/internal/dataaccess/repositories/postqbuild"
 	"ppo/internal/delivery/cli"
 	cliapi "ppo/internal/delivery/cli/api"
+	httpdelivery "ppo/internal/delivery/http"
+	"ppo/internal/entities"
+	"ppo/internal/logger"
 	"ppo/internal/services"
+	"ppo/internal/storage"
+	"strings"
+	"time"
+
+	webui "ppo/internal/delivery/web"
 )
 
 type App struct {
@@ -83,6 +84,19 @@ func Build(ctx context.Context) (*App, error) {
 		tokenTTL = 24 * time.Hour
 	}
 	tokenSvc := services.NewHMACTokenService(cfg.Auth.Secret, tokenTTL)
+	twofaSvc := services.NewTwoFAService(services.TwoFAConfig{
+		CodeTTL:       cfg.Auth.TwoFA.CodeTTL,
+		MaxAttempts:   cfg.Auth.TwoFA.MaxAttempts,
+		BlockDuration: cfg.Auth.TwoFA.BlockDuration,
+		Delivery:      cfg.Auth.TwoFA.Delivery,
+		DebugSecret:   cfg.Auth.TwoFA.DebugSecret,
+	}, nil, zapLogger)
+
+	if err := ensureAdminUser(ctx, userSvc, cfg.Admin, zapLogger); err != nil {
+		dbPool.Close()
+		closeLog()
+		return nil, fmt.Errorf("seed admin user: %w", err)
+	}
 
 	router := httpdelivery.NewRouter(
 		catSvc,
@@ -91,8 +105,10 @@ func Build(ctx context.Context) (*App, error) {
 		revSvc,
 		userSvc,
 		subSvc,
+		reqSvc,
 		tokenSvc,
 		tokenTTL,
+		twofaSvc,
 		zapLogger,
 	)
 
@@ -138,5 +154,49 @@ func (a *App) Shutdown(ctx context.Context) error {
 	if a.Logger != nil {
 		return a.Logger.Sync()
 	}
+	return nil
+}
+
+func ensureAdminUser(ctx context.Context, userSvc services.UserService, creds config.AdminAccount, logger *zap.Logger) error {
+	email := strings.TrimSpace(creds.Email)
+	password := strings.TrimSpace(creds.Password)
+	if email == "" || password == "" {
+		logger.Debug("admin credentials incomplete; skipping seed", zap.String("email", creds.Email))
+		return nil
+	}
+
+	_, err := userSvc.GetUserByEmail(ctx, email)
+	if err == nil {
+		logger.Debug("admin user already exists", zap.String("email", email))
+		return nil
+	}
+	if !errors.Is(err, services.ErrUserNotFound) {
+		return fmt.Errorf("check admin existence: %w", err)
+	}
+
+	username := strings.TrimSpace(creds.Username)
+	if username == "" {
+		username = "admin"
+	}
+	country := strings.TrimSpace(creds.Country)
+	if country == "" {
+		country = "RU"
+	}
+
+	if _, err := userSvc.Register(ctx, services.RegisterUserCmd{
+		Username: username,
+		Email:    email,
+		Password: password,
+		Country:  country,
+		Role:     entities.RoleAdmin,
+	}); err != nil {
+		if errors.Is(err, services.ErrUserExists) {
+			logger.Info("admin user already exists", zap.String("email", email))
+			return nil
+		}
+		return fmt.Errorf("create admin user: %w", err)
+	}
+
+	logger.Info("default admin user seeded", zap.String("email", email))
 	return nil
 }

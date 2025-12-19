@@ -2,7 +2,10 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strconv"
+	"strings"
 
 	"ppo/internal/entities"
 	"ppo/internal/services"
@@ -17,8 +20,22 @@ func (c *Client) RegisterUser(ctx context.Context, cmd services.RegisterUserCmd)
 }
 
 func (c *Client) Authenticate(ctx context.Context, cmd services.AuthenticateUserCmd) (*entities.User, error) {
+	var challenge twoFAChallengeResponse
+	if err := c.postJSON(ctx, "/auth/2fa/challenge", cmd, false, &challenge); err != nil {
+		return nil, err
+	}
+
+	code := strings.TrimSpace(os.Getenv("TWOFA_CODE"))
+	if code == "" {
+		fmt.Print("Enter 2FA code: ")
+		_, _ = fmt.Scanln(&code)
+	}
+
 	var resp authenticateResponse
-	if err := c.postJSON(ctx, "/auth/tokens", cmd, false, &resp); err != nil {
+	if err := c.postJSON(ctx, "/auth/tokens", map[string]string{
+		"challenge_id": challenge.ChallengeID,
+		"code":         code,
+	}, false, &resp); err != nil {
 		return nil, err
 	}
 	if err := c.store.Set(resp.Token); err != nil {

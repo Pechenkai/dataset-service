@@ -24,7 +24,8 @@ func DecodeJSON(r io.Reader, v interface{}) error {
 }
 
 type ErrorResponse struct {
-	Error string `json:"error"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 type BadRequestError struct{ Message string }
@@ -34,13 +35,13 @@ func (e *BadRequestError) Error() string { return e.Message }
 func WriteError(w http.ResponseWriter, err error) {
 	switch {
 	case isBadRequest(err):
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Code: statusToCode(http.StatusBadRequest), Message: err.Error()})
 	case isNotFound(err):
-		WriteJSON(w, http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		WriteJSON(w, http.StatusNotFound, ErrorResponse{Code: statusToCode(http.StatusNotFound), Message: err.Error()})
 	case isConflict(err):
-		WriteJSON(w, http.StatusConflict, ErrorResponse{Error: err.Error()})
+		WriteJSON(w, http.StatusConflict, ErrorResponse{Code: statusToCode(http.StatusConflict), Message: err.Error()})
 	default:
-		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Code: statusToCode(http.StatusInternalServerError), Message: err.Error()})
 	}
 }
 
@@ -67,6 +68,26 @@ func WriteStatusError(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(ErrorResponse{
-		Error: err.Error(),
+		Code:    statusToCode(status),
+		Message: err.Error(),
 	})
+}
+
+func statusToCode(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "validation_error"
+	case http.StatusUnauthorized:
+		return "unauthorized"
+	case http.StatusForbidden:
+		return "forbidden"
+	case http.StatusNotFound:
+		return "not_found"
+	case http.StatusConflict:
+		return "conflict"
+	case http.StatusFailedDependency:
+		return "failed_dependency"
+	default:
+		return "internal_error"
+	}
 }

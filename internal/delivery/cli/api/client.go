@@ -209,6 +209,13 @@ type authenticateResponse struct {
 	User      userPayload `json:"user"`
 }
 
+type twoFAChallengeResponse struct {
+	ChallengeID  string    `json:"challenge_id"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	AttemptsLeft int       `json:"attempts_left"`
+	Delivery     string    `json:"delivery"`
+}
+
 type userPayload struct {
 	ID               uint64    `json:"id"`
 	Username         string    `json:"username"`

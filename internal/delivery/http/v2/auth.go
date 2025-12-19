@@ -8,6 +8,7 @@ import (
 	chi "github.com/go-chi/chi/v5"
 
 	"ppo/internal/delivery/http/dto"
+	"ppo/internal/entities"
 	"ppo/internal/services"
 )
 
@@ -58,21 +59,37 @@ func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) error {
 	if h.tokens == nil {
 		return errTokenServiceDisabled
 	}
-	if h.twofa == nil {
-		return errTwoFAServiceDisabled
-	}
 	var req struct {
 		ChallengeID string `json:"challenge_id"`
 		Code        string `json:"code"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		return err
 	}
-	if strings.TrimSpace(req.ChallengeID) == "" || strings.TrimSpace(req.Code) == "" {
-		return &dto.BadRequestError{Message: "challenge_id and code are required"}
-	}
+	challengeID := strings.TrimSpace(req.ChallengeID)
+	code := strings.TrimSpace(req.Code)
+	email := strings.TrimSpace(req.Email)
+	password := strings.TrimSpace(req.Password)
 
-	user, err := h.twofa.VerifyCode(r.Context(), req.ChallengeID, req.Code)
+	var user *entities.User
+	var err error
+
+	switch {
+	case challengeID != "" && code != "":
+		if h.twofa == nil {
+			return errTwoFAServiceDisabled
+		}
+		user, err = h.twofa.VerifyCode(r.Context(), challengeID, code)
+	case email != "" && password != "":
+		user, err = h.users.Authenticate(r.Context(), services.AuthenticateUserCmd{
+			Email:    email,
+			Password: password,
+		})
+	default:
+		return &dto.BadRequestError{Message: "challenge_id+code or email+password are required"}
+	}
 	if err != nil {
 		return err
 	}

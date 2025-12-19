@@ -62,8 +62,10 @@ func TestNotificationService_NotifySubscribersAndMarkAsRead(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, notification.IsRead)
 
-	err = svc.NotifyUser(ctx, user.ID, dataset.ID, "direct alert")
+	directAlert, err := svc.NotifyUser(ctx, user.ID, dataset.ID, "direct alert")
 	require.NoError(t, err)
+
+	require.Equal(t, "direct alert", directAlert.Message)
 
 	all, err := svc.GetNotificationsByUser(ctx, user.ID)
 	require.NoError(t, err)

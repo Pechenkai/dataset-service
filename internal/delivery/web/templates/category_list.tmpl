@@ -15,12 +15,12 @@
      <tbody>
      {{ range .Categories }}
      <tr>
-         <td><a href="{{$.BasePath}}/categories/{{ .ID }}">{{ .Name }}</a></td>
+         <td><a href="/legacy/categories/{{ .ID }}">{{ .Name }}</a></td>
          <td>{{ .Description }}</td>
          {{ if eq $.Role "admin" }}
          <td>
-             <a href="{{$.BasePath}}/categories/{{ .ID }}/edit">Редактировать</a> |
-             <form style="display:inline;" method="POST" action="{{$.BasePath}}/categories/{{ .ID }}/delete">
+             <a href="/legacy/categories/{{ .ID }}/edit">Редактировать</a> |
+             <form style="display:inline;" method="POST" action="/legacy/categories/{{ .ID }}/delete">
                  <button type="submit" onclick="return confirm('Удалить категорию?');">Удалить</button>
              </form>
          </td>

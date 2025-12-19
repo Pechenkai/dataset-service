@@ -13,63 +13,25 @@ import (
 type HandlerWithError func(w http.ResponseWriter, r *http.Request) error
 
 func MapErrorToStatus(err error) int {
-	switch {
-	case isBadRequestError(err):
+	if isBadRequestError(err) || matchesAny(err, badRequestErrors) {
 		return http.StatusBadRequest
-	// ================================
-	// === 400 Bad Request: ошибки валидации ===
-	// ================================
-	case errors.Is(err, services.ErrNilReview),
-		errors.Is(err, services.ErrInvalidRating),
-		errors.Is(err, services.ErrNilUser),
-		errors.Is(err, services.ErrNilDataset),
-		errors.Is(err, services.ErrInvalidMetadata),
-		errors.Is(err, services.ErrNilCategory):
-		return http.StatusBadRequest
-
-	// ==================================================
-	// === 401 Unauthorized: неверные данные аутентификации ===
-	// ==================================================
-	case errors.Is(err, services.ErrInvalidCredentials),
-		errors.Is(err, services.ErrInvalidPassword):
-		return http.StatusUnauthorized
-	case errors.Is(err, services.ErrTokenInvalid):
-		return http.StatusUnauthorized
-
-	// =======================================================
-	// === 404 Not Found: когда чего-то не существует       ===
-	// =======================================================
-	case errors.Is(err, services.ErrReviewNotFound),
-		errors.Is(err, services.ErrUserNotFound),
-		errors.Is(err, services.ErrDatasetNotFound),
-		errors.Is(err, services.ErrVersionNotFound),
-		errors.Is(err, services.ErrCategoryNotFound),
-		errors.Is(err, services.ErrNotificationNotFound),
-		errors.Is(err, services.ErrNotSubscribed):
-		return http.StatusNotFound
-	case errors.Is(err, services.ErrTokenNotFound):
-		return http.StatusNotFound
-
-	// ================================================================
-	// === 409 Conflict: когда мы пытаемся создать «то, что уже есть» ===
-	// ================================================================
-	case errors.Is(err, services.ErrReviewNotFound): // (смотри примечание ниже)
-		// на самом деле, ErrReviewNotFound здесь не нужна – оставлено для примера
-		return http.StatusNotFound
-	case errors.Is(err, services.ErrCategoryExists),
-		errors.Is(err, services.ErrUserExists),
-		errors.Is(err, services.ErrAlreadySubscribed):
-		return http.StatusConflict
-
-	// ======================================================
-	// === 424 Failed Dependency: нет подписчиков к оповещению ===
-	// ======================================================
-	case errors.Is(err, services.ErrNoSubscribers):
-		return http.StatusFailedDependency
-
-	default:
-		return http.StatusInternalServerError
 	}
+	if matchesAny(err, unauthorizedErrors) {
+		return http.StatusUnauthorized
+	}
+	if matchesAny(err, forbiddenErrors) {
+		return http.StatusForbidden
+	}
+	if matchesAny(err, notFoundErrors) {
+		return http.StatusNotFound
+	}
+	if matchesAny(err, conflictErrors) {
+		return http.StatusConflict
+	}
+	if matchesAny(err, failedDependencyErrors) {
+		return http.StatusFailedDependency
+	}
+	return http.StatusInternalServerError
 }
 
 func WrapHandler(h HandlerWithError) http.HandlerFunc {
@@ -87,6 +49,63 @@ func isBadRequestError(err error) bool {
 	}
 	var badReq *dto.BadRequestError
 	return errors.As(err, &badReq)
+}
+
+var badRequestErrors = []error{
+	services.ErrNilReview,
+	services.ErrInvalidRating,
+	services.ErrNilUser,
+	services.ErrNilDataset,
+	services.ErrInvalidMetadata,
+	services.ErrNilCategory,
+	services.ErrBadRequest,
+}
+
+var unauthorizedErrors = []error{
+	services.ErrInvalidCredentials,
+	services.ErrInvalidPassword,
+	services.ErrInvalidTwoFACode,
+	services.ErrTwoFAExpired,
+	services.ErrTokenInvalid,
+}
+
+var forbiddenErrors = []error{
+	services.ErrUserBlocked,
+	services.ErrTwoFADebugDisabled,
+	services.ErrRequestForbidden,
+}
+
+var notFoundErrors = []error{
+	services.ErrReviewNotFound,
+	services.ErrUserNotFound,
+	services.ErrDatasetNotFound,
+	services.ErrVersionNotFound,
+	services.ErrCategoryNotFound,
+	services.ErrNotificationNotFound,
+	services.ErrNotSubscribed,
+	services.ErrRequestNotFound,
+	services.ErrTokenNotFound,
+	services.ErrTwoFAChallengeNotFound,
+}
+
+var conflictErrors = []error{
+	services.ErrCategoryExists,
+	services.ErrUserExists,
+	services.ErrAlreadySubscribed,
+	services.ErrRequestAlreadyExists,
+}
+
+var failedDependencyErrors = []error{
+	services.ErrNoSubscribers,
+}
+
+func matchesAny(err error, targets []error) bool {
+	for _, target := range targets {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
 }
 
 func LoggingMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {

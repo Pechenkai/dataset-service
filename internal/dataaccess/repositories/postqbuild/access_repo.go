@@ -166,6 +166,45 @@ func (r *AccessRequestRepo) ListPendingByOwner(ctx context.Context, ownerID uint
 	return list, nil
 }
 
+func (r *AccessRequestRepo) ListByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.AccessRequest, error) {
+	r.logger.Debug("ListByDatasetID called", zap.Uint64("dataset_id", datasetID))
+
+	query := psql.
+		Select("id", "dataset_id", "user_id", "status", "created_at").
+		From("access_requests").
+		Where(sq.Eq{"dataset_id": datasetID})
+
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		r.logger.Error("failed to build ListByDatasetID query", zap.Error(err))
+		return nil, repositories.ErrRequestQueryBuild
+	}
+
+	rows, err := r.db.Query(ctx, sqlStr, args...)
+	if err != nil {
+		r.logger.Error("failed to execute ListByDatasetID query", zap.Error(err))
+		return nil, fmt.Errorf("list access requests: %w", err)
+	}
+	defer rows.Close()
+
+	list := make([]*entities.AccessRequest, 0)
+	for rows.Next() {
+		row := accessRequestRow{}
+		if err := rows.Scan(&row.ID, &row.DatasetID, &row.UserID, &row.Status, &row.CreatedAt); err != nil {
+			r.logger.Error("failed to scan row in ListByDatasetID", zap.Error(err))
+			return nil, repositories.ErrRequestScan
+		}
+		list = append(list, row.toEntity())
+	}
+	if rows.Err() != nil {
+		r.logger.Error("error iterating rows in ListByDatasetID", zap.Error(rows.Err()))
+		return nil, repositories.ErrRequestScan
+	}
+
+	r.logger.Info("ListByDatasetID completed", zap.Uint64("dataset_id", datasetID), zap.Int("count", len(list)))
+	return list, nil
+}
+
 func (r *AccessRequestRepo) UpdateStatus(ctx context.Context, id uint64, status string) error {
 	r.logger.Debug("UpdateStatus called", zap.Uint64("id", id), zap.String("status", string(status)))
 	query := psql.

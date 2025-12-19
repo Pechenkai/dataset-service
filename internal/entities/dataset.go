@@ -20,7 +20,7 @@ func NewDataset(name, description string, ownerID, categoryID uint64, isPublic b
 	if name == "" {
 		return nil, ErrEmptyDatasetName
 	}
-	if len(name) > 100 {
+	if len(name) > 120 {
 		return nil, ErrDatasetNameTooLong
 	}
 	if ownerID == 0 {

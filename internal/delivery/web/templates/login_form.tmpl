@@ -2,7 +2,7 @@
 {{ define "content" }}
 <h2>Вход (Login)</h2>
 
-<form method="POST" action="{{$.BasePath}}/login">
+<form method="POST" action="/legacy/login">
   <div>
     <label for="email">Email:</label><br>
     <input type="email" id="email" name="email" required value="{{ .Form.Email }}">
@@ -14,6 +14,6 @@
   </div>
 
   <button type="submit">Войти</button>
-  <a href="{{$.BasePath}}/users/new">Регистрация</a>
+  <a href="/legacy/users/new">Регистрация</a>
 </form>
 {{ end }}

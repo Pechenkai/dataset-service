@@ -16,12 +16,12 @@
 {{ else if .Dataset.IsPublic }}
 <!-- Для публичных: подписка + скачивание -->
 {{ if not .Dataset.IsSubscribed }}
-<form action="{{$.BasePath}}/subscriptions" method="post" style="display:inline;">
+<form action="/legacy/subscriptions" method="post" style="display:inline;">
     <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
     <button type="submit">Подписаться</button>
 </form>
 {{ else }}
-<form action="{{$.BasePath}}/subscriptions/{{ .Dataset.ID }}/unsubscribe" method="post" style="display:inline;">
+<form action="/legacy/subscriptions/{{ .Dataset.ID }}/unsubscribe" method="post" style="display:inline;">
     <button type="submit">Отписаться</button>
 </form>
 {{ end }}
@@ -33,7 +33,7 @@
 {{ else if eq .Dataset.AccessStatus "pending" }}
 <em>запрос отправлен</em>
 {{ else }}
-<form action="{{$.BasePath}}/datasets/{{ .Dataset.ID }}/request-access" method="post" style="display:inline;">
+<form action="/legacy/datasets/{{ .Dataset.ID }}/request-access" method="post" style="display:inline;">
     <button type="submit">Запросить доступ</button>
 </form>
 {{ end }}
@@ -41,16 +41,16 @@
 
 <hr>
 
-<a href="{{$.BasePath}}/datasets/{{ .Dataset.ID }}/versions">Версии</a>
+<a href="/legacy/datasets/{{ .Dataset.ID }}/versions">Версии</a>
 {{ if or (eq .Role "admin") (eq .User .Dataset.OwnerID) }} |
-<a href="{{$.BasePath}}/datasets/{{ .Dataset.ID }}/versions/new">Добавить версию</a>
+<a href="/legacy/datasets/{{ .Dataset.ID }}/versions/new">Добавить версию</a>
 {{ end }}
 
 <hr>
 
 {{ if and (ne .User 0) (ne .User .Dataset.OwnerID) }}
 <h3>Оставить отзыв</h3>
-<form action="{{$.BasePath}}/reviews" method="post" style="margin-bottom:2em;">
+<form action="/legacy/reviews" method="post" style="margin-bottom:2em;">
     <input type="hidden" name="dataset_id" value="{{ .Dataset.ID }}">
     <div>
         <label for="review-text">Текст отзыва:</label><br>
@@ -79,8 +79,8 @@
     <li>
         <strong>{{ .AuthorUsername }}:</strong> {{ .Text }} ({{ .Rating }}⭐)
         {{ if or (eq $.Role "admin") (eq $.User .UserID) }}
-        — <a href="{{$.BasePath}}/reviews/{{ .ID }}/edit">Редактировать</a>
-        <form action="{{$.BasePath}}/reviews/{{ .ID }}/delete" method="post" style="display:inline;">
+        — <a href="/legacy/reviews/{{ .ID }}/edit">Редактировать</a>
+        <form action="/legacy/reviews/{{ .ID }}/delete" method="post" style="display:inline;">
             <button type="submit" onclick="return confirm('Удалить отзыв?');">Удалить</button>
         </form>
         {{ end }}

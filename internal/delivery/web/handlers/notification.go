@@ -6,7 +6,7 @@ import (
 	"ppo/internal/delivery/web/middleware"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
 	"ppo/internal/delivery/web/dto"

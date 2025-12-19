@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -36,11 +37,19 @@ type Storage struct {
 type Auth struct {
 	Secret         string        `mapstructure:"secret"`
 	AccessTokenTTL time.Duration `mapstructure:"access_token_ttl"`
+	TwoFA          TwoFA         `mapstructure:"twofa"`
 }
 
 type CLI struct {
 	APIBaseURL string `mapstructure:"api_base_url"`
 	TokenFile  string `mapstructure:"token_file"`
+}
+
+type AdminAccount struct {
+	Username string `mapstructure:"username"`
+	Email    string `mapstructure:"email"`
+	Password string `mapstructure:"password"`
+	Country  string `mapstructure:"country"`
 }
 
 type TechUI struct {
@@ -60,18 +69,46 @@ type Mongo struct {
 	Database string `mapstructure:"database"`
 }
 
+type Broker struct {
+	URL                   string        `mapstructure:"url"`
+	GatewayToCoreQueue    string        `mapstructure:"gateway_to_core_queue"`
+	CoreToGatewayQueue    string        `mapstructure:"core_to_gateway_queue"`
+	CoreToDataQueue       string        `mapstructure:"core_to_data_queue"`
+	DataToCoreQueue       string        `mapstructure:"data_to_core_queue"`
+	Prefetch              int           `mapstructure:"prefetch"`
+	ReconnectDelay        time.Duration `mapstructure:"reconnect_delay"`
+	MessageProcessTimeout time.Duration `mapstructure:"message_process_timeout"`
+	EnableDLQ             bool          `mapstructure:"enable_dlq"`
+}
+
+type TwoFA struct {
+	CodeTTL       time.Duration `mapstructure:"code_ttl"`
+	MaxAttempts   int           `mapstructure:"max_attempts"`
+	BlockDuration time.Duration `mapstructure:"block_duration"`
+	DebugSecret   string        `mapstructure:"debug_secret"`
+	Delivery      string        `mapstructure:"delivery"`
+}
+
 type Config struct {
-	Database Database  `mapstructure:"database"`
-	HTTP     HTTP      `mapstructure:"http"`
-	Storage  Storage   `mapstructure:"storage"`
-	LogCfg   LogConfig `mapstructure:"log"`
-	TechUI   TechUI    `mapstructure:"techui"`
-	Mongo    Mongo     `mapstructure:"mongo"`
-	Auth     Auth      `mapstructure:"auth"`
-	CLI      CLI       `mapstructure:"cli"`
+	Database Database     `mapstructure:"database"`
+	HTTP     HTTP         `mapstructure:"http"`
+	Storage  Storage      `mapstructure:"storage"`
+	LogCfg   LogConfig    `mapstructure:"log"`
+	TechUI   TechUI       `mapstructure:"techui"`
+	Mongo    Mongo        `mapstructure:"mongo"`
+	Auth     Auth         `mapstructure:"auth"`
+	CLI      CLI          `mapstructure:"cli"`
+	Admin    AdminAccount `mapstructure:"admin"`
+	Broker   Broker       `mapstructure:"broker"`
 }
 
 func Load() (*Config, error) {
+	// best-effort: load .env in current and module root so env overrides yaml defaults
+	_ = godotenv.Load()
+	if root := findModuleRoot(); root != "" {
+		_ = godotenv.Load(filepath.Join(root, ".env"))
+	}
+
 	v := viper.New()
 
 	if configFile := os.Getenv("CONFIG_FILE"); configFile != "" {
@@ -99,8 +136,26 @@ func Load() (*Config, error) {
 	v.SetDefault("log.file", "")
 	v.SetDefault("auth.secret", "change-me")
 	v.SetDefault("auth.access_token_ttl", "24h")
+	v.SetDefault("auth.twofa.code_ttl", "5m")
+	v.SetDefault("auth.twofa.max_attempts", 3)
+	v.SetDefault("auth.twofa.block_duration", "2m")
+	v.SetDefault("auth.twofa.debug_secret", "")
+	v.SetDefault("auth.twofa.delivery", "email")
 	v.SetDefault("cli.api_base_url", "http://localhost:8080/api/v2")
 	v.SetDefault("cli.token_file", "")
+	v.SetDefault("admin.username", "admin")
+	v.SetDefault("admin.email", "admin@example.com")
+	v.SetDefault("admin.password", "admin123")
+	v.SetDefault("admin.country", "RU")
+	v.SetDefault("broker.url", "amqp://guest:guest@localhost:5672/")
+	v.SetDefault("broker.gateway_to_core_queue", "gateway.core.cmd")
+	v.SetDefault("broker.core_to_gateway_queue", "core.gateway.evt")
+	v.SetDefault("broker.core_to_data_queue", "core.data.cmd")
+	v.SetDefault("broker.data_to_core_queue", "data.core.evt")
+	v.SetDefault("broker.prefetch", 10)
+	v.SetDefault("broker.reconnect_delay", "2s")
+	v.SetDefault("broker.message_process_timeout", "10s")
+	v.SetDefault("broker.enable_dlq", true)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err

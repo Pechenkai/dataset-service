@@ -13,15 +13,15 @@
 <p>
   {{/* Редактировать/Удалить можно либо админу, либо если профиль свой */}}
   {{ if or (eq .Role "admin") (eq .UserID .User.ID) }}
-    <a href="{{$.BasePath}}/users/{{ .User.ID }}/edit">Редактировать</a>
+    <a href="/legacy/users/{{ .User.ID }}/edit">Редактировать</a>
     {{ if eq .Role "admin" }}
       |
-      <form method="POST" action="{{$.BasePath}}/users/{{ .User.ID }}/delete" style="display:inline;">
+      <form method="POST" action="/legacy/users/{{ .User.ID }}/delete" style="display:inline;">
         <button type="submit" onclick="return confirm('Удалить пользователя?');">Удалить</button>
       </form>
     {{ end }}
   {{ end }}
   |
-  <a href="{{$.BasePath}}/users">Назад к списку</a>
+  <a href="/legacy/users">Назад к списку</a>
 </p>
 {{ end }}

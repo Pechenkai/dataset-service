@@ -19,13 +19,13 @@
     {{ range .Requests }}
     <tr>
         <td>{{ .Username }}</td>
-        <td><a href="{{$.BasePath}}/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
+        <td><a href="/legacy/datasets/{{ .DatasetID }}">{{ .DatasetName }}</a></td>
         <td>{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
         <td>
-            <form action="{{$.BasePath}}/access-requests/{{ .ID }}/approve" method="post" style="display:inline;">
+            <form action="/legacy/access-requests/{{ .ID }}/approve" method="post" style="display:inline;">
                 <button type="submit">Принять</button>
             </form>
-            <form action="{{$.BasePath}}/access-requests/{{ .ID }}/deny" method="post" style="display:inline;">
+            <form action="/legacy/access-requests/{{ .ID }}/deny" method="post" style="display:inline;">
                 <button type="submit">Отклонить</button>
             </form>
         </td>

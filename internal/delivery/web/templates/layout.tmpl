@@ -3,25 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <title>{{ block "title" . }}Dataset Hub{{ end }}</title>
-  <link rel="stylesheet" href="{{$.BasePath}}/static/css/main.css">
+  <link rel="stylesheet" href="/legacy/static/css/main.css">
 </head>
 <body>
 <header>
   <h1>Dataset Hub</h1>
   <nav>
-    <a href="{{$.BasePath}}/categories">Категории</a> |
-    <a href="{{$.BasePath}}/datasets">Датасеты</a> |
+    <a href="/legacy/categories">Категории</a> |
+    <a href="/legacy/datasets">Датасеты</a> |
     {{ if or (eq .Role "user") (eq .Role "admin") }}
-      <a href="{{$.BasePath}}/my-datasets">Мои датасеты</a> |
-      <a href="{{$.BasePath}}/profile">Личный кабинет</a> |
+      <a href="/legacy/my-datasets">Мои датасеты</a> |
+      <a href="/legacy/profile">Личный кабинет</a> |
     {{ end }}
     {{ if or (eq .Role "user") (eq .Role "admin") }}
-      <a href="{{$.BasePath}}/notifications">Уведомления</a> |
+      <a href="/legacy/notifications">Уведомления</a> |
     {{ end }}
     {{ if eq .Role "guest" }}
-      <a href="{{$.BasePath}}/login">Вход</a>
+      <a href="/legacy/login">Вход</a>
     {{ else }}
-      <form action="{{$.BasePath}}/logout" method="post" style="display:inline;">
+      <form action="/legacy/logout" method="post" style="display:inline;">
         <button type="submit">Выйти</button>
       </form>
     {{ end }}

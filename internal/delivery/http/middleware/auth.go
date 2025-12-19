@@ -41,6 +41,33 @@ func BearerAuth(tokenSvc services.TokenService, userSvc services.UserService) fu
 	}
 }
 
+func OptionalBearerAuth(tokenSvc services.TokenService, userSvc services.UserService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := extractBearerToken(r.Header.Get("Authorization"))
+			if token == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			record, err := tokenSvc.GetToken(r.Context(), token)
+			if err != nil {
+				dto.WriteStatusError(w, http.StatusUnauthorized, err)
+				return
+			}
+
+			user, err := userSvc.GetUserByID(r.Context(), record.UserID)
+			if err != nil {
+				dto.WriteStatusError(w, http.StatusUnauthorized, err)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), userContextKey, user)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func extractBearerToken(header string) string {
 	if header == "" {
 		return ""
