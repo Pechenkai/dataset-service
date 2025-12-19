@@ -1,5 +1,5 @@
 import { ApiClient } from '../api/client';
-import { AuthenticateRequest, AuthenticateResponse, User } from '../api/types';
+import { AuthenticateRequest, AuthenticateResponse, RegisterUserRequest, User } from '../api/types';
 
 export interface AuthSession {
   token: string;
@@ -14,6 +14,10 @@ export class AuthService {
 
   async authenticate(payload: AuthenticateRequest) {
     return this.api.post<AuthenticateResponse>('/auth/tokens', payload, undefined, true);
+  }
+
+  async register(payload: RegisterUserRequest) {
+    return this.api.post<User>('/users', payload, undefined, true);
   }
 
   async revoke(tokenId?: string) {

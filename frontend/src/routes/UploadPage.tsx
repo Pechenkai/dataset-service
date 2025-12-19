@@ -1,124 +1,182 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
+import { TextArea } from '../components/ui/TextArea';
+import { Button } from '../components/ui/Button';
+import { FileDropInput } from '../components/ui/FileDropInput';
 import { useServices } from '../context/ServiceContext';
+import { ApiError } from '../api/client';
 
 const UploadPage: React.FC = () => {
   const { datasetService } = useServices();
-  const categoriesQuery = useQuery(['categories'], () => datasetService.listCategories());
-  const [message, setMessage] = useState('');
-  const [datasetForm, setDatasetForm] = useState({
-    name: '',
-    description: '',
-    categoryId: '',
-    isPublic: true,
-    format: 'csv',
-    tags: 'ml,experiment',
-    file: null as File | null
+
+  const categoriesQuery = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => datasetService.listCategories()
   });
 
-  const disableSubmit = !datasetForm.name || !datasetForm.categoryId || !datasetForm.file;
+  const [form, setForm] = useState({
+    name: '',
+    tags: '',
+    description: '',
+    categoryId: '',
+    file: null as File | null,
+    format: 'csv',
+    isPublic: true
+  });
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!datasetForm.file) return;
-    await datasetService.createDataset({
-      name: datasetForm.name,
-      description: datasetForm.description,
-      categoryId: Number(datasetForm.categoryId),
-      isPublic: datasetForm.isPublic,
-      file: datasetForm.file,
-      metadata: {
-        format: datasetForm.format,
-        tags: datasetForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+  const [status, setStatus] = useState<{ kind: 'idle' | 'ok' | 'err'; text?: string }>({ kind: 'idle' });
+
+  useEffect(() => {
+    const first = categoriesQuery.data?.items?.[0];
+    if (first && !form.categoryId) {
+      setForm((s) => ({ ...s, categoryId: String(first.id) }));
+    }
+  }, [categoriesQuery.data, form.categoryId]);
+
+  const categoryId = useMemo(() => {
+    const found = categoriesQuery.data?.items.find((c) => String(c.id) === form.categoryId);
+    return found?.id ?? null;
+  }, [categoriesQuery.data, form.categoryId]);
+
+  const canSubmit = Boolean(form.name.trim() && form.file && categoryId);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus({ kind: 'idle' });
+
+    if (!categoryId) {
+      setStatus({ kind: 'err', text: 'Нет категорий. Добавь хотя бы одну категорию в системе.' });
+      return;
+    }
+    if (!form.file) return;
+
+    try {
+      await datasetService.createDataset({
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        categoryId: categoryId!,
+        isPublic: form.isPublic,
+        file: form.file,
+        metadata: {
+          format: form.format,
+          tags: form.tags
+              .split(',')
+              .map((t) => t.trim())
+              .filter(Boolean)
+        }
+      });
+      setStatus({ kind: 'ok', text: 'Датасет создан.' });
+      setForm({ name: '', tags: '', description: '', categoryId: '', file: null, format: 'csv', isPublic: true });
+    } catch (err) {
+      let message = 'Не удалось создать датасет.';
+      if (err instanceof ApiError) {
+        const body = err.body as any;
+        message = body?.message || message;
+      } else if (err instanceof Error) {
+        message = err.message || message;
       }
-    });
-    setMessage('Датасет передан в API. После ответа сервера он появится в каталоге.');
+      setStatus({ kind: 'err', text: message });
+    }
   };
 
-  const fileLabel = useMemo(() => datasetForm.file?.name || 'Файл не выбран', [datasetForm.file]);
-
   return (
-    <>
-      <section className="page-hero">
-        <h2>Публикация датасета</h2>
-        <p>Форма собирает payload для эндпоинта POST /api/v2/datasets. Файлы уходят через FormData.</p>
-      </section>
+      <div className="create-ds">
+        {/*<div className="create-ds__hint">Create dataset</div>*/}
 
-      <Card title="Новый датасет" subtitle="Бизнес-логика вынесена в DatasetService">
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <Input
-            label="Название"
-            placeholder="Traffic logs dataset"
-            value={datasetForm.name}
-            onChange={(e) => setDatasetForm({ ...datasetForm, name: e.target.value })}
-            required
-          />
-          <Input
-            label="Описание"
-            placeholder="Пара слов о содержании набора"
-            value={datasetForm.description}
-            onChange={(e) => setDatasetForm({ ...datasetForm, description: e.target.value })}
-          />
-          <label className="ui-input">
-            <span className="ui-input__label">Категория</span>
-            <select
-              className="ui-input__field"
-              value={datasetForm.categoryId}
-              onChange={(e) => setDatasetForm({ ...datasetForm, categoryId: e.target.value })}
-              required
-            >
-              <option value="" disabled>
-                Выберите категорию
-              </option>
-              {categoriesQuery.data?.items.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="ui-input">
-            <span className="ui-input__label">Доступность</span>
-            <select
-              className="ui-input__field"
-              value={datasetForm.isPublic ? 'public' : 'private'}
-              onChange={(e) => setDatasetForm({ ...datasetForm, isPublic: e.target.value === 'public' })}
-            >
-              <option value="public">Публичный</option>
-              <option value="private">Приватный</option>
-            </select>
-          </label>
-          <Input
-            label="Формат"
-            value={datasetForm.format}
-            onChange={(e) => setDatasetForm({ ...datasetForm, format: e.target.value })}
-          />
-          <Input
-            label="Теги"
-            value={datasetForm.tags}
-            onChange={(e) => setDatasetForm({ ...datasetForm, tags: e.target.value })}
-            hint="Через запятую"
-          />
-          <label className="ui-input">
-            <span className="ui-input__label">Файл</span>
-            <input
-              className="ui-input__field"
-              type="file"
-              onChange={(e) => setDatasetForm({ ...datasetForm, file: e.target.files?.[0] || null })}
-              required
-            />
-            <span className="ui-input__hint">{fileLabel}</span>
-          </label>
-          <Button type="submit" disabled={disableSubmit}>
-            Отправить в API
-          </Button>
-          {message && <p>{message}</p>}
-        </form>
-      </Card>
-    </>
+        <Card title="">
+          <form
+              className="create-ds__form"
+              onSubmit={submit}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => e.preventDefault()}
+          >
+            <div className="create-ds__fields">
+              <Input
+                  label="Название"
+                  placeholder="Input field"
+                  value={form.name}
+                  onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                  required
+              />
+
+              <label className="ui-input">
+                <span className="ui-input__label">Категория</span>
+                <select
+                    className="ui-input__field"
+                    value={form.categoryId}
+                    onChange={(e) => setForm((s) => ({ ...s, categoryId: e.target.value }))}
+                    disabled={categoriesQuery.isLoading || !categoriesQuery.data?.items.length}
+                    required
+                >
+                  {categoriesQuery.data?.items.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <Input
+                  label="Теги"
+                  placeholder="Input field"
+                  value={form.tags}
+                  onChange={(e) => setForm((s) => ({ ...s, tags: e.target.value }))}
+                  hint="Через запятую"
+              />
+
+              <label className="ui-input">
+                <span className="ui-input__label">Формат</span>
+                <select
+                    className="ui-input__field"
+                    value={form.format}
+                    onChange={(e) => setForm((s) => ({ ...s, format: e.target.value }))}
+                >
+                  <option value="csv">CSV</option>
+                  <option value="json">JSON</option>
+                  <option value="mp4">MP4</option>
+                  <option value="txt">TXT</option>
+                  <option value="parquet">Parquet</option>
+                </select>
+              </label>
+
+              <label className="ui-input">
+                <span className="ui-input__label">Публичность</span>
+                <select
+                    className="ui-input__field"
+                    value={form.isPublic ? 'public' : 'private'}
+                    onChange={(e) => setForm((s) => ({ ...s, isPublic: e.target.value === 'public' }))}
+                >
+                  <option value="public">Публичный</option>
+                  <option value="private">Приватный</option>
+                </select>
+              </label>
+
+              <FileDropInput
+                  label="Загрузка"
+                  file={form.file}
+                  onChange={(file) => setForm((s) => ({ ...s, file }))}
+              />
+
+              <div className="create-ds__textarea">
+                <TextArea
+                    label="Описание"
+                    placeholder="Enter dataset description..."
+                    value={form.description}
+                    onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
+                    rows={6}
+                />
+              </div>
+
+              <Button type="submit" variant="primary" fullWidth disabled={!canSubmit}>
+                Создать
+              </Button>
+
+              {status.kind === 'ok' && <div className="create-ds__ok">{status.text}</div>}
+              {status.kind === 'err' && <div className="create-ds__err">{status.text}</div>}
+            </div>
+          </form>
+        </Card>
+      </div>
   );
 };
 

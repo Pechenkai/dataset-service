@@ -13,6 +13,7 @@ export interface DatasetFilters {
   categoryId?: number;
   visibility?: 'public' | 'private' | 'all';
   tags?: string;
+  ownerId?: number;
   page?: number;
   limit?: number;
 }
@@ -43,6 +44,13 @@ export class DatasetService {
     });
   }
 
+  async createCategory(payload: { name: string; description?: string }) {
+    return this.api.post<Category>('/categories', {
+      name: payload.name,
+      description: payload.description
+    });
+  }
+
   async listDatasets(filters: DatasetFilters = {}) {
     const limit = filters.limit ?? DEFAULT_PAGE_SIZE;
     const page = filters.page && filters.page > 0 ? filters.page : 1;
@@ -53,6 +61,7 @@ export class DatasetService {
       offset,
       search: filters.search,
       category_id: filters.categoryId,
+      owner_id: filters.ownerId,
       is_public:
         filters.visibility === 'public'
           ? true
@@ -126,12 +135,17 @@ export class DatasetService {
     });
   }
 
+  async updateDataset(datasetId: number, payload: Partial<Pick<Dataset, 'is_public' | 'name' | 'description'>>) {
+    return this.api.patch<Dataset>(`/datasets/${datasetId}`, payload);
+  }
+
   buildFiltersFromSearch(params: URLSearchParams): DatasetFilters {
     return {
       search: params.get('q') || undefined,
       categoryId: params.get('category') ? Number(params.get('category')) : undefined,
       visibility: (params.get('visibility') as DatasetFilters['visibility']) || 'all',
       tags: params.get('tags') || undefined,
+      ownerId: params.get('owner') ? Number(params.get('owner')) : undefined,
       page: params.get('page') ? Number(params.get('page')) : 1,
       limit: params.get('limit') ? Number(params.get('limit')) : DEFAULT_PAGE_SIZE
     };
@@ -143,6 +157,7 @@ export class DatasetService {
     if (filters.categoryId) params.set('category', String(filters.categoryId));
     if (filters.visibility && filters.visibility !== 'all') params.set('visibility', filters.visibility);
     if (filters.tags) params.set('tags', filters.tags);
+    if (filters.ownerId) params.set('owner', String(filters.ownerId));
     if (filters.page && filters.page > 1) params.set('page', String(filters.page));
     if (filters.limit && filters.limit !== DEFAULT_PAGE_SIZE) params.set('limit', String(filters.limit));
     return params;

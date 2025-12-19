@@ -104,6 +104,14 @@ export interface AuthenticateResponse {
   user: User;
 }
 
+export interface RegisterUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  country: string;
+  role?: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   meta: PaginationMeta;

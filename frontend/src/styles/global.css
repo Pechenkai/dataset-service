@@ -1,21 +1,8 @@
 :root {
-  --bg: #0c1222;
-  --surface: rgba(255, 255, 255, 0.04);
-  --surface-strong: rgba(255, 255, 255, 0.08);
-  --accent: #7df9c2;
-  --accent-2: #6ba8ff;
-  --muted: #96a3b7;
-  --text: #e9f2ff;
-  --danger: #ff6b6b;
-  --success: #7ef5b7;
-  --warning: #ffd166;
-  --radius-lg: 18px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-  --shadow: 0 22px 80px rgba(0, 0, 0, 0.35);
-  font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
-  color: var(--text);
-  background: var(--bg);
+  font-family: "Inter", "Manrope", "Segoe UI", system-ui, sans-serif;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  line-height: 1.4;
 }
 
 * {
@@ -25,9 +12,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, rgba(125, 249, 194, 0.08), transparent 20%),
-    radial-gradient(circle at 80% 0%, rgba(107, 168, 255, 0.12), transparent 22%),
-    linear-gradient(135deg, #0d1528 0%, #0c1222 60%, #0a0f1c 100%);
+  background: var(--color-bg);
 }
 
 #root {
@@ -36,20 +21,21 @@ body {
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
 
 p {
   margin: 0;
-  color: var(--muted);
+  color: var(--color-text-muted);
 }
 
 button {
@@ -60,11 +46,33 @@ input,
 textarea,
 select {
   font-family: inherit;
-  color: var(--text);
-  background: var(--surface);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
 }
 
 ::selection {
-  background: rgba(125, 249, 194, 0.25);
-  color: var(--text);
+  background: var(--color-primary-light);
+  color: var(--color-text-primary);
+}
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-hero {
+  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page-hero h2 {
+  font-size: 36px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
 }
