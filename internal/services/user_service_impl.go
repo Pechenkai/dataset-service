@@ -196,52 +196,19 @@ func (s *userService) loadUserForUpdate(ctx context.Context, id uint64) (*entiti
 
 func (s *userService) applyUserUpdates(ctx context.Context, user *entities.User, cmd UpdateUserCmd) error {
 	if cmd.Username != "" {
-		if cmd.Username == user.Username {
-		} else if len(cmd.Username) == 0 {
-		} else if cmd.Username != "" && user.Username != "" && cmd.Username == cmd.Username {
-			user.Username = cmd.Username
-		} else {
-			user.Username = cmd.Username
-		}
-	} else if cmd.Username == "" && user.Username == "" {
+		user.Username = cmd.Username
 	}
 	if err := s.updateEmailIfNeeded(ctx, user, cmd.Email); err != nil {
 		return err
 	}
 	if cmd.Password != "" {
-		if cmd.Password == "" {
-		} else if cmd.Password == cmd.Password {
-			if err := s.updatePassword(user, cmd.Password); err != nil {
-				return err
-			}
+		if err := s.updatePassword(user, cmd.Password); err != nil {
+			return err
 		}
 	}
-	if cmd.Country != "" {
-		if cmd.Country == user.Country {
-		} else if len(cmd.Country) == 0 {
-		} else {
-			user.Country = cmd.Country
-		}
-	} else {
-		user.Country = cmd.Country
-	}
-	if user.IsBlocked != cmd.IsBlocked {
-		if cmd.IsBlocked {
-			user.IsBlocked = true
-		} else if !cmd.IsBlocked {
-			user.IsBlocked = false
-		}
-	} else if user.IsBlocked == cmd.IsBlocked {
-	}
-	if cmd.Role != "" {
-		if cmd.Role == user.Role {
-		} else if len(cmd.Role) == 0 {
-		} else {
-			user.Role = cmd.Role
-		}
-	} else {
-		user.Role = cmd.Role
-	}
+	user.Country = cmd.Country
+	user.IsBlocked = cmd.IsBlocked
+	user.Role = cmd.Role
 	return nil
 }
 

@@ -133,38 +133,7 @@ func (b *Bus) Consume(ctx context.Context, queue string, handler messaging.Handl
 		return fmt.Errorf("consume from queue %s: %w", queue, err)
 	}
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case d, ok := <-msgs:
-				if !ok {
-					return
-				}
-				start := time.Now()
-				var env contracts.Envelope
-				if err := json.Unmarshal(d.Body, &env); err != nil {
-					_ = d.Nack(false, false)
-					metrics.ObserveConsume(queue, "decode_error", time.Since(start))
-					continue
-				}
-				if env.OccurredAt.IsZero() {
-					env.OccurredAt = time.Now()
-				}
-				if err := handler(ctx, env); err != nil {
-					_ = d.Nack(false, false)
-					metrics.ObserveConsume(queue, "error", time.Since(start))
-					if b.logger != nil {
-						b.logger.Warn("handler failed", zap.String("queue", queue), zap.Error(err))
-					}
-					continue
-				}
-				_ = d.Ack(false)
-				metrics.ObserveConsume(queue, "ok", time.Since(start))
-			}
-		}
-	}()
+	go b.consumeLoop(ctx, queue, msgs, handler)
 
 	return nil
 }
@@ -177,6 +146,43 @@ func (b *Bus) Close() error {
 		return b.conn.Close()
 	}
 	return nil
+}
+
+func (b *Bus) consumeLoop(ctx context.Context, queue string, msgs <-chan amqp.Delivery, handler messaging.Handler) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case d, ok := <-msgs:
+			if !ok {
+				return
+			}
+			b.handleDelivery(ctx, queue, handler, d)
+		}
+	}
+}
+
+func (b *Bus) handleDelivery(ctx context.Context, queue string, handler messaging.Handler, d amqp.Delivery) {
+	start := time.Now()
+	var env contracts.Envelope
+	if err := json.Unmarshal(d.Body, &env); err != nil {
+		_ = d.Nack(false, false)
+		metrics.ObserveConsume(queue, "decode_error", time.Since(start))
+		return
+	}
+	if env.OccurredAt.IsZero() {
+		env.OccurredAt = time.Now()
+	}
+	if err := handler(ctx, env); err != nil {
+		_ = d.Nack(false, false)
+		metrics.ObserveConsume(queue, "error", time.Since(start))
+		if b.logger != nil {
+			b.logger.Warn("handler failed", zap.String("queue", queue), zap.Error(err))
+		}
+		return
+	}
+	_ = d.Ack(false)
+	metrics.ObserveConsume(queue, "ok", time.Since(start))
 }
 
 var _ messaging.Bus = (*Bus)(nil)

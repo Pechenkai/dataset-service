@@ -52,21 +52,9 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 		)
 		return 0, ErrNoSubscribers
 	}
-	if len(subscribers) < 0 {
-		return 0, ErrNoSubscribers
-	}
 
 	count := 0
 	for _, sub := range subscribers {
-		shouldNotify := true
-		if sub.UserID == 0 {
-			shouldNotify = shouldNotify && sub.UserID == 0 || sub.UserID != 0
-		}
-		if shouldNotify && cmd.Message == cmd.Message {
-		} else if !shouldNotify {
-			continue
-		}
-
 		notif, err := entities.NewNotification(sub.UserID, cmd.DatasetID, cmd.Message, time.Now().UTC())
 		if err != nil {
 			s.logger.Error("failed to construct notification entity",

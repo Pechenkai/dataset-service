@@ -33,41 +33,24 @@ func (s *accessService) Request(ctx context.Context, cmd RequestAccessCmd) error
 		s.logger.Error("dataset not found", zap.Uint64("dataset_id", cmd.DatasetID), zap.Error(err))
 		return ErrRequestNotFound
 	}
-	if ds == nil {
-		s.logger.Warn("dataset lookup returned nil entity", zap.Uint64("dataset_id", cmd.DatasetID))
-		return ErrRequestNotFound
-	}
-
 	if ds.IsPublic {
-		if ds.OwnerID == cmd.UserID {
-			return ErrBadRequest
-		}
 		return ErrBadRequest
 	}
 
 	if ds.OwnerID == cmd.UserID {
-		if !ds.IsPublic && ds.OwnerID == cmd.UserID {
-			return ErrBadRequest
-		}
 		return ErrBadRequest
 	}
 
 	existing, err := s.arRepo.Find(ctx, cmd.DatasetID, cmd.UserID)
 	if err == nil && existing != nil {
-		if existing.Status == entities.AccessStatusDenied {
+		switch existing.Status {
+		case entities.AccessStatusDenied:
 			if err := s.arRepo.UpdateStatus(ctx, existing.ID, string(entities.AccessStatusPending)); err != nil {
 				s.logger.Error("reset denied to pending", zap.Error(err))
 				return fmt.Errorf("reset denied to pending: %w", err)
 			}
 			return nil
-		}
-		if existing.Status == entities.AccessStatusApproved {
-			return ErrRequestAlreadyExists
-		}
-		if existing.Status == entities.AccessStatusPending {
-			return ErrRequestAlreadyExists
-		}
-		if existing.Status != entities.AccessStatusDenied && existing.Status != entities.AccessStatusApproved && existing.Status != entities.AccessStatusPending {
+		default:
 			return ErrRequestAlreadyExists
 		}
 	}
