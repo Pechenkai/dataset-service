@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -27,10 +28,12 @@ type TokenService interface {
 	GetToken(ctx context.Context, token string) (*TokenRecord, error)
 }
 
-type tokenClaims struct {
-	userID    uint64
-	expiresAt time.Time
-	jti       string
+type jwtClaims struct {
+	UserID  uint64 `json:"user_id"`
+	Exp     int64  `json:"exp"`
+	Iat     int64  `json:"iat"`
+	JTI     string `json:"jti"`
+	Subject string `json:"sub"`
 }
 
 type revokedEntry struct {
@@ -42,6 +45,8 @@ type hmacTokenService struct {
 	defaultTTL time.Duration
 	revoked    sync.Map
 }
+
+const jwtHeaderEncoded = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" // base64({"alg":"HS256","typ":"JWT"})
 
 func NewHMACTokenService(secret string, defaultTTL time.Duration) TokenService {
 	if defaultTTL <= 0 {
@@ -64,11 +69,21 @@ func (s *hmacTokenService) IssueToken(_ context.Context, userID uint64, ttl time
 	now := time.Now().UTC()
 	expiresAt := now.Add(ttl)
 	jti := uuid.NewString()
-
-	payload := fmt.Sprintf("%d|%d|%s", userID, expiresAt.Unix(), jti)
-	payloadEncoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
-	signature := s.sign(payload)
-	token := payloadEncoded + "." + signature
+	claims := jwtClaims{
+		UserID:  userID,
+		Subject: strconv.FormatUint(userID, 10),
+		Exp:     expiresAt.Unix(),
+		Iat:     now.Unix(),
+		JTI:     jti,
+	}
+	payloadBytes, err := json.Marshal(claims)
+	if err != nil {
+		return TokenRecord{}, fmt.Errorf("marshal claims: %w", err)
+	}
+	payloadEncoded := base64.RawURLEncoding.EncodeToString(payloadBytes)
+	unsigned := jwtHeaderEncoded + "." + payloadEncoded
+	signature := s.sign(unsigned)
+	token := unsigned + "." + signature
 
 	return TokenRecord{
 		ID:        token,
@@ -82,7 +97,7 @@ func (s *hmacTokenService) RevokeToken(_ context.Context, token string) error {
 	if err != nil {
 		return ErrTokenInvalid
 	}
-	s.revoked.Store(claims.jti, revokedEntry{expiresAt: claims.expiresAt})
+	s.revoked.Store(claims.JTI, revokedEntry{expiresAt: time.Unix(claims.Exp, 0)})
 	return nil
 }
 
@@ -91,61 +106,51 @@ func (s *hmacTokenService) GetToken(_ context.Context, token string) (*TokenReco
 	if err != nil {
 		return nil, ErrTokenInvalid
 	}
-	if time.Now().UTC().After(claims.expiresAt) {
-		s.revoked.Delete(claims.jti)
+	if time.Now().UTC().Unix() > claims.Exp {
+		s.revoked.Delete(claims.JTI)
 		return nil, ErrTokenNotFound
 	}
-	if s.isRevoked(claims.jti) {
+	if s.isRevoked(claims.JTI) {
 		return nil, ErrTokenNotFound
 	}
 	return &TokenRecord{
 		ID:        token,
-		UserID:    claims.userID,
-		ExpiresAt: claims.expiresAt,
+		UserID:    claims.UserID,
+		ExpiresAt: time.Unix(claims.Exp, 0),
 	}, nil
 }
 
-func (s *hmacTokenService) parse(token string) (*tokenClaims, error) {
+func (s *hmacTokenService) parse(token string) (*jwtClaims, error) {
 	parts := strings.Split(token, ".")
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		return nil, ErrTokenInvalid
 	}
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	unsigned := parts[0] + "." + parts[1]
+	if !s.verify(unsigned, parts[2]) {
+		return nil, ErrTokenInvalid
+	}
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return nil, ErrTokenInvalid
 	}
-	if !s.verify(string(payloadBytes), parts[1]) {
+	var claims jwtClaims
+	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
 		return nil, ErrTokenInvalid
 	}
-
-	fields := strings.Split(string(payloadBytes), "|")
-	if len(fields) != 3 {
+	if claims.Exp == 0 || claims.JTI == "" {
 		return nil, ErrTokenInvalid
 	}
-	userID, err := strconv.ParseUint(fields[0], 10, 64)
-	if err != nil {
-		return nil, ErrTokenInvalid
-	}
-	expUnix, err := strconv.ParseInt(fields[1], 10, 64)
-	if err != nil {
-		return nil, ErrTokenInvalid
-	}
-	expiresAt := time.Unix(expUnix, 0).UTC()
-	return &tokenClaims{
-		userID:    userID,
-		expiresAt: expiresAt,
-		jti:       fields[2],
-	}, nil
+	return &claims, nil
 }
 
-func (s *hmacTokenService) sign(payload string) string {
+func (s *hmacTokenService) sign(value string) string {
 	mac := hmac.New(sha256.New, s.secret)
-	mac.Write([]byte(payload))
+	mac.Write([]byte(value))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-func (s *hmacTokenService) verify(payload, signature string) bool {
-	expected := s.sign(payload)
+func (s *hmacTokenService) verify(value, signature string) bool {
+	expected := s.sign(value)
 	return hmac.Equal([]byte(signature), []byte(expected))
 }
 

@@ -15,6 +15,7 @@ type AccessService interface {
 	Approve(ctx context.Context, requestID uint64, ownerID uint64) error
 	Deny(ctx context.Context, requestID uint64, ownerID uint64) error
 	ListPending(ctx context.Context, ownerID uint64) ([]*entities.AccessRequest, error)
+	ListByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.AccessRequest, error)
 	FindByRequestID(ctx context.Context, requestID uint64) (*entities.AccessRequest, error)
 	Find(ctx context.Context, datasetID, userID uint64) (*entities.AccessRequest, error)
 }

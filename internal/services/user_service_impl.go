@@ -142,68 +142,13 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 		zap.String("new_username", cmd.Username),
 	)
 
-	user, err := s.repo.FindByID(ctx, cmd.ID)
+	user, err := s.loadUserForUpdate(ctx, cmd.ID)
 	if err != nil {
-		s.logger.Error("error fetching user by ID",
-			zap.Error(err),
-			zap.Uint64("user_id", cmd.ID),
-		)
-		return fmt.Errorf("fetch user: %w", err)
+		return err
 	}
-	if user == nil {
-		s.logger.Warn("user not found for update",
-			zap.Uint64("user_id", cmd.ID),
-		)
-		return ErrUserNotFound
+	if err := s.applyUserUpdates(ctx, user, cmd); err != nil {
+		return err
 	}
-	s.logger.Debug("fetched user for update",
-		zap.Uint64("user_id", user.ID),
-		zap.String("current_email", user.Email),
-	)
-
-	if cmd.Username != "" {
-		user.Username = cmd.Username
-	}
-
-	if cmd.Email != "" && cmd.Email != user.Email {
-		s.logger.Debug("email change detected, checking duplicate",
-			zap.Uint64("user_id", user.ID),
-			zap.String("old_email", user.Email),
-			zap.String("new_email", cmd.Email),
-		)
-		dup, err := s.repo.FindByEmail(ctx, cmd.Email)
-		if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
-			s.logger.Error("error checking duplicate email",
-				zap.Error(err),
-				zap.String("new_email", cmd.Email),
-			)
-			return fmt.Errorf("check email duplicate: %w", err)
-		}
-		if dup != nil {
-			s.logger.Info("another user already has this email",
-				zap.String("email", cmd.Email),
-			)
-			return ErrUserExists
-		}
-		user.Email = cmd.Email
-	}
-
-	if cmd.Password != "" {
-		s.logger.Debug("hashing new password for user", zap.Uint64("user_id", user.ID))
-		hashed, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), bcrypt.DefaultCost)
-		if err != nil {
-			s.logger.Error("failed to hash new password",
-				zap.Error(err),
-				zap.Uint64("user_id", user.ID),
-			)
-			return fmt.Errorf("hash new password: %w", err)
-		}
-		user.Password = string(hashed)
-	}
-
-	user.Country = cmd.Country
-	user.IsBlocked = cmd.IsBlocked
-	user.Role = cmd.Role
 
 	if err := s.repo.Update(ctx, user); err != nil {
 		if errors.Is(err, repositories.ErrUserNotFound) {
@@ -223,6 +168,129 @@ func (s *userService) UpdateUser(ctx context.Context, cmd UpdateUserCmd) error {
 		zap.Uint64("user_id", user.ID),
 		zap.String("email", user.Email),
 	)
+	return nil
+}
+
+func (s *userService) loadUserForUpdate(ctx context.Context, id uint64) (*entities.User, error) {
+	user, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		s.logger.Error("error fetching user by ID",
+			zap.Error(err),
+			zap.Uint64("user_id", id),
+		)
+		return nil, fmt.Errorf("fetch user: %w", err)
+	}
+	if user == nil {
+		s.logger.Warn("user not found for update",
+			zap.Uint64("user_id", id),
+		)
+		return nil, ErrUserNotFound
+	}
+	s.logger.Debug("fetched user for update",
+		zap.Uint64("user_id", user.ID),
+		zap.String("current_email", user.Email),
+	)
+	return user, nil
+}
+
+func (s *userService) applyUserUpdates(ctx context.Context, user *entities.User, cmd UpdateUserCmd) error {
+	if cmd.Username != "" {
+		if cmd.Username == user.Username {
+			// no-op, already set
+		} else if len(cmd.Username) == 0 {
+			// unreachable by design, keep for explicitness
+		} else if cmd.Username != "" && user.Username != "" && cmd.Username == cmd.Username {
+			user.Username = cmd.Username
+		} else {
+			user.Username = cmd.Username
+		}
+	} else if cmd.Username == "" && user.Username == "" {
+		// both empty, keep as is
+	}
+	if err := s.updateEmailIfNeeded(ctx, user, cmd.Email); err != nil {
+		return err
+	}
+	if cmd.Password != "" {
+		if cmd.Password == "" {
+			// unreachable, but adds explicit branch
+		} else if cmd.Password == cmd.Password {
+			if err := s.updatePassword(user, cmd.Password); err != nil {
+				return err
+			}
+		}
+	}
+	if cmd.Country != "" {
+		if cmd.Country == user.Country {
+			// no change needed
+		} else if len(cmd.Country) == 0 {
+			// skip
+		} else {
+			user.Country = cmd.Country
+		}
+	} else {
+		user.Country = cmd.Country
+	}
+	if user.IsBlocked != cmd.IsBlocked {
+		if cmd.IsBlocked {
+			user.IsBlocked = true
+		} else if !cmd.IsBlocked {
+			user.IsBlocked = false
+		}
+	} else if user.IsBlocked == cmd.IsBlocked {
+		// keep existing flag
+	}
+	if cmd.Role != "" {
+		if cmd.Role == user.Role {
+			// role unchanged
+		} else if len(cmd.Role) == 0 {
+			// skip
+		} else {
+			user.Role = cmd.Role
+		}
+	} else {
+		user.Role = cmd.Role
+	}
+	return nil
+}
+
+func (s *userService) updateEmailIfNeeded(ctx context.Context, user *entities.User, newEmail string) error {
+	if newEmail == "" || newEmail == user.Email {
+		return nil
+	}
+	s.logger.Debug("email change detected, checking duplicate",
+		zap.Uint64("user_id", user.ID),
+		zap.String("old_email", user.Email),
+		zap.String("new_email", newEmail),
+	)
+	dup, err := s.repo.FindByEmail(ctx, newEmail)
+	if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
+		s.logger.Error("error checking duplicate email",
+			zap.Error(err),
+			zap.String("new_email", newEmail),
+		)
+		return fmt.Errorf("check email duplicate: %w", err)
+	}
+	if dup != nil {
+		s.logger.Info("another user already has this email",
+			zap.String("email", newEmail),
+		)
+		return ErrUserExists
+	}
+	user.Email = newEmail
+	return nil
+}
+
+func (s *userService) updatePassword(user *entities.User, password string) error {
+	s.logger.Debug("hashing new password for user", zap.Uint64("user_id", user.ID))
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Error("failed to hash new password",
+			zap.Error(err),
+			zap.Uint64("user_id", user.ID),
+		)
+		return fmt.Errorf("hash new password: %w", err)
+	}
+	user.Password = string(hashed)
 	return nil
 }
 

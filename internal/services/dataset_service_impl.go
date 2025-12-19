@@ -42,28 +42,10 @@ func (s *datasetService) CreateDataset(
 	r io.Reader,
 	size int64,
 ) (uint64, error) {
-	ds, err := entities.NewDataset(
-		cmd.Name,
-		cmd.Description,
-		cmd.ActorID,
-		cmd.CategoryID,
-		cmd.IsPublic,
-		time.Now(),
-	)
+	ds, err := s.initDatasetEntity(cmd)
 	if err != nil {
-		s.logger.Error("failed to validate dataset payload",
-			zap.Error(err),
-			zap.String("name", cmd.Name),
-			zap.Uint64("category_id", cmd.CategoryID),
-			zap.Uint64("actor_id", cmd.ActorID),
-		)
-		return 0, fmt.Errorf("invalid dataset: %w", err)
+		return 0, err
 	}
-	s.logger.Debug("dataset entity initialized",
-		zap.String("name", ds.Name),
-		zap.Uint64("category_id", ds.CategoryID),
-		zap.Uint64("actor_id", ds.OwnerID),
-	)
 
 	if err := s.dsRepo.Create(ctx, ds); err != nil {
 		s.logger.Error("failed to insert dataset into repository",
@@ -80,83 +62,31 @@ func (s *datasetService) CreateDataset(
 	)
 
 	objectKey := datasetObjectKey(ds.ID, initialDatasetVersion, cmd.FileName)
-	url, err := s.storage.Upload(ctx, objectKey, r, size)
+	url, err := s.uploadFile(ctx, ds.ID, objectKey, r, size)
 	if err != nil {
-		s.logger.Error("failed to upload dataset file to storage",
-			zap.Error(err),
-			zap.Uint64("dataset_id", ds.ID),
-			zap.String("storage_key", objectKey),
-		)
-		if delErr := s.dsRepo.Delete(ctx, ds.ID); delErr != nil {
-			s.logger.Warn("failed to delete dataset after upload error",
-				zap.Error(delErr),
-				zap.Uint64("dataset_id", ds.ID),
-			)
-		}
-		return 0, fmt.Errorf("upload file: %w", err)
+		s.cleanupDataset(ctx, ds.ID, objectKey, 0)
+		return 0, err
 	}
-	s.logger.Info("dataset file uploaded",
-		zap.Uint64("dataset_id", ds.ID),
-		zap.String("storage_key", objectKey),
-		zap.String("url", url),
-	)
 
-	ver, err := entities.NewDatasetVersion(initialDatasetVersion, url, "", ds.ID, time.Now())
+	ver, err := s.buildDatasetVersion(initialDatasetVersion, url, "", ds.ID)
 	if err != nil {
-		s.logger.Error("failed to construct initial dataset version entity",
-			zap.Error(err),
-			zap.Uint64("dataset_id", ds.ID),
-		)
-		_ = s.storage.Delete(ctx, objectKey)
-		_ = s.dsRepo.Delete(ctx, ds.ID)
-		return 0, fmt.Errorf("invalid version data: %w", err)
+		s.cleanupDataset(ctx, ds.ID, objectKey, 0)
+		return 0, err
 	}
-	s.logger.Debug("initial dataset version entity constructed",
-		zap.Uint64("dataset_id", ds.ID),
-		zap.String("version_number", ver.Number),
-	)
-
 	if err := s.verRepo.Create(ctx, ver); err != nil {
 		s.logger.Error("failed to insert dataset version into repository",
 			zap.Error(err),
 			zap.Uint64("dataset_id", ds.ID),
 			zap.String("version_number", ver.Number),
 		)
-		_ = s.storage.Delete(ctx, objectKey)
-		_ = s.dsRepo.Delete(ctx, ds.ID)
+		s.cleanupDataset(ctx, ds.ID, objectKey, ver.ID)
 		return 0, fmt.Errorf("create version: %w", err)
 	}
-	s.logger.Info("dataset version created",
-		zap.Uint64("dataset_id", ds.ID),
-		zap.Uint64("version_id", ver.ID),
-		zap.String("version_number", ver.Number),
-	)
 
-	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
-		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
-		if err != nil {
-			s.logger.Error("failed to construct metadata entity",
-				zap.Error(err),
-				zap.Uint64("version_id", ver.ID),
-			)
-			_ = s.storage.Delete(ctx, objectKey)
-			_ = s.verRepo.Delete(ctx, ver.ID)
-			_ = s.dsRepo.Delete(ctx, ds.ID)
-			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
-		}
-		s.logger.Debug("metadata entity constructed", zap.Uint64("version_id", ver.ID))
-
-		if err := s.mdRepo.Create(ctx, md); err != nil {
-			s.logger.Error("failed to insert metadata into repository",
-				zap.Error(err),
-				zap.Uint64("version_id", ver.ID),
-			)
-			_ = s.storage.Delete(ctx, objectKey)
-			_ = s.verRepo.Delete(ctx, ver.ID)
-			_ = s.dsRepo.Delete(ctx, ds.ID)
-			return 0, fmt.Errorf("create metadata: %w", err)
-		}
-		s.logger.Info("metadata created", zap.Uint64("metadata_id", md.ID), zap.Uint64("version_id", ver.ID))
+	if err := s.persistMetadata(ctx, cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID, func() {
+		s.cleanupDataset(ctx, ds.ID, objectKey, ver.ID)
+	}); err != nil {
+		return 0, err
 	}
 
 	s.logger.Info("CreateDataset completed successfully", zap.Uint64("dataset_id", ds.ID))
@@ -171,14 +101,7 @@ func (s *datasetService) AddDatasetVersion(
 ) (uint64, error) {
 	ds, err := s.dsRepo.FindByID(ctx, cmd.DatasetID)
 	if err != nil {
-		s.logger.Error("error fetching dataset before adding version",
-			zap.Error(err),
-			zap.Uint64("dataset_id", cmd.DatasetID),
-		)
-		if err == repositories.ErrDatasetNotFound {
-			return 0, ErrDatasetNotFound
-		}
-		return 0, fmt.Errorf("fetch dataset: %w", err)
+		return 0, s.wrapDatasetFetchError(err, cmd.DatasetID)
 	}
 	if ds == nil {
 		s.logger.Warn("dataset not found when trying to add version", zap.Uint64("dataset_id", cmd.DatasetID))
@@ -198,31 +121,16 @@ func (s *datasetService) AddDatasetVersion(
 	s.logger.Debug("calculated next version number", zap.String("next_version", next), zap.Uint64("dataset_id", ds.ID))
 
 	objectKey := datasetObjectKey(ds.ID, next, cmd.FileName)
-	url, err := s.storage.Upload(ctx, objectKey, r, size)
+	url, err := s.uploadFile(ctx, ds.ID, objectKey, r, size)
 	if err != nil {
-		s.logger.Error("failed to upload new version file",
-			zap.Error(err),
-			zap.Uint64("dataset_id", ds.ID),
-			zap.String("storage_key", objectKey),
-		)
-		return 0, fmt.Errorf("upload file: %w", err)
+		return 0, err
 	}
-	s.logger.Info("new version file uploaded", zap.Uint64("dataset_id", ds.ID), zap.String("storage_key", objectKey), zap.String("url", url))
 
-	ver, err := entities.NewDatasetVersion(next, url, cmd.ChangeLog, cmd.DatasetID, time.Now())
+	ver, err := s.buildDatasetVersion(next, url, cmd.ChangeLog, cmd.DatasetID)
 	if err != nil {
-		s.logger.Error("failed to construct version entity",
-			zap.Error(err),
-			zap.Uint64("dataset_id", ds.ID),
-			zap.String("version_number", next),
-		)
-		_ = s.storage.Delete(ctx, objectKey)
-		return 0, fmt.Errorf("invalid version data: %w", err)
+		s.cleanupDataset(ctx, 0, objectKey, 0)
+		return 0, err
 	}
-	s.logger.Debug("dataset version entity constructed",
-		zap.Uint64("dataset_id", ds.ID),
-		zap.String("version_number", ver.Number),
-	)
 
 	if err := s.verRepo.Create(ctx, ver); err != nil {
 		s.logger.Error("failed to insert new version into repository",
@@ -230,41 +138,17 @@ func (s *datasetService) AddDatasetVersion(
 			zap.Uint64("dataset_id", ds.ID),
 			zap.String("version_number", ver.Number),
 		)
-		_ = s.storage.Delete(ctx, objectKey)
+		s.cleanupDataset(ctx, 0, objectKey, ver.ID)
 		if err == repositories.ErrVersionNotFound {
 			return 0, ErrVersionNotFound
 		}
 		return 0, fmt.Errorf("create version: %w", err)
 	}
-	s.logger.Info("new dataset version created",
-		zap.Uint64("dataset_id", ds.ID),
-		zap.Uint64("version_id", ver.ID),
-		zap.String("version_number", ver.Number),
-	)
 
-	if cmd.MetaFormat != "" || cmd.MetaSize != 0 {
-		md, err := entities.NewMetadata(cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID)
-		if err != nil {
-			s.logger.Error("failed to construct metadata entity for new version",
-				zap.Error(err),
-				zap.Uint64("version_id", ver.ID),
-			)
-			_ = s.storage.Delete(ctx, objectKey)
-			_ = s.verRepo.Delete(ctx, ver.ID)
-			return 0, fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
-		}
-		s.logger.Debug("metadata entity for new version constructed", zap.Uint64("version_id", ver.ID))
-
-		if err := s.mdRepo.Create(ctx, md); err != nil {
-			s.logger.Error("failed to insert metadata for new version",
-				zap.Error(err),
-				zap.Uint64("version_id", ver.ID),
-			)
-			_ = s.storage.Delete(ctx, objectKey)
-			_ = s.verRepo.Delete(ctx, ver.ID)
-			return 0, fmt.Errorf("create metadata: %w", err)
-		}
-		s.logger.Info("metadata for new version created", zap.Uint64("metadata_id", md.ID), zap.Uint64("version_id", ver.ID))
+	if err := s.persistMetadata(ctx, cmd.MetaFormat, cmd.MetaTags, cmd.MetaSize, ver.ID, func() {
+		s.cleanupDataset(ctx, 0, objectKey, ver.ID)
+	}); err != nil {
+		return 0, err
 	}
 
 	s.logger.Info("AddDatasetVersion completed successfully",
@@ -340,6 +224,121 @@ func (s *datasetService) GetVersion(ctx context.Context, versionID uint64) (*ent
 	return v, nil
 }
 
+func (s *datasetService) initDatasetEntity(cmd CreateDatasetCmd) (*entities.Dataset, error) {
+	ds, err := entities.NewDataset(
+		cmd.Name,
+		cmd.Description,
+		cmd.ActorID,
+		cmd.CategoryID,
+		cmd.IsPublic,
+		time.Now(),
+	)
+	if err != nil {
+		s.logger.Error("failed to validate dataset payload",
+			zap.Error(err),
+			zap.String("name", cmd.Name),
+			zap.Uint64("category_id", cmd.CategoryID),
+			zap.Uint64("actor_id", cmd.ActorID),
+		)
+		return nil, fmt.Errorf("invalid dataset: %w", err)
+	}
+	s.logger.Debug("dataset entity initialized",
+		zap.String("name", ds.Name),
+		zap.Uint64("category_id", ds.CategoryID),
+		zap.Uint64("actor_id", ds.OwnerID),
+	)
+	return ds, nil
+}
+
+func (s *datasetService) uploadFile(ctx context.Context, datasetID uint64, objectKey string, r io.Reader, size int64) (string, error) {
+	url, err := s.storage.Upload(ctx, objectKey, r, size)
+	if err != nil {
+		s.logger.Error("failed to upload dataset file to storage",
+			zap.Error(err),
+			zap.Uint64("dataset_id", datasetID),
+			zap.String("storage_key", objectKey),
+		)
+		return "", fmt.Errorf("upload file: %w", err)
+	}
+	s.logger.Info("dataset file uploaded",
+		zap.Uint64("dataset_id", datasetID),
+		zap.String("storage_key", objectKey),
+		zap.String("url", url),
+	)
+	return url, nil
+}
+
+func (s *datasetService) buildDatasetVersion(number, url, changeLog string, datasetID uint64) (*entities.DatasetVersion, error) {
+	ver, err := entities.NewDatasetVersion(number, url, changeLog, datasetID, time.Now())
+	if err != nil {
+		s.logger.Error("failed to construct dataset version entity",
+			zap.Error(err),
+			zap.Uint64("dataset_id", datasetID),
+			zap.String("version_number", number),
+		)
+		return nil, fmt.Errorf("invalid version data: %w", err)
+	}
+	s.logger.Debug("dataset version entity constructed",
+		zap.Uint64("dataset_id", datasetID),
+		zap.String("version_number", ver.Number),
+	)
+	return ver, nil
+}
+
+func (s *datasetService) persistMetadata(ctx context.Context, format string, tags string, size uint64, versionID uint64, onFail func()) error {
+	if format == "" && size == 0 {
+		return nil
+	}
+	md, err := entities.NewMetadata(format, tags, size, versionID)
+	if err != nil {
+		s.logger.Error("failed to construct metadata entity",
+			zap.Error(err),
+			zap.Uint64("version_id", versionID),
+		)
+		if onFail != nil {
+			onFail()
+		}
+		return fmt.Errorf("%w: %s", ErrInvalidMetadata, err)
+	}
+	s.logger.Debug("metadata entity constructed", zap.Uint64("version_id", versionID))
+
+	if err := s.mdRepo.Create(ctx, md); err != nil {
+		s.logger.Error("failed to insert metadata into repository",
+			zap.Error(err),
+			zap.Uint64("version_id", versionID),
+		)
+		if onFail != nil {
+			onFail()
+		}
+		return fmt.Errorf("create metadata: %w", err)
+	}
+	s.logger.Info("metadata created", zap.Uint64("metadata_id", md.ID), zap.Uint64("version_id", versionID))
+	return nil
+}
+
+func (s *datasetService) cleanupDataset(ctx context.Context, datasetID uint64, objectKey string, versionID uint64) {
+	if objectKey != "" {
+		_ = s.storage.Delete(ctx, objectKey)
+	}
+	if versionID != 0 {
+		_ = s.verRepo.Delete(ctx, versionID)
+	}
+	if datasetID != 0 {
+		_ = s.dsRepo.Delete(ctx, datasetID)
+	}
+}
+
+func (s *datasetService) wrapDatasetFetchError(err error, datasetID uint64) error {
+	s.logger.Error("error fetching dataset before adding version",
+		zap.Error(err),
+		zap.Uint64("dataset_id", datasetID),
+	)
+	if err == repositories.ErrDatasetNotFound {
+		return ErrDatasetNotFound
+	}
+	return fmt.Errorf("fetch dataset: %w", err)
+}
+
 func (s *datasetService) ListVersions(ctx context.Context, datasetID uint64) ([]*entities.DatasetVersion, error) {
 	s.logger.Debug("ListVersions called", zap.Uint64("dataset_id", datasetID))
 	vers, err := s.verRepo.FindByDatasetID(ctx, datasetID)
@@ -383,9 +382,7 @@ func parseVersion(number string) (int, int, bool) {
 	if number == "" {
 		return 0, 0, false
 	}
-	if strings.HasPrefix(number, "v") {
-		number = number[1:]
-	}
+	number = strings.TrimPrefix(number, "v")
 	parts := strings.Split(number, ".")
 	if len(parts) < 2 {
 		return 0, 0, false
@@ -441,6 +438,10 @@ func (s *datasetService) GetDownloadURL(ctx context.Context, datasetID uint64) (
 	}
 
 	presignedURL, err := s.storage.GetURL(ctx, vers[0].Filepath)
+
+	if err != nil {
+		return "", fmt.Errorf("presigned URL: %w", err)
+	}
 
 	return presignedURL, nil
 }

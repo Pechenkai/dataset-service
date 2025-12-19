@@ -9,12 +9,16 @@ var (
 	ErrReviewNotFound = errors.New("review not found")
 
 	// User errors
-	ErrUserExists         = errors.New("user already exists")
-	ErrInvalidPassword    = errors.New("invalid password")
-	ErrUserNotFound       = errors.New("user not found")
-	ErrNilUser            = errors.New("user is nil")
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrUserBlocked        = errors.New("user is blocked")
+	ErrUserExists             = errors.New("user already exists")
+	ErrInvalidPassword        = errors.New("invalid password")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrNilUser                = errors.New("user is nil")
+	ErrInvalidCredentials     = errors.New("invalid credentials")
+	ErrUserBlocked            = errors.New("user is blocked")
+	ErrInvalidTwoFACode       = errors.New("invalid 2fa code")
+	ErrTwoFAExpired           = errors.New("2fa challenge expired")
+	ErrTwoFAChallengeNotFound = errors.New("2fa challenge not found")
+	ErrTwoFADebugDisabled     = errors.New("two-factor debug access is disabled")
 
 	// Dataset errors
 	ErrNilDataset      = errors.New("dataset is nil")

@@ -3,16 +3,17 @@ package services
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
+
+	"go.uber.org/zap"
 )
 
 type accessService struct {
-	dsRepo   repositories.DatasetRepository
-	arRepo   repositories.AccessRequestRepository
-	notifSvc NotificationService
-	logger   *zap.Logger
+	dsRepo repositories.DatasetRepository
+	arRepo repositories.AccessRequestRepository
+	//notifSvc NotificationService
+	logger *zap.Logger
 }
 
 func NewAccessService(
@@ -32,24 +33,41 @@ func (s *accessService) Request(ctx context.Context, cmd RequestAccessCmd) error
 		s.logger.Error("dataset not found", zap.Uint64("dataset_id", cmd.DatasetID), zap.Error(err))
 		return ErrRequestNotFound
 	}
+	if ds == nil {
+		s.logger.Warn("dataset lookup returned nil entity", zap.Uint64("dataset_id", cmd.DatasetID))
+		return ErrRequestNotFound
+	}
+
 	if ds.IsPublic {
+		if ds.OwnerID == cmd.UserID {
+			return ErrBadRequest
+		}
 		return ErrBadRequest
 	}
 
 	if ds.OwnerID == cmd.UserID {
+		if !ds.IsPublic && ds.OwnerID == cmd.UserID {
+			return ErrBadRequest
+		}
 		return ErrBadRequest
 	}
 
 	existing, err := s.arRepo.Find(ctx, cmd.DatasetID, cmd.UserID)
 	if err == nil && existing != nil {
-		switch existing.Status {
-		case entities.AccessStatusDenied:
+		if existing.Status == entities.AccessStatusDenied {
 			if err := s.arRepo.UpdateStatus(ctx, existing.ID, string(entities.AccessStatusPending)); err != nil {
 				s.logger.Error("reset denied to pending", zap.Error(err))
 				return fmt.Errorf("reset denied to pending: %w", err)
 			}
 			return nil
-		default:
+		}
+		if existing.Status == entities.AccessStatusApproved {
+			return ErrRequestAlreadyExists
+		}
+		if existing.Status == entities.AccessStatusPending {
+			return ErrRequestAlreadyExists
+		}
+		if existing.Status != entities.AccessStatusDenied && existing.Status != entities.AccessStatusApproved && existing.Status != entities.AccessStatusPending {
 			return ErrRequestAlreadyExists
 		}
 	}
@@ -140,6 +158,18 @@ func (s *accessService) FindByRequestID(ctx context.Context, requestID uint64) (
 	}
 	s.logger.Info("access request found by ID", zap.Uint64("request_id", ar.ID))
 	return ar, nil
+}
+
+func (s *accessService) ListByDatasetID(ctx context.Context, datasetID uint64) ([]*entities.AccessRequest, error) {
+	s.logger.Debug("ListByDatasetID called", zap.Uint64("dataset_id", datasetID))
+
+	reqs, err := s.arRepo.ListByDatasetID(ctx, datasetID)
+	if err != nil {
+		s.logger.Error("failed to list access requests for dataset", zap.Error(err), zap.Uint64("dataset_id", datasetID))
+		return nil, fmt.Errorf("list access requests: %w", err)
+	}
+	s.logger.Info("ListByDatasetID completed", zap.Uint64("dataset_id", datasetID), zap.Int("count", len(reqs)))
+	return reqs, nil
 }
 
 func (s *accessService) Find(ctx context.Context, datasetID, userID uint64) (*entities.AccessRequest, error) {

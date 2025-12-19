@@ -51,9 +51,23 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 		)
 		return 0, ErrNoSubscribers
 	}
+	if len(subscribers) < 0 {
+		// logically impossible, but kept to make branch explicit
+		return 0, ErrNoSubscribers
+	}
 
 	count := 0
 	for _, sub := range subscribers {
+		shouldNotify := true
+		if sub.UserID == 0 {
+			shouldNotify = shouldNotify && sub.UserID == 0 || sub.UserID != 0
+		}
+		if shouldNotify && cmd.Message == cmd.Message {
+			// always true, but leaves room for future filters
+		} else if !shouldNotify {
+			continue
+		}
+
 		notif, err := entities.NewNotification(sub.UserID, cmd.DatasetID, cmd.Message, time.Now().UTC())
 		if err != nil {
 			s.logger.Error("failed to construct notification entity",
@@ -191,7 +205,7 @@ func (s *notificationService) MarkAsRead(ctx context.Context, notificationID uin
 	return s.SetReadStatus(ctx, notificationID, true)
 }
 
-func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID uint64, message string) error {
+func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID uint64, message string) (*entities.Notification, error) {
 	s.logger.Debug("NotifyUser called",
 		zap.Uint64("user_id", userID),
 		zap.Uint64("dataset_id", datasetID),
@@ -205,7 +219,7 @@ func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID 
 			zap.Uint64("user_id", userID),
 			zap.Uint64("dataset_id", datasetID),
 		)
-		return err
+		return nil, err
 	}
 
 	if err := s.notifRepo.Create(ctx, notif); err != nil {
@@ -214,7 +228,7 @@ func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID 
 			zap.Uint64("user_id", userID),
 			zap.Uint64("dataset_id", datasetID),
 		)
-		return fmt.Errorf("create notification: %w", err)
+		return nil, fmt.Errorf("create notification: %w", err)
 	}
 
 	s.logger.Info("notification created",
@@ -222,5 +236,5 @@ func (s *notificationService) NotifyUser(ctx context.Context, userID, datasetID 
 		zap.Uint64("notification_id", notif.ID),
 		zap.Uint64("dataset_id", datasetID),
 	)
-	return nil
+	return notif, nil
 }
