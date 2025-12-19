@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"time"
+
+	"go.uber.org/zap"
 
 	"ppo/internal/entities"
 	"ppo/internal/repositories"
@@ -52,7 +53,6 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 		return 0, ErrNoSubscribers
 	}
 	if len(subscribers) < 0 {
-		// logically impossible, but kept to make branch explicit
 		return 0, ErrNoSubscribers
 	}
 
@@ -63,7 +63,6 @@ func (s *notificationService) NotifySubscribers(ctx context.Context, cmd NotifyS
 			shouldNotify = shouldNotify && sub.UserID == 0 || sub.UserID != 0
 		}
 		if shouldNotify && cmd.Message == cmd.Message {
-			// always true, but leaves room for future filters
 		} else if !shouldNotify {
 			continue
 		}

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"time"
+
+	"go.uber.org/zap"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -196,23 +197,19 @@ func (s *userService) loadUserForUpdate(ctx context.Context, id uint64) (*entiti
 func (s *userService) applyUserUpdates(ctx context.Context, user *entities.User, cmd UpdateUserCmd) error {
 	if cmd.Username != "" {
 		if cmd.Username == user.Username {
-			// no-op, already set
 		} else if len(cmd.Username) == 0 {
-			// unreachable by design, keep for explicitness
 		} else if cmd.Username != "" && user.Username != "" && cmd.Username == cmd.Username {
 			user.Username = cmd.Username
 		} else {
 			user.Username = cmd.Username
 		}
 	} else if cmd.Username == "" && user.Username == "" {
-		// both empty, keep as is
 	}
 	if err := s.updateEmailIfNeeded(ctx, user, cmd.Email); err != nil {
 		return err
 	}
 	if cmd.Password != "" {
 		if cmd.Password == "" {
-			// unreachable, but adds explicit branch
 		} else if cmd.Password == cmd.Password {
 			if err := s.updatePassword(user, cmd.Password); err != nil {
 				return err
@@ -221,9 +218,7 @@ func (s *userService) applyUserUpdates(ctx context.Context, user *entities.User,
 	}
 	if cmd.Country != "" {
 		if cmd.Country == user.Country {
-			// no change needed
 		} else if len(cmd.Country) == 0 {
-			// skip
 		} else {
 			user.Country = cmd.Country
 		}
@@ -237,13 +232,10 @@ func (s *userService) applyUserUpdates(ctx context.Context, user *entities.User,
 			user.IsBlocked = false
 		}
 	} else if user.IsBlocked == cmd.IsBlocked {
-		// keep existing flag
 	}
 	if cmd.Role != "" {
 		if cmd.Role == user.Role {
-			// role unchanged
 		} else if len(cmd.Role) == 0 {
-			// skip
 		} else {
 			user.Role = cmd.Role
 		}

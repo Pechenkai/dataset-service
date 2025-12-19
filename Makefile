@@ -14,6 +14,8 @@ GO     := go
 GOTOOL := go tool
 MKDIR  := mkdir -p
 RM     := rm -rf
+BENCH_SERVICES ?= db-primary db-replica1 db-replica2 minio minio-init api api-read1 api-read2 node-exporter prometheus
+HALSTEAD_MAX_VOLUME ?= 4000
 
 ALLURE_RESULTS_DIR := allure-results
 ALLURE_REPORT_DIR  := allure-report
@@ -21,8 +23,9 @@ ALLURE_HISTORY_DIR := allure-history
 ALLURE_BRIDGE_CMD := go run ./cmd/allurebridge
 
 TEST_PHASE ?= unit
+E2E_REQUIRE_INFRA ?= 1
 
-.PHONY: all clean dirs \
+.PHONY: all clean dirs lint install-hooks \
         build-dataaccess-archive build-services-archive \
         build-cli build-api build-gui info \
         test test-unit test-integration test-e2e test-allure
@@ -53,7 +56,27 @@ test-integration:
 .PHONY: test-e2e
 test-e2e:
 	@echo "=> Running e2e tests"
-	go test -tags=e2e ./internal/tests/e2e
+	go test -tags=e2e -count=1 ./internal/tests/e2e
+
+.PHONY: test-e2e-2fa
+test-e2e-2fa:
+	@echo "=> Running 2FA BDD e2e scenario"
+	E2E_REQUIRE_INFRA=$(E2E_REQUIRE_INFRA) go test -tags=e2e -count=1 -run TwoFactorFeatures ./internal/tests/e2e
+
+.PHONY: lint
+lint:
+	golangci-lint run ./... --timeout=5m
+	go run ./cmd/halsteadcheck -max-volume=4000
+
+.PHONY: install-hooks
+install-hooks:
+	@echo "=> Installing git hooks"
+	@ln -sf $(CURDIR)/scripts/pre-commit.sh .git/hooks/pre-commit
+
+.PHONY: top_cycle
+top_cycle:
+	GOCACHE=$(mktemp -d) go list -f '{{range .GoFiles}}{{$.Dir}}/{{.}} {{end}}' ./internal/... | xargs gocyclo -top 10
+
 
 .PHONY: test-allure
 test-allure: test-dataset-allure
@@ -148,3 +171,85 @@ e2e-wireshark:
 	@echo "=> Running HTTP scenario with PCAP capture for Wireshark"
 	LOG_FILE=logs/e2e_capture_example.txt PCAP_FILE=logs/e2e_capture.pcap ./scripts/e2e_capture.sh
 	@echo "=> Open logs/e2e_capture.pcap in Wireshark to inspect the traffic"
+
+.PHONY: bench-upload-ramp-find
+bench-upload-ramp-find:
+	@echo "=> Run k6 upload find breakpoint (ramping-vus, upload.js)"
+	docker compose up -d $(BENCH_SERVICES)
+	env K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+	    K6_PROMETHEUS_RW_TAGS_AS_LABELS=true \
+	    K6_PROMETHEUS_RW_TREND_STATS="min,avg,med,p(75),p(90),p(95),p(99),max" \
+	    UPLOAD_PHASES=find \
+	    FIND_START_VUS=$${FIND_START_VUS:-200} FIND_END_VUS=$${FIND_END_VUS:-350} FIND_STEP_VUS=$${FIND_STEP_VUS:-20} \
+	    FIND_STEP_DURATION=$${FIND_STEP_DURATION:-45s} FIND_HOLD_DURATION=$${FIND_HOLD_DURATION:-90s} \
+	    BASE_URL=$${BASE_URL:-http://localhost:8080} \
+	    ./k6 run $${K6_RUN_ARGS:-} -o experimental-prometheus-rw scripts/k6/upload.js
+
+.PHONY: bench-upload-ramp-steady
+bench-upload-ramp-steady:
+	@echo "=> Run k6 upload steady (ramping-vus, upload.js)"
+	docker compose up -d $(BENCH_SERVICES)
+	env K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+	    K6_PROMETHEUS_RW_TAGS_AS_LABELS=true \
+	    K6_PROMETHEUS_RW_TREND_STATS="min,avg,med,p(75),p(90),p(95),p(99),max" \
+	    UPLOAD_PHASES=steady \
+	    STEADY_VUS=$${STEADY_VUS:-220} STEADY_RAMP_DURATION=$${STEADY_RAMP_DURATION:-60s} STEADY_HOLD_DURATION=$${STEADY_HOLD_DURATION:-10m} \
+	    BASE_URL=$${BASE_URL:-http://localhost:8080} \
+	    ./k6 run $${K6_RUN_ARGS:-} -o experimental-prometheus-rw scripts/k6/upload.js
+
+.PHONY: bench-upload-ramp-overload
+bench-upload-ramp-overload:
+	@echo "=> Run k6 upload overload/recovery (ramping-vus, upload.js)"
+	docker compose up -d $(BENCH_SERVICES)
+	env K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+	    K6_PROMETHEUS_RW_TAGS_AS_LABELS=true \
+	    K6_PROMETHEUS_RW_TREND_STATS="min,avg,med,p(75),p(90),p(95),p(99),max" \
+	    UPLOAD_PHASES=overload \
+		STEADY_VUS=$${STEADY_VUS:-200} STEADY_RAMP_DURATION=$${OVERLOAD_RAMP_DURATION:-30s} STEADY_HOLD_DURATION=$${OVERLOAD_HOLD_DURATION:-60s} \
+	    OVERLOAD_VUS=$${OVERLOAD_VUS:-500} OVERLOAD_RAMP_DURATION=$${OVERLOAD_RAMP_DURATION:-15s} OVERLOAD_HOLD_DURATION=$${OVERLOAD_HOLD_DURATION:-15s} \
+	    RECOVERY_VUS=$${RECOVERY_VUS:-200} RECOVERY_RAMP_DURATION=$${RECOVERY_RAMP_DURATION:-0s} RECOVERY_HOLD_DURATION=$${RECOVERY_HOLD_DURATION:-30m} \
+	    BASE_URL=$${BASE_URL:-http://localhost:8080} \
+	    ./k6 run $${K6_RUN_ARGS:-} -o experimental-prometheus-rw scripts/k6/upload.js
+
+.PHONY: bench-login-ramp-find
+bench-login-ramp-find:
+	@echo "=> Run k6 login find breakpoint (ramping-vus, login.js)"
+	docker compose up -d $(BENCH_SERVICES)
+	env K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+	    K6_PROMETHEUS_RW_TAGS_AS_LABELS=true \
+	    K6_PROMETHEUS_RW_TREND_STATS="min,avg,med,p(75),p(90),p(95),p(99),max" \
+	    LOGIN_PHASES=find \
+	    FIND_START_VUS=$${FIND_START_VUS:-300} FIND_END_VUS=$${FIND_END_VUS:-600} FIND_STEP_VUS=$${FIND_STEP_VUS:-20} \
+	    FIND_STEP_DURATION=$${FIND_STEP_DURATION:-60s} FIND_HOLD_DURATION=$${FIND_HOLD_DURATION:-90s} \
+	    BASE_URL=$${BASE_URL:-http://localhost:8080} \
+	    ./k6 run $${K6_RUN_ARGS:-} -o experimental-prometheus-rw scripts/k6/login.js
+
+.PHONY: bench-login-ramp-steady
+bench-login-ramp-steady:
+	@echo "=> Run k6 login steady (ramping-vus, login.js)"
+	docker compose up -d $(BENCH_SERVICES)
+	env K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+	    K6_PROMETHEUS_RW_TAGS_AS_LABELS=true \
+	    K6_PROMETHEUS_RW_TREND_STATS="min,avg,med,p(75),p(90),p(95),p(99),max" \
+	    LOGIN_PHASES=steady \
+	    STEADY_VUS=$${STEADY_VUS:-340} STEADY_RAMP_DURATION=$${STEADY_RAMP_DURATION:-60s} STEADY_HOLD_DURATION=$${STEADY_HOLD_DURATION:-10m} \
+	    BASE_URL=$${BASE_URL:-http://localhost:8080} \
+	    ./k6 run $${K6_RUN_ARGS:-} -o experimental-prometheus-rw scripts/k6/login.js
+
+.PHONY: bench-login-ramp-overload
+bench-login-ramp-overload:
+	@echo "=> Run k6 login overload/recovery (ramping-vus, login.js)"
+	docker compose up -d $(BENCH_SERVICES)
+	env K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+	    K6_PROMETHEUS_RW_TAGS_AS_LABELS=true \
+	    K6_PROMETHEUS_RW_TREND_STATS="min,avg,med,p(75),p(90),p(95),p(99),max" \
+	    LOGIN_PHASES=overload \
+		STEADY_VUS=$${STEADY_VUS:-320} STEADY_RAMP_DURATION=$${STEADY_RAMP_DURATION:-30s} STEADY_HOLD_DURATION=$${STEADY_HOLD_DURATION:-90s} \
+	    OVERLOAD_VUS=$${OVERLOAD_VUS:-600} OVERLOAD_RAMP_DURATION=$${OVERLOAD_RAMP_DURATION:-15s} OVERLOAD_HOLD_DURATION=$${OVERLOAD_HOLD_DURATION:-15s} \
+	    RECOVERY_VUS=$${RECOVERY_VUS:-320} RECOVERY_RAMP_DURATION=$${RECOVERY_RAMP_DURATION:-0s} RECOVERY_HOLD_DURATION=$${RECOVERY_HOLD_DURATION:-30m} \
+	    BASE_URL=$${BASE_URL:-http://localhost:8080} \
+	    ./k6 run $${K6_RUN_ARGS:-} -o experimental-prometheus-rw scripts/k6/login.js
+.PHONY: clean-storage
+clean-storage:
+	@echo "=> Clean MinIO bucket (mybucket)"
+	./scripts/k6/clean_storage.sh
