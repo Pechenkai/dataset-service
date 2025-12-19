@@ -5,8 +5,31 @@
     <title>Swagger API v2</title>
     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
     <style>
-        body { margin: 0; background: #030712; }
-        #swagger-ui { margin: 0 auto; }
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background-color: #f7fafc;
+        }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at top, #e0efff, #f7fafc);
+            color: #0f172a;
+        }
+        #swagger-ui {
+            margin: 0 auto;
+            padding: 1rem 0 2rem;
+        }
+        .swagger-ui .topbar {
+            background: #e5f1ff;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+        }
+        .swagger-ui .topbar a,
+        .swagger-ui .topbar .download-url-wrapper .select-label {
+            color: #0f172a;
+        }
+        .swagger-ui .info .title {
+            color: #0f172a;
+        }
     </style>
 </head>
 <body>
