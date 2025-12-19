@@ -1,38 +1,103 @@
 services:
-  db:
-    image: postgres:15
-    container_name: ppo_postgres
+  db-primary:
+    image: bitnami/postgresql:latest
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: ppo
+      POSTGRESQL_REPLICATION_MODE: master
+      POSTGRESQL_REPLICATION_USER: repl_user
+      POSTGRESQL_REPLICATION_PASSWORD: repl_pass
+
+      POSTGRESQL_DATABASE: ppo
+      POSTGRESQL_USERNAME: ppo_writer
+      POSTGRESQL_PASSWORD: writerpass
+
+      POSTGRESQL_ALLOW_REMOTE_CONNECTIONS: "yes"
     volumes:
       - ./migrations:/docker-entrypoint-initdb.d
-      - ppo_pg_data:/var/lib/postgresql/data
+      - ppo_pg_data:/bitnami/postgresql
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U ppo_writer -d ppo" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  mongo:
-    image: mongo:6
-    container_name: ppo_mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - ppo_mongo_data:/data/db
-      - ./mongo-migrations:/docker-entrypoint-initdb.d
+  db-replica1:
+    image: bitnami/postgresql:latest
+    container_name: ppo_postgres_replica1
     environment:
-      MONGO_INITDB_DATABASE: myappdb
+      POSTGRESQL_REPLICATION_MODE: slave
+
+      # ВАЖНО: использовать MASTER_*, а не PRIMARY_*
+      POSTGRESQL_MASTER_HOST: db-primary
+      POSTGRESQL_MASTER_PORT_NUMBER: 5432
+
+      POSTGRESQL_REPLICATION_USER: repl_user
+      POSTGRESQL_REPLICATION_PASSWORD: repl_pass
+
+      POSTGRESQL_DATABASE: ppo
+      POSTGRESQL_USERNAME: ppo_writer
+      POSTGRESQL_PASSWORD: writerpass
+      POSTGRESQL_SYNCHRONOUS_COMMIT_MODE: on
+    depends_on:
+      db-primary:
+        condition: service_healthy
+    volumes:
+      - ppo_pg_replica1:/bitnami/postgresql
     healthcheck:
-      test: [ "CMD", "mongosh", "--eval", "db.adminCommand({ ping: 1 })" ]
+      test: [ "CMD-SHELL", "pg_isready -U ppo_writer -d ppo -h db-replica1" ]
       interval: 5s
       timeout: 5s
       retries: 5
-      
+
+  db-replica2:
+    image: bitnami/postgresql:latest
+    container_name: ppo_postgres_replica2
+    environment:
+      POSTGRESQL_REPLICATION_MODE: slave
+
+      POSTGRESQL_MASTER_HOST: db-primary
+      POSTGRESQL_MASTER_PORT_NUMBER: 5432
+
+      POSTGRESQL_REPLICATION_USER: repl_user
+      POSTGRESQL_REPLICATION_PASSWORD: repl_pass
+
+      POSTGRESQL_DATABASE: ppo
+      POSTGRESQL_USERNAME: ppo_writer
+      POSTGRESQL_PASSWORD: writerpass
+      POSTGRESQL_SYNCHRONOUS_COMMIT_MODE: on
+    depends_on:
+      db-primary:
+        condition: service_healthy
+    volumes:
+      - ppo_pg_replica2:/bitnami/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ppo_writer -d ppo -h db-replica2" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+    volumes:
+      - ppo_rabbitmq_data:/var/lib/rabbitmq
+
+
+
+
+
+
   minio:
     image: quay.io/minio/minio
     container_name: ppo_minio
@@ -46,19 +111,34 @@ services:
     volumes:
       - ppo_minio_data:/data
 
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+        echo 'Waiting for MinIO...';
+        until mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null 2>&1; do
+          echo 'MinIO is not ready yet, retrying in 2s...';
+          sleep 2;
+        done;
+        echo 'MinIO is ready, creating bucket...';
+        mc mb -p local/mybucket || true;
+      "
+    restart: "no"
+
   api:
     build: .
     image: ppo-app
-    container_name: ppo_api
+    container_name: ppo_api_primary
     depends_on:
-      db:
+      db-primary:
         condition: service_healthy
-      mongo:
-        condition: service_started
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     environment:
-      DATABASE_DSN: postgres://postgres:pass@db:5432/ppo?sslmode=disable
+      DATABASE_DSN: postgres://ppo_writer:writerpass@db-primary:5432/ppo?sslmode=disable
       MONGO_URI: mongodb://mongo:27017
       STORAGE_ENDPOINT: minio:9000
       STORAGE_ACCESS_KEY: minioadmin
@@ -70,24 +150,70 @@ services:
       TECHUI_HOST: 0.0.0.0
       TECHUI_PORT: 8090
       CLI_API_BASE_URL: http://nginx/api/v2
+      INSTANCE_TAG: main-writer
     expose:
       - "8080"
     ports:
       - "8080:8080"
 
-  legacy-ui:
+  api-read1:
     image: ppo-app
-    container_name: ppo_legacy_ui
+    container_name: ppo_api_read1
     depends_on:
-      db:
+      db-replica1:
         condition: service_healthy
-      mongo:
-        condition: service_started
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     environment:
-      MODE: gui
-      DATABASE_DSN: postgres://postgres:pass@db:5432/ppo?sslmode=disable
+      MODE: api
+      DATABASE_DSN: postgres://ppo_readonly:readonly@db-replica1:5432/ppo?sslmode=disable
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: mybucket
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      TECHUI_HOST: 0.0.0.0
+      TECHUI_PORT: 8090
+      INSTANCE_TAG: main-ro-1
+    expose:
+      - "8080"
+
+  api-read2:
+    image: ppo-app
+    container_name: ppo_api_read2
+    depends_on:
+      db-replica2:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MODE: api
+      DATABASE_DSN: postgres://ppo_readonly:readonly@db-replica2:5432/ppo?sslmode=disable
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: mybucket
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      TECHUI_HOST: 0.0.0.0
+      TECHUI_PORT: 8090
+      INSTANCE_TAG: main-ro-2
+    expose:
+      - "8080"
+
+  api-mirror:
+    image: ppo-app
+    container_name: ppo_api_mirror
+    depends_on:
+      db-primary:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_DSN: postgres://ppo_writer:writerpass@db-primary:5432/ppo?sslmode=disable
       MONGO_URI: mongodb://mongo:27017
       STORAGE_ENDPOINT: minio:9000
       STORAGE_ACCESS_KEY: minioadmin
@@ -98,16 +224,187 @@ services:
       HTTP_PORT: 8080
       TECHUI_HOST: 0.0.0.0
       TECHUI_PORT: 8090
+      CLI_API_BASE_URL: http://nginx/mirror/api/v2
+      INSTANCE_TAG: mirror-writer
+    expose:
+      - "8080"
+
+  api-mirror-read1:
+    image: ppo-app
+    container_name: ppo_api_mirror_read1
+    depends_on:
+      db-replica1:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MODE: api
+      DATABASE_DSN: postgres://ppo_readonly:readonly@db-replica1:5432/ppo?sslmode=disable
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: mybucket
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      TECHUI_HOST: 0.0.0.0
+      TECHUI_PORT: 8090
+      INSTANCE_TAG: mirror-ro-1
+    expose:
+      - "8080"
+
+  api-mirror-read2:
+    image: ppo-app
+    container_name: ppo_api_mirror_read2
+    depends_on:
+      db-replica2:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MODE: api
+      DATABASE_DSN: postgres://ppo_readonly:readonly@db-replica2:5432/ppo?sslmode=disable
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: mybucket
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      TECHUI_HOST: 0.0.0.0
+      TECHUI_PORT: 8090
+      INSTANCE_TAG: mirror-ro-2
+    expose:
+      - "8080"
+
+  legacy-ui:
+    image: ppo-app
+    container_name: ppo_legacy_ui
+    depends_on:
+      db-primary:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MODE: gui
+      DATABASE_DSN: postgres://ppo_writer:writerpass@db-primary:5432/ppo?sslmode=disable
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: mybucket
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      TECHUI_HOST: 0.0.0.0
+      TECHUI_PORT: 8090
+      INSTANCE_TAG: main-legacy
     expose:
       - "8090"
+
+  legacy-ui-mirror:
+    image: ppo-app
+    container_name: ppo_legacy_ui_mirror
+    depends_on:
+      db-primary:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MODE: gui
+      DATABASE_DSN: postgres://ppo_writer:writerpass@db-primary:5432/ppo?sslmode=disable
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: mybucket
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      TECHUI_HOST: 0.0.0.0
+      TECHUI_PORT: 8090
+      INSTANCE_TAG: mirror-legacy
+    expose:
+      - "8090"
+
+  gateway:
+    build: .
+    image: ppo-app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: [ "/app/gateway" ]
+    environment:
+      CONFIG_FILE: /app/config.yaml
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      BROKER_GATEWAY_TO_CORE_QUEUE: gateway.core.cmd
+      BROKER_CORE_TO_GATEWAY_QUEUE: core.gateway.evt
+      BROKER_CORE_TO_DATA_QUEUE: core.data.cmd
+      BROKER_DATA_TO_CORE_QUEUE: data.core.evt
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      INSTANCE_TAG: gateway
+    expose:
+      - "8080"
+    ports:
+      - "8081:8080"
+    deploy:
+      replicas: 2
+
+  core:
+    image: ppo-app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: [ "/app/core" ]
+    environment:
+      CONFIG_FILE: /app/config.yaml
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      BROKER_GATEWAY_TO_CORE_QUEUE: gateway.core.cmd
+      BROKER_CORE_TO_GATEWAY_QUEUE: core.gateway.evt
+      BROKER_CORE_TO_DATA_QUEUE: core.data.cmd
+      BROKER_DATA_TO_CORE_QUEUE: data.core.evt
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      INSTANCE_TAG: core
+    expose:
+      - "8080"
+    ports:
+      - "8082:8080"
+    deploy:
+      replicas: 2
+
+  data:
+    image: ppo-app
+    depends_on:
+      db-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: [ "/app/data" ]
+    environment:
+      CONFIG_FILE: /app/config.yaml
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      BROKER_GATEWAY_TO_CORE_QUEUE: gateway.core.cmd
+      BROKER_CORE_TO_GATEWAY_QUEUE: core.gateway.evt
+      BROKER_CORE_TO_DATA_QUEUE: core.data.cmd
+      BROKER_DATA_TO_CORE_QUEUE: data.core.evt
+      DATABASE_DSN: postgres://ppo_writer:writerpass@db-primary:5432/ppo?sslmode=disable
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      INSTANCE_TAG: data
+    expose:
+      - "8080"
+    ports:
+      - "8086:8080"
+    deploy:
+      replicas: 2
 
   adminer:
     image: adminer:4
     container_name: ppo_adminer
     environment:
-      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DEFAULT_SERVER: db-primary
     depends_on:
-      db:
+      db-primary:
         condition: service_healthy
     expose:
       - "8080"
@@ -118,13 +415,92 @@ services:
       dockerfile: deploy/nginx/Dockerfile
     container_name: ppo_gateway
     depends_on:
+      - gateway
+      - core
+      - data
       - api
+      - api-read1
+      - api-read2
+      - api-mirror
+      - api-mirror-read1
+      - api-mirror-read2
       - legacy-ui
+      - legacy-ui-mirror
       - adminer
     ports:
       - "8088:80"
 
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: ppo_node_exporter
+    ports:
+      - "9100:9100"
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - "/:/host:ro,rslave"
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: ppo_prometheus
+    depends_on:
+      - node-exporter
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ppo_prometheus_data:/prometheus
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: ppo_loki
+    command: [ "-config.file=/etc/loki/config.yaml" ]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./deploy/monitoring/loki-config.yaml:/etc/loki/config.yaml:ro
+      - ppo_loki_data:/loki
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: ppo_promtail
+    depends_on:
+      - loki
+    command: [ "-config.file=/etc/promtail/config.yml" ]
+    volumes:
+      - ./deploy/monitoring/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ppo_promtail_positions:/tmp
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: ppo_grafana
+    depends_on:
+      - prometheus
+      - loki
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ppo_grafana_data:/var/lib/grafana
+      - ./deploy/monitoring/provisioning:/etc/grafana/provisioning
+
 volumes:
   ppo_pg_data:
-  ppo_mongo_data:
+  ppo_pg_replica1:
+  ppo_pg_replica2:
   ppo_minio_data:
+  ppo_loki_data:
+  ppo_promtail_positions:
+  ppo_prometheus_data:
+  ppo_grafana_data:
+  ppo_rabbitmq_data:

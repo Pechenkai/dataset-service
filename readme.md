@@ -127,6 +127,13 @@
 - База данных: PostgreSQL 15, миграции на golang-migrate.
 - Хранилище файлов: MinIO (S3 API).
 
+## SPA на Vite + React
+
+- Расположен в каталоге `frontend` (базовый путь роутера `/app`, сборка — `static/app`).
+- Слои разделены: `api` (HTTP-клиент + типы), `services` (бизнес-логика поверх OpenAPI), `viewmodels` (MVVM-хуки), `routes`/`components` (UI).
+- Скрипты: `npm run dev`, `npm run build`, `npm run test:coverage` (Vitest + Testing Library, порог покрытия 60%+).
+- После сборки требуется отдать `static/app` через nginx/Go по пути `/app` (в `vite.config.ts` прописан base).
+
 ## Компонентная диаграмма
 
 ![level](./images/components.drawio.png)
@@ -157,37 +164,6 @@ make test-dataset-allure
 make allure-report
 ```
 
-### E2E-тесты
-
-E2E сценарии теперь работают только поверх реального HTTP-приложения.
-
-1. Поднимите окружение (Postgres + Mongo + MinIO + API):
-   ```bash
-   docker compose up -d --build db mongo minio api
-   ```
-2. Выполните тесты, указав базовый URL приложения (по умолчанию `http://localhost:8080`):
-   ```bash
-   E2E_BASE_URL=http://localhost:8080 make test TEST_PHASE=e2e
-   ```
-
-Если сервис или инфраструктура недоступны, тест немедленно завершится ошибкой соединения. Для ручной проверки и демонстрации трафика используйте Postman-коллекцию `docs/postman/public_dataset_journey.postman_collection.json` вместе с инструкцией `docs/e2e_capture.md` (Wireshark/tcpdump).
-
-### Быстрый запуск тестов
-
-## Асинхронный шлюз и маршрутизация
-
-Для маршрутизации REST API, legacy-интерфейса и статических страниц добавлен асинхронный шлюз на базе Nginx.
-Шлюз собирается из директории `deploy/nginx` и разворачивается вместе с API, GUI и вспомогательными
-сервисами командой:
-
-```bash
-docker compose up --build nginx
-```
-
-Команда автоматически поднимет PostgreSQL, MongoDB, MinIO, сервис API (`cmd/api`), Tech UI (`MODE=gui`),
-Adminer и сам шлюз (листен `localhost:8088`). Все конфигурации сервисов переопределяются через переменные
-окружения, благодаря чему контейнеры используют сетевые имена (`db`, `mongo`, `minio`).
-
 ### Настроенные маршруты шлюза
 
 | Путь             | Назначение                                                                 |
@@ -201,18 +177,3 @@ Adminer и сам шлюз (листен `localhost:8088`). Все конфиг�
 | `/admin`         | Прокси в Adminer, сразу после логина открывает доступ к PostgreSQL         |
 | `/documentation` | Отдаёт `readme.md` (WebLab#1) с типом `text/markdown`                      |
 | `/status`        | Встроенный `stub_status` со статистикой Nginx                              |
-
-Swagger-страницы используют CDN `swagger-ui-dist` и работают асинхронно: корень (`/api/v1`, `/api/v2`)
-отдаёт HTML, а любые вложенные маршруты (например, `/api/v2/datasets`) проксируются к сервису `api`. Для
-сохранения обратной совместимости путь `/swagger/**` также проксируется к Go-приложению.
-
-### Статические артефакты
-
-Все статические файлы располагаются в `static/` и автоматически копируются в образ шлюза. Галерея на `/`
-использует изображения из WebLab#1 (`static/img/`), а страница `/documentation` читает актуальный `readme.md`.
-При необходимости добавить дополнительные страницы достаточно положить их в `static/` и обновить `nginx.conf`.
-
-- Юнит-тесты: `make test-unit` (или `make test TEST_PHASE=unit`)
-- Интеграционные тесты: `make test-integration`
-- E2E-сценарий: `make test-e2e`
-- Allure-отчет (unit + integration + e2e): `make allure-report`
