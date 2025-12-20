@@ -6,8 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand/v2"
-	"os"
+	rand "math/rand/v2"
 	"strings"
 	"time"
 
@@ -227,89 +226,89 @@ func (s clusteredBtree) Cleanup(ctx context.Context) {
 	mustExec(ctx, s.pool, `DROP INDEX IF EXISTS idx_bench_k;`)
 }
 
-func main() {
-	cfg := parse()
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, cfg.DSN)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer pool.Close()
-
-	mustExec(ctx, pool, `
-CREATE TABLE IF NOT EXISTS bench_items (
-    id BIGSERIAL PRIMARY KEY,
-    k  INT NOT NULL,
-    payload TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);`)
-
-	out := must(os.Create(cfg.Out))
-	defer out.Close()
-	w := csv.NewWriter(out)
-	defer w.Flush()
-	_ = w.Write([]string{"ts", "scenario", "op", "n", "note", "ms"})
-
-	ns := genNs(cfg.NStart, cfg.NEnd, cfg.NStep)
-
-	scenarios := []scenario{
-		noIndex{pool: pool},
-		heapBtree{pool: pool},
-		heapUniqueBtree{pool: pool},
-		clusteredBtree{pool: pool},
-	}
-
-	for _, s := range scenarios {
-		log.Printf("== Scenario: %s ==", s.Name())
-		s.Prepare(ctx)
-		mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
-		s.Reset(ctx)
-
-		for _, N := range ns {
-			rng := rand.New(rand.NewPCG(cfg.Seed, uint64(N)))
-			keys := perm(N, rng)
-			baseTS := time.Now().Add(-1 * time.Hour)
-
-			bench(w, s.Name(), "insert", N, fmt.Sprintf("bulk=%d", N),
-				cfg.Warmups, cfg.Runs, func() (float64, error) {
-					return timeMs(func() error {
-						mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
-						return bulkInsert(ctx, pool, keys, baseTS)
-					})
-				})
-
-			mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
-			if err := bulkInsert(ctx, pool, keys, baseTS); err != nil {
-				log.Fatal(err)
-			}
-			s.PostInsertLayout(ctx)
-
-			bench(w, s.Name(), "select", N, "k in [a,b] (~N/50, cap 1000)",
-				cfg.Warmups, cfg.Runs, func() (float64, error) {
-					width := min(1000, max(1, N/50))
-					a := int(rng.UintN(uint(max(1, N-width))))
-					b := min(N-1, a+width-1)
-					return timeMs(func() error {
-						_, err := pool.Exec(ctx, `SELECT COUNT(*) FROM bench_items WHERE k BETWEEN $1 AND $2;`, a, b)
-						return err
-					})
-				})
-
-			bench(w, s.Name(), "delete", N, "k%7=0",
-				cfg.Warmups, cfg.Runs, func() (float64, error) {
-					return timeMs(func() error {
-						mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
-						if err := bulkInsert(ctx, pool, keys, baseTS); err != nil {
-							return err
-						}
-						_, err := pool.Exec(ctx, `DELETE FROM bench_items WHERE k % 7 = 0;`)
-						return err
-					})
-				})
-		}
-
-		s.Cleanup(ctx)
-	}
-
-	log.Printf("Done. Results -> %s", cfg.Out)
-}
+//func main() {
+//	cfg := parse()
+//	ctx := context.Background()
+//	pool, err := pgxpool.New(ctx, cfg.DSN)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer pool.Close()
+//
+//	mustExec(ctx, pool, `
+//CREATE TABLE IF NOT EXISTS bench_items (
+//    id BIGSERIAL PRIMARY KEY,
+//    k  INT NOT NULL,
+//    payload TEXT NOT NULL,
+//    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+//);`)
+//
+//	////out := must(os.Create(cfg.Out))
+//	////defer out.Close()
+//	////w := csv.NewWriter(out)
+//	////defer w.Flush()
+//	////_ = w.Write([]string{"ts", "scenario", "op", "n", "note", "ms"})
+//	//
+//	//ns := genNs(cfg.NStart, cfg.NEnd, cfg.NStep)
+//	//
+//	//scenarios := []scenario{
+//	//	noIndex{pool: pool},
+//	//	heapBtree{pool: pool},
+//	//	heapUniqueBtree{pool: pool},
+//	//	clusteredBtree{pool: pool},
+//	//}
+//	//
+//	//for _, s := range scenarios {
+//	//	log.Printf("== Scenario: %s ==", s.Name())
+//	//	s.Prepare(ctx)
+//	//	mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
+//	//	s.Reset(ctx)
+//	//
+//	//	for _, N := range ns {
+//	//		rng := rand.New(rand.NewPCG(cfg.Seed, uint64(N)))
+//	//		keys := perm(N, rng)
+//	//		baseTS := time.Now().Add(-1 * time.Hour)
+//	//
+//	//		bench(w, s.Name(), "insert", N, fmt.Sprintf("bulk=%d", N),
+//	//			cfg.Warmups, cfg.Runs, func() (float64, error) {
+//	//				return timeMs(func() error {
+//	//					mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
+//	//					return bulkInsert(ctx, pool, keys, baseTS)
+//	//				})
+//	//			})
+//	//
+//	//		mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
+//	//		if err := bulkInsert(ctx, pool, keys, baseTS); err != nil {
+//	//			log.Fatal(err)
+//	//		}
+//	//		s.PostInsertLayout(ctx)
+//	//
+//	//		bench(w, s.Name(), "select", N, "k in [a,b] (~N/50, cap 1000)",
+//	//			cfg.Warmups, cfg.Runs, func() (float64, error) {
+//	//				width := min(1000, max(1, N/50))
+//	//				a := int(rng.UintN(uint(max(1, N-width))))
+//	//				b := min(N-1, a+width-1)
+//	//				return timeMs(func() error {
+//	//					_, err := pool.Exec(ctx, `SELECT COUNT(*) FROM bench_items WHERE k BETWEEN $1 AND $2;`, a, b)
+//	//					return err
+//	//				})
+//	//			})
+//	//
+//	//		bench(w, s.Name(), "delete", N, "k%7=0",
+//	//			cfg.Warmups, cfg.Runs, func() (float64, error) {
+//	//				return timeMs(func() error {
+//	//					mustExec(ctx, pool, "TRUNCATE bench_items RESTART IDENTITY;")
+//	//					if err := bulkInsert(ctx, pool, keys, baseTS); err != nil {
+//	//						return err
+//	//					}
+//	//					_, err := pool.Exec(ctx, `DELETE FROM bench_items WHERE k % 7 = 0;`)
+//	//					return err
+//	//				})
+//	//			})
+//	//	}
+//
+//		//s.Cleanup(ctx)
+//	}
+//
+//	log.Printf("Done. Results -> %s", cfg.Out)
+//}
