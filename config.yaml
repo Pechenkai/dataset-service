@@ -59,3 +59,17 @@ broker:
   reconnect_delay: "2s"
   message_process_timeout: "10s"
   enable_dlq: true
+
+external:
+  catfacts:
+    mode: "mock"                     
+    real_base_url: "https://catfact.ninja"
+    mock_base_url: "http://localhost:9099"
+    timeout: "4s"
+  openai:
+    mode: "mock"                    
+    base_url: "http://localhost:8088"
+    api_key: ""
+    model: "gpt-3.5-turbo"
+    timeout: "15s"
+    max_tokens: 120

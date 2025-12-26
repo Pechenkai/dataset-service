@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CategoriesPage from '../CategoriesPage';
 import { ServiceContext, ServiceBag } from '../../context/ServiceContext';
+import { AuthContext, AuthContextValue } from '../../context/AuthContext';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -24,10 +25,20 @@ const serviceBag: ServiceBag = {
   subscriptionService: {} as any
 };
 
+const authValue: AuthContextValue = {
+  session: { token: 't', user: { id: 1, email: 'u', username: 'u', role: 'admin', is_blocked: false } as any },
+  isAuthenticated: true,
+  login: vi.fn() as any,
+  registerAndLogin: vi.fn() as any,
+  logout: vi.fn() as any
+};
+
 const Wrapper = ({ children }: { children: React.ReactNode }) => (
   <MemoryRouter>
     <QueryClientProvider client={queryClient}>
-      <ServiceContext.Provider value={serviceBag}>{children}</ServiceContext.Provider>
+      <ServiceContext.Provider value={serviceBag}>
+        <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>
+      </ServiceContext.Provider>
     </QueryClientProvider>
   </MemoryRouter>
 );

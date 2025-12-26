@@ -16,6 +16,8 @@ import (
 	cliapi "ppo/internal/delivery/cli/api"
 	httpdelivery "ppo/internal/delivery/http"
 	"ppo/internal/entities"
+	"ppo/internal/integrations/catfacts"
+	"ppo/internal/integrations/openai"
 	"ppo/internal/logger"
 	"ppo/internal/services"
 	"ppo/internal/storage"
@@ -79,6 +81,10 @@ func Build(ctx context.Context) (*App, error) {
 	userSvc := services.NewUserService(userRepo, zapLogger)
 	subSvc := services.NewSubscriptionService(subRepo, zapLogger)
 	reqSvc := services.NewAccessService(dsRepo, requestRepo, zapLogger)
+	catfactsClient := catfacts.NewHTTPClient(cfg.External.CatFacts, zapLogger)
+	factSvc := services.NewDatasetFactService(dsRepo, catfactsClient, zapLogger)
+	openaiClient := openai.NewHTTPClient(cfg.External.OpenAI, zapLogger)
+	summarySvc := services.NewDatasetSummaryService(dsRepo, openaiClient, zapLogger)
 	tokenTTL := cfg.Auth.AccessTokenTTL
 	if tokenTTL <= 0 {
 		tokenTTL = 24 * time.Hour
@@ -101,6 +107,8 @@ func Build(ctx context.Context) (*App, error) {
 	router := httpdelivery.NewRouter(
 		catSvc,
 		dsSvc,
+		factSvc,
+		summarySvc,
 		notifSvc,
 		revSvc,
 		userSvc,

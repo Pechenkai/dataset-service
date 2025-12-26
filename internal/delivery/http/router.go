@@ -20,6 +20,8 @@ import (
 func NewRouter(
 	catSvc services.CategoryService,
 	dsSvc services.DatasetService,
+	factSvc services.DatasetFactService,
+	summarySvc services.DatasetSummaryService,
 	notifSvc services.NotificationService,
 	revSvc services.ReviewService,
 	userSvc services.UserService,
@@ -54,6 +56,8 @@ func NewRouter(
 	v2.RegisterRoutes(r, "/api/v2", v2.HandlerDeps{
 		Categories:    catSvc,
 		Datasets:      dsSvc,
+		Facts:         factSvc,
+		Summaries:     summarySvc,
 		Reviews:       revSvc,
 		Notifications: notifSvc,
 		Subscriptions: subSvc,

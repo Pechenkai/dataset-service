@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useServices } from '../context/ServiceContext';
 import { DatasetFilters } from '../services/datasetService';
 import { Dataset } from '../api/types';
-import { formatSize } from './CatalogPage';
+import { formatSize } from '../utils/format';
 import { Button } from '../components/ui/Button';
 
 const MyDatasetsPage: React.FC = () => {
@@ -52,7 +52,7 @@ const MyDatasetsPage: React.FC = () => {
           <Table<Dataset>
             rowKey={(d) => d.id}
             rows={myQuery.data?.items ?? []}
-            gridTemplate="2fr 1.2fr 0.8fr 0.8fr 0.8fr 140px"
+            gridTemplate="2fr 1.2fr 0.8fr 0.8fr 0.8fr minmax(80px, 0.8fr)"
             columns={[
               {
                 key: 'name',
@@ -101,20 +101,21 @@ const MyDatasetsPage: React.FC = () => {
               {
                 key: 'download',
                 title: '',
-                render: (d) =>
-                  d.is_public && d.latest_version?.id ? (
+                align: 'center',
+                render: (d) => {
+                  const versionId = d.latest_version?.id;
+                  if (!versionId) return '—';
+                  return (
                     <a
-                      href={`/api/v2/datasets/${d.id}/versions/${d.latest_version.id}/content`}
+                      href={`/api/v2/datasets/${d.id}/versions/${versionId}/content`}
                       aria-label="Download"
                       className="app-link"
-                      target="_blank"
-                      rel="noreferrer"
+                      download
                     >
                       ⬇
                     </a>
-                  ) : (
-                    '—'
-                  )
+                  );
+                }
               }
             ]}
           />

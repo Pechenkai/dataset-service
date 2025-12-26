@@ -42,7 +42,6 @@ export default function DatasetPage() {
         queryKey: ['categories'],
         queryFn: () => datasetService.listCategories()
     });
-    const category = categoriesQuery.data?.items.find((c) => c.id === dataset.category_id);
 
     const [reviewError, setReviewError] = React.useState<string | null>(null);
 
@@ -50,6 +49,7 @@ export default function DatasetPage() {
     if (!datasetQuery.data) return <p>Датасет не найден.</p>;
 
     const dataset = datasetQuery.data;
+    const category = categoriesQuery.data?.items.find((c) => c.id === dataset.category_id);
 
     const versions = versionsQuery.data?.items ?? [];
     const reviews = reviewsQuery.data?.items ?? [];
@@ -99,8 +99,12 @@ export default function DatasetPage() {
                             title: '',
                             sortable: false,
                             render: (v) =>
-                                v.file_url ? (
-                                    <a className="ui-button ui-button--outline ui-button--sm" href={v.file_url} target="_blank" rel="noreferrer">
+                                v.id ? (
+                                    <a
+                                        className="ui-button ui-button--outline ui-button--sm"
+                                        href={`/api/v2/datasets/${id}/versions/${v.id}/content`}
+                                        download
+                                    >
                                         ⬇
                                     </a>
                                 ) : (
@@ -122,6 +126,8 @@ export default function DatasetPage() {
                             setReviewError(null);
                             try {
                                 await createReview.mutateAsync({ rating, text });
+                                await reviewsQuery.refetch();
+                                set({ rpage: 1 });
                             } catch (e: any) {
                                 setReviewError(e?.message || 'Не удалось отправить отзыв.');
                             }
@@ -129,7 +135,13 @@ export default function DatasetPage() {
                     />
                     {reviewError && <div className="create-ds__err">{reviewError}</div>}
                 </div>
-                <ReviewList reviews={reviews} />
+                {reviewsQuery.isLoading ? (
+                    <div>Загружаем отзывы…</div>
+                ) : reviews.length > 0 ? (
+                    <ReviewList reviews={reviews} />
+                ) : (
+                    <div>Пока нет отзывов.</div>
+                )}
                 <div style={{ marginTop: 16 }}>
                     <Pagination page={rpage} totalPages={totalReviewsPages} onPageChange={(p) => set({ rpage: p })} />
                 </div>

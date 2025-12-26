@@ -15,6 +15,11 @@ body {
   background: var(--color-bg);
 }
 
+body[data-tg-color-scheme="dark"] {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
 #root {
   min-height: 100vh;
 }

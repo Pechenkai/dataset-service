@@ -21,6 +21,8 @@ type HandlerDeps struct {
 	Tokens        services.TokenService
 	TwoFA         services.TwoFactorService
 	Access        services.AccessService
+	Summaries     services.DatasetSummaryService
+	Facts         services.DatasetFactService
 	Logger        *zap.Logger
 	TokenTTL      time.Duration
 }
@@ -35,6 +37,8 @@ type Handler struct {
 	tokens        services.TokenService
 	twofa         services.TwoFactorService
 	access        services.AccessService
+	summaries     services.DatasetSummaryService
+	facts         services.DatasetFactService
 	logger        *zap.Logger
 	tokenTTL      time.Duration
 }
@@ -54,6 +58,8 @@ func NewHandler(deps HandlerDeps) *Handler {
 		tokens:        deps.Tokens,
 		twofa:         deps.TwoFA,
 		access:        deps.Access,
+		summaries:     deps.Summaries,
+		facts:         deps.Facts,
 		logger:        deps.Logger,
 		tokenTTL:      tokenTTL,
 	}
@@ -89,6 +95,8 @@ func RegisterRoutes(r chi.Router, basePath string, deps HandlerDeps) {
 		protected.Patch("/datasets/{datasetId}", wrap(deps.Logger, h.UpdateDataset))
 		protected.Delete("/datasets/{datasetId}", wrap(deps.Logger, h.DeleteDataset))
 		optionalAuth.Get("/datasets/{datasetId}/versions", wrap(deps.Logger, h.ListDatasetVersions))
+		optionalAuth.Get("/datasets/{datasetId}/summary", wrap(deps.Logger, h.GetDatasetSummary))
+		optionalAuth.Get("/datasets/{datasetId}/fun-fact", wrap(deps.Logger, h.GetDatasetFunFact))
 		protected.Post("/datasets/{datasetId}/versions", wrap(deps.Logger, h.CreateDatasetVersion))
 		optionalAuth.Get("/datasets/{datasetId}/versions/{versionId}", wrap(deps.Logger, h.GetDatasetVersion))
 		optionalAuth.Get("/datasets/{datasetId}/versions/{versionId}/content", wrap(deps.Logger, h.DownloadDatasetVersion))

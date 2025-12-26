@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DatasetPage from '../DatasetPage';
 
 vi.mock('../../viewmodels/datasetViewModel', () => ({
@@ -23,11 +24,14 @@ vi.mock('../../context/ServiceContext', () => ({
 
 describe('DatasetPage', () => {
   it('renders dataset title and subscribe button', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <MemoryRouter initialEntries={[{ pathname: '/datasets/1' }]}> 
-        <Routes>
-          <Route path="/datasets/:datasetId" element={<DatasetPage />} />
-        </Routes>
+        <QueryClientProvider client={queryClient}>
+          <Routes>
+            <Route path="/datasets/:datasetId" element={<DatasetPage />} />
+          </Routes>
+        </QueryClientProvider>
       </MemoryRouter>
     );
 

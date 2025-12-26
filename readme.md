@@ -134,6 +134,13 @@
 - Скрипты: `npm run dev`, `npm run build`, `npm run test:coverage` (Vitest + Testing Library, порог покрытия 60%+).
 - После сборки требуется отдать `static/app` через nginx/Go по пути `/app` (в `vite.config.ts` прописан base).
 
+## Telegram Web App и автономность UI
+
+- Клиент и темы Telegram инициализируются в `TelegramProvider` (вызовы `WebApp.ready()`/`expand()`), заголовок содержит быстрый выход из WebApp.
+- Формы авторизации и загрузки датасета, а также фильтры каталога сохраняются в `localStorage`/IndexedDB и восстанавливаются после перезагрузки (частичная офлайн-автономность).
+- WebAssembly-модуль рассчитывает индекс качества датасетов (hook `useQualityScores`), отображается в таблице каталога.
+- Web Worker (`useDatasetWorker`) вычисляет агрегаты каталога (средний рейтинг, топ-теги) без блокировки UI.
+
 ## Компонентная диаграмма
 
 ![level](./images/components.drawio.png)
@@ -163,6 +170,19 @@ make test-dataset-allure
 ```bash
 make allure-report
 ```
+
+## Интеграция с внешним CatFacts
+
+- Сервис-«чёрный ящик» CatFacts (`GET /fact`, контракт `docs/external/catfacts-openapi.yaml`).
+- Новый эндпоинт: `GET /api/v2/datasets/{datasetId}/fun-fact` — запрашивает случайный факт у внешнего сервиса и возвращает его клиенту вместе с источником/режимом.
+- Конфигурация: секция `external.catfacts` в `config.yaml` (`mode` = `mock` или `real`, `real_base_url`, `mock_base_url`, `timeout`). Переключение режима доступно только через конфигурацию/переменные окружения.
+- Mock-сервер: `go run ./cmd/mockcatfacts -addr :9099` (базовый URL `http://localhost:9099`).
+- E2E-пайплайн: `make test-e2e-catfacts-mock` (запускает отдельный mock-сервер и проверяет сценарий), `make test-e2e-catfacts-real` (тот же сценарий против реального CatFacts, требуется интернет).
+- Базовый `make test-e2e` использует встроенный mock в тестах, чтобы сценарий проходил офлайн.
+- Запуск окружения для демонстрации: либо mock (`go run ./cmd/mockcatfacts &` + `EXTERNAL_CATFACTS_MODE=mock EXTERNAL_CATFACTS_MOCK_BASE_URL=http://localhost:9099 go run ./cmd/api`), либо реальный сервис (`EXTERNAL_CATFACTS_MODE=real go run ./cmd/api`).
+- Для артефактов сборки предусмотрен отдельный бинарник mock CatFacts: `make build-mockcatfacts` (лежит в `build/bin/mockcatfacts`), используется как “чёрный ящик” при интеграции.
+- Docker Compose: сервис `catfacts-mock` собирается из `Dockerfile.mockcatfacts` и автоматически подключён к `api`/`api-read*` (переменные `EXTERNAL_CATFACTS_MODE=mock`, `EXTERNAL_CATFACTS_MOCK_BASE_URL=http://catfacts-mock:9099` уже прописаны).
+- LLM (OpenAI): эндпоинт `GET /api/v2/datasets/{datasetId}/summary` запрашивает Chat Completions для краткой сводки датасета. Контракт внешнего API — `docs/external/openai-chat-openapi.yaml` (Chat Completions `POST /v1/chat/completions`). Конфиг: `external.openai` (`mode` mock/real, `base_url`, `api_key`, `model`, `max_tokens`, `timeout`). Mock-бинарь: `make build-mockopenai` (Dockerfile.mockopenai + сервис `openai-mock` в docker-compose). При запуске API с mock: `EXTERNAL_OPENAI_MODE=mock EXTERNAL_OPENAI_BASE_URL=http://localhost:8088 go run ./cmd/api`; для real: `EXTERNAL_OPENAI_MODE=real EXTERNAL_OPENAI_API_KEY=... go run ./cmd/api`.
 
 ### Настроенные маршруты шлюза
 

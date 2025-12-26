@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.68% </span>
+                <span class="strong">40% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>21/47</span>
+                <span class='fraction'>22/55</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.68% </span>
+                <span class="strong">40% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>21/47</span>
+                <span class='fraction'>22/55</span>
             </div>
         
             
@@ -110,7 +110,15 @@
 <a name='L45'></a><a href='#L45'>45</a>
 <a name='L46'></a><a href='#L46'>46</a>
 <a name='L47'></a><a href='#L47'>47</a>
-<a name='L48'></a><a href='#L48'>48</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -125,6 +133,14 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -153,10 +169,10 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useServices } from './ServiceContext';
 import { AuthSession } from '../services/authService';
@@ -166,6 +182,7 @@ export interface AuthContextValue {
   session: AuthSession | null;
   isAuthenticated: boolean;
   login: (payload: AuthenticateRequest) =&gt; Promise&lt;void&gt;;
+  registerAndLogin: (payload: { username: string; email: string; password: string; country: string }) =&gt; Promise&lt;void&gt;;
   logout: () =&gt; Promise&lt;void&gt;;
 }
 &nbsp;
@@ -185,6 +202,13 @@ export const AuthProvider: React.FC&lt;{ children: React.ReactNode }&gt; = <span
 <span class="cstat-no" title="statement not covered" >      isAuthenticated: Boolean(session?.token),</span>
 <span class="cstat-no" title="statement not covered" >      login: async (payload) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >        const result = await authService.authenticate(payload);</span>
+<span class="cstat-no" title="statement not covered" >        const next = { token: result.token, user: result.user, expires_at: result.expires_at };</span>
+<span class="cstat-no" title="statement not covered" >        authService.persistSession(next);</span>
+<span class="cstat-no" title="statement not covered" >        setSession(next);</span>
+<span class="cstat-no" title="statement not covered" >      },</span>
+<span class="cstat-no" title="statement not covered" >      registerAndLogin: async ({ username, email, password, country }) =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >        await authService.register({ username, email, password, country });</span>
+<span class="cstat-no" title="statement not covered" >        const result = await authService.authenticate({ email, password });</span>
 <span class="cstat-no" title="statement not covered" >        const next = { token: result.token, user: result.user, expires_at: result.expires_at };</span>
 <span class="cstat-no" title="statement not covered" >        authService.persistSession(next);</span>
 <span class="cstat-no" title="statement not covered" >        setSession(next);</span>
@@ -211,7 +235,7 @@ export const useAuth = () =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-19T11:40:26.415Z
+                at 2025-12-20T10:40:11.805Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

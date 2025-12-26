@@ -58,6 +58,58 @@ test-e2e:
 	@echo "=> Running e2e tests"
 	go test -tags=e2e -count=1 ./internal/tests/e2e
 
+.PHONY: test-e2e-catfacts-mock
+test-e2e-catfacts-mock:
+	@echo "=> Running fun-fact e2e against standalone mock CatFacts server"
+	@bash -c 'set -euo pipefail; \
+	  addr=$${CATFACTS_ADDR:-:9099}; \
+	  if [ -n "${CATFACTS_BASE_URL-}" ]; then \
+	    base_url=$${CATFACTS_BASE_URL}; \
+	  else \
+	    case "$$addr" in \
+	      http://*|https://*) base_url=$$addr ;; \
+	      :*) base_url=http://localhost$$addr ;; \
+	      *) base_url=http://$$addr ;; \
+	    esac; \
+	  fi; \
+	  srv=""; \
+	  trap "test -n \"$$srv\" && kill $$srv" EXIT; \
+	  go run ./cmd/mockcatfacts -addr $$addr >/dev/null 2>&1 & srv=$$!; \
+	  sleep 0.2; \
+	  EXTERNAL_CATFACTS_MODE=mock EXTERNAL_CATFACTS_MOCK_BASE_URL=$$base_url \
+	  go test -tags=e2e -count=1 -run TestE2E_DatasetFunFactFromExternalService ./internal/tests/e2e; \
+	'
+
+.PHONY: test-e2e-catfacts-real
+test-e2e-catfacts-real:
+	@echo "=> Running fun-fact e2e against real CatFacts service"
+	EXTERNAL_CATFACTS_MODE=real E2E_REQUIRE_INFRA=$(E2E_REQUIRE_INFRA) \
+		go test -tags=e2e -count=1 -run TestE2E_DatasetFunFactFromExternalService ./internal/tests/e2e
+
+.PHONY: test-e2e-openai-mock
+test-e2e-openai-mock:
+	@echo "=> Running LLM summary e2e against standalone mock OpenAI server"
+	@bash -c 'set -euo pipefail; \
+	  addr=$${OPENAI_ADDR:-:8088}; \
+	  case "$$addr" in \
+	    http://*|https://*) base_url=$$addr ;; \
+	    :*) base_url=http://localhost$$addr ;; \
+	    *) base_url=http://$$addr ;; \
+	  esac; \
+	  srv=""; \
+	  trap "test -n \"$$srv\" && kill $$srv" EXIT; \
+	  go run ./cmd/mockopenai -addr $$addr >/dev/null 2>&1 & srv=$$!; \
+	  sleep 0.2; \
+	  EXTERNAL_OPENAI_MODE=mock EXTERNAL_OPENAI_BASE_URL=$$base_url \
+	  go test -tags=e2e -count=1 -run TestE2E_DatasetSummaryFromOpenAI ./internal/tests/e2e; \
+	'
+
+.PHONY: test-e2e-openai-real
+test-e2e-openai-real:
+	@echo "=> Running LLM summary e2e against real OpenAI service"
+	EXTERNAL_OPENAI_MODE=real E2E_REQUIRE_INFRA=$(E2E_REQUIRE_INFRA) \
+		go test -tags=e2e -count=1 -run TestE2E_DatasetSummaryFromOpenAI ./internal/tests/e2e
+
 .PHONY: test-e2e-2fa
 test-e2e-2fa:
 	@echo "=> Running 2FA BDD e2e scenario"
@@ -75,8 +127,14 @@ install-hooks:
 
 .PHONY: top_cycle
 top_cycle:
-	GOCACHE=$(mktemp -d) go list -f '{{range .GoFiles}}{{$.Dir}}/{{.}} {{end}}' ./internal/... | xargs gocyclo -top 10
+	GOCACHE=$$(mktemp -d) go list -f '{{range .GoFiles}}{{$$.Dir}}/{{.}} {{end}}' ./internal/... | xargs gocyclo -top 10
 
+.PHONY: top_halsted
+top_halsted:
+	@GOCACHE=$$(mktemp -d) go run ./cmd/halsteadcheck -max-volume=0 ./internal 2>&1 \
+	| sed -n 's/^- //p' \
+	| sort -t= -k2 -nr \
+	| head -5
 
 .PHONY: test-allure
 test-allure: test-dataset-allure
@@ -119,6 +177,16 @@ build-gui: build-dataaccess-archive build-services-archive
 	@echo "=> Building GUI"
 	GO111MODULE=on $(GO) build -o $(BIN_DIR)/gui $(GUI_PKG)
 
+.PHONY: build-mockcatfacts
+build-mockcatfacts: dirs
+	@echo "=> Building CatFacts mock service (black-box artifact)"
+	GO111MODULE=on $(GO) build -o $(BIN_DIR)/mockcatfacts ./cmd/mockcatfacts
+
+.PHONY: build-mockopenai
+build-mockopenai: dirs
+	@echo "=> Building OpenAI mock service (black-box artifact)"
+	GO111MODULE=on $(GO) build -o $(BIN_DIR)/mockopenai ./cmd/mockopenai
+
 .PHONY: info
 info:
 	@echo "Module: $(MODULE)"
@@ -126,6 +194,8 @@ info:
 	@echo "CLI binary: $(BIN_DIR)/cli"
 	@echo "API binary: $(BIN_DIR)/api"
 	@echo "GUI binary: $(BIN_DIR)/gui"
+	@echo "Mock CatFacts binary: $(BIN_DIR)/mockcatfacts"
+	@echo "Mock OpenAI binary: $(BIN_DIR)/mockopenai"
 
 .PHONY: clean
 clean:

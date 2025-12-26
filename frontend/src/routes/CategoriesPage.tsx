@@ -70,7 +70,7 @@ export default function CategoriesPage() {
 
     return (
         <>
-            <Card title="Categories" subtitle="URL содержит page/sort/order">
+            <Card title="Categories" subtitle="">
                 <Table<Category>
                     rowKey={(c) => c.id}
                     rows={pageItems}
@@ -94,7 +94,7 @@ export default function CategoriesPage() {
             </Card>
 
             {isAdmin && (
-                <Card title="Создать категорию" subtitle="Доступно только администратору" >
+                <Card title="Создать категорию" subtitle="" >
                     <div className="filters-grid">
                         <Input
                             label="Название"

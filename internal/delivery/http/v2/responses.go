@@ -74,6 +74,24 @@ type DatasetVersionsResponse struct {
 	Meta  PaginationMeta           `json:"meta"`
 }
 
+type DatasetSummaryResponse struct {
+	DatasetID uint64    `json:"dataset_id"`
+	Summary   string    `json:"summary"`
+	Model     string    `json:"model"`
+	Mode      string    `json:"mode"`
+	Source    string    `json:"source"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type DatasetFactResponse struct {
+	DatasetID   uint64    `json:"dataset_id"`
+	Fact        string    `json:"fact"`
+	Length      int       `json:"length"`
+	Source      string    `json:"source"`
+	Mode        string    `json:"mode"`
+	RetrievedAt time.Time `json:"retrieved_at"`
+}
+
 type NotificationResponse struct {
 	ID        uint64    `json:"id"`
 	UserID    uint64    `json:"user_id"`

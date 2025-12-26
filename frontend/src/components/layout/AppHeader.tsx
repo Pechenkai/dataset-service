@@ -2,9 +2,11 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
+import { useTelegram } from '../../telegram/TelegramProvider';
 
 export const AppHeader: React.FC = () => {
     const { isAuthenticated, session } = useAuth();
+    const { isTelegram, webApp } = useTelegram();
     const isAdmin = session?.user.role === 'admin';
 
     return (
@@ -21,6 +23,15 @@ export const AppHeader: React.FC = () => {
                 </nav>
 
                 <div className="app-header__actions">
+                    {isTelegram && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => webApp?.close?.() ?? webApp?.BackButton?.show()}
+                        aria-label="Закрыть WebApp"
+                      >
+                        TG WebApp
+                      </Button>
+                    )}
                     {isAuthenticated ? (
                         <NavLink to="/profile">
                             <Button variant="ghost" aria-label="Profile">

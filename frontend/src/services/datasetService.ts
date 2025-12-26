@@ -128,12 +128,20 @@ export class DatasetService {
   }
 
   async createReview(datasetId: number, rating: number, text?: string) {
-    return this.api.post<Review>(`/datasets/${datasetId}/reviews`, {
-      dataset_id: datasetId,
-      rating,
-      text
-    });
+    // v2 API принимает POST /reviews с dataset_id
+    return this.api.post<Review>(
+      '/reviews',
+      { dataset_id: datasetId, rating, text },
+      undefined,
+      false
+    );
   }
+
+  async getLatestVersion(datasetId: number) {
+    const res = await this.listVersions(datasetId, 1, 1);
+    return res.items?.[0] ?? null;
+  }
+
 
   async updateDataset(datasetId: number, payload: Partial<Pick<Dataset, 'is_public' | 'name' | 'description'>>) {
     return this.api.patch<Dataset>(`/datasets/${datasetId}`, payload);

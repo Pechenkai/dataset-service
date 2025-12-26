@@ -7,20 +7,12 @@ import { Card } from '../ui/Card';
 import { RatingChip } from '../ui/RatingChip';
 import { StatTile } from '../ui/StatTile';
 import { TagList } from '../ui/TagList';
+import { formatSize } from '../../utils/format';
 
 type Props = {
     dataset: Dataset;
     category?: Category;
     onDownload?: (dataset: Dataset) => void;
-};
-
-const formatSize = (raw?: number | string | null) => {
-    if (raw === undefined || raw === null) return '—';
-    const bytes = typeof raw === 'string' ? Number(raw) : raw;
-    if (!Number.isFinite(bytes) || bytes <= 0) return '—';
-    const mb = bytes / 1024 / 1024;
-    if (mb < 1024) return `${mb.toFixed(1)} MB`;
-    return `${(mb / 1024).toFixed(1)} GB`;
 };
 
 const formatDate = (iso?: string) => (iso ? iso.slice(0, 10) : '—');
@@ -55,13 +47,20 @@ export const DatasetCard: React.FC<Props> = ({ dataset, category, onDownload }) 
                 </Badge>
             }
             footer={
-                onDownload && (
-                    <div className="ds-card__footer">
+                <div className="ds-card__footer">
+                    {onDownload ? (
                         <Button fullWidth onClick={() => onDownload(dataset)}>
                             Download
                         </Button>
-                    </div>
-                )
+                    ) : dataset.latest_version?.id ? (
+                        <a
+                            href={`/api/v2/datasets/${dataset.id}/versions/${dataset.latest_version.id}/content`}
+                            className="ui-button ui-button--primary ui-button--md ui-button--full"
+                        >
+                            Скачать
+                        </a>
+                    ) : null}
+                </div>
             }
         >
             <div className="ds-card__layout">

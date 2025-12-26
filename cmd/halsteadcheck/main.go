@@ -13,10 +13,10 @@ import (
 )
 
 type metrics struct {
-	n1 int // distinct operators
-	n2 int // distinct operands
-	N1 int // total operators
-	N2 int // total operands
+	n1 int
+	n2 int
+	N1 int
+	N2 int
 }
 
 type counter struct {

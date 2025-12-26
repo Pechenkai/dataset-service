@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.2% </span>
+                <span class="strong">83.82% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>61/78</span>
+                <span class='fraction'>57/68</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">83.33% </span>
+                <span class="strong">85.71% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>5/6</span>
+                <span class='fraction'>6/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">36.36% </span>
+                <span class="strong">50% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/11</span>
+                <span class='fraction'>5/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.2% </span>
+                <span class="strong">83.82% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>61/78</span>
+                <span class='fraction'>57/68</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -131,19 +131,7 @@
 <a name='L66'></a><a href='#L66'>66</a>
 <a name='L67'></a><a href='#L67'>67</a>
 <a name='L68'></a><a href='#L68'>68</a>
-<a name='L69'></a><a href='#L69'>69</a>
-<a name='L70'></a><a href='#L70'>70</a>
-<a name='L71'></a><a href='#L71'>71</a>
-<a name='L72'></a><a href='#L72'>72</a>
-<a name='L73'></a><a href='#L73'>73</a>
-<a name='L74'></a><a href='#L74'>74</a>
-<a name='L75'></a><a href='#L75'>75</a>
-<a name='L76'></a><a href='#L76'>76</a>
-<a name='L77'></a><a href='#L77'>77</a>
-<a name='L78'></a><a href='#L78'>78</a>
-<a name='L79'></a><a href='#L79'>79</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<a name='L69'></a><a href='#L69'>69</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -185,7 +173,6 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -203,13 +190,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -224,8 +204,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useServices } from '../context/ServiceContext';
 &nbsp;
-type Tab = 'versions' | 'reviews' | 'access';
-&nbsp;
 const intParam = (sp: URLSearchParams, key: string, def: number) =&gt; {
   const v = Number(sp.get(key));
   return Number.isFinite(v) &amp;&amp; v &gt; <span class="branch-0 cbranch-no" title="branch not covered" >0 ? v : d</span>ef;
@@ -238,7 +216,6 @@ export const useDatasetViewModel = (datasetId: number) =&gt; {
 &nbsp;
   const enabled = Number.isFinite(datasetId);
 &nbsp;
-  const tab = (sp.get('tab') as Tab) || 'versions';
   const vpage = intParam(sp, 'vpage', 1);
   const rpage = intParam(sp, 'rpage', 1);
 &nbsp;
@@ -251,14 +228,14 @@ export const useDatasetViewModel = (datasetId: number) =&gt; {
   const versionsQuery = useQuery({
     queryKey: ['versions', datasetId, vpage],
     queryFn: () =&gt; datasetService.listVersions(datasetId, vpage, 5),
-    enabled: enabled &amp;&amp; tab === 'versions',
+    enabled,
     keepPreviousData: true
   });
 &nbsp;
   const reviewsQuery = useQuery({
     queryKey: ['reviews', datasetId, rpage],
-    queryFn: <span class="fstat-no" title="function not covered" >() =&gt; datasetService.listReviews(datasetId, rpage, 10),</span>
-    enabled: enabled &amp;&amp; tab === 'reviews',
+    queryFn: () =&gt; datasetService.listReviews(datasetId, rpage, 10),
+    enabled,
     keepPreviousData: true
   });
 &nbsp;
@@ -275,27 +252,20 @@ export const useDatasetViewModel = (datasetId: number) =&gt; {
   });
 &nbsp;
   const actions = useMemo(() =&gt; {
-    const setTab = <span class="fstat-no" title="function not covered" >(next: Tab) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      const n = new URLSearchParams(sp);</span>
-<span class="cstat-no" title="statement not covered" >      n.set('tab', next);</span>
-<span class="cstat-no" title="statement not covered" >      setSp(n, { replace: true });</span>
-<span class="cstat-no" title="statement not covered" >    };</span>
     const setVersionsPage = <span class="fstat-no" title="function not covered" >(p: number) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >      const n = new URLSearchParams(sp);</span>
-<span class="cstat-no" title="statement not covered" >      n.set('tab', 'versions');</span>
 <span class="cstat-no" title="statement not covered" >      n.set('vpage', String(p));</span>
 <span class="cstat-no" title="statement not covered" >      setSp(n, { replace: true });</span>
 <span class="cstat-no" title="statement not covered" >    };</span>
     const setReviewsPage = <span class="fstat-no" title="function not covered" >(p: number) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >      const n = new URLSearchParams(sp);</span>
-<span class="cstat-no" title="statement not covered" >      n.set('tab', 'reviews');</span>
 <span class="cstat-no" title="statement not covered" >      n.set('rpage', String(p));</span>
 <span class="cstat-no" title="statement not covered" >      setSp(n, { replace: true });</span>
 <span class="cstat-no" title="statement not covered" >    };</span>
-    return { setTab, setVersionsPage, setReviewsPage };
+    return { setVersionsPage, setReviewsPage };
   }, [sp, setSp]);
 &nbsp;
-  return { tab, vpage, rpage, datasetQuery, versionsQuery, reviewsQuery, createReview, subscribe, actions };
+  return { vpage, rpage, datasetQuery, versionsQuery, reviewsQuery, createReview, subscribe, actions };
 };
 &nbsp;</pre></td></tr></table></pre>
 
@@ -304,7 +274,7 @@ export const useDatasetViewModel = (datasetId: number) =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-19T11:40:26.415Z
+                at 2025-12-20T10:40:11.805Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

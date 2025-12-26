@@ -51,4 +51,8 @@ var (
 	ErrBadRequest           = errors.New("bad request")
 	ErrRequestAlreadyExists = errors.New("request already exists")
 	ErrRequestForbidden     = errors.New("request is forbidden")
+
+	// External integrations
+	ErrExternalServiceUnavailable = errors.New("external service unavailable")
+	ErrExternalBadRequest         = errors.New("external service bad request")
 )

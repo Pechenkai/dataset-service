@@ -40,6 +40,27 @@ type Auth struct {
 	TwoFA          TwoFA         `mapstructure:"twofa"`
 }
 
+type External struct {
+	CatFacts CatFactsConfig `mapstructure:"catfacts"`
+	OpenAI   OpenAIConfig   `mapstructure:"openai"`
+}
+
+type CatFactsConfig struct {
+	Mode        string        `mapstructure:"mode"`
+	RealBaseURL string        `mapstructure:"real_base_url"`
+	MockBaseURL string        `mapstructure:"mock_base_url"`
+	Timeout     time.Duration `mapstructure:"timeout"`
+}
+
+type OpenAIConfig struct {
+	Mode      string        `mapstructure:"mode"`
+	BaseURL   string        `mapstructure:"base_url"`
+	APIKey    string        `mapstructure:"api_key"`
+	Model     string        `mapstructure:"model"`
+	Timeout   time.Duration `mapstructure:"timeout"`
+	MaxTokens int           `mapstructure:"max_tokens"`
+}
+
 type CLI struct {
 	APIBaseURL string `mapstructure:"api_base_url"`
 	TokenFile  string `mapstructure:"token_file"`
@@ -100,6 +121,7 @@ type Config struct {
 	CLI      CLI          `mapstructure:"cli"`
 	Admin    AdminAccount `mapstructure:"admin"`
 	Broker   Broker       `mapstructure:"broker"`
+	External External     `mapstructure:"external"`
 }
 
 func Load() (*Config, error) {
@@ -156,6 +178,15 @@ func Load() (*Config, error) {
 	v.SetDefault("broker.reconnect_delay", "2s")
 	v.SetDefault("broker.message_process_timeout", "10s")
 	v.SetDefault("broker.enable_dlq", true)
+	v.SetDefault("external.catfacts.mode", "real")
+	v.SetDefault("external.catfacts.real_base_url", "https://catfact.ninja")
+	v.SetDefault("external.catfacts.mock_base_url", "http://localhost:9099")
+	v.SetDefault("external.catfacts.timeout", "4s")
+	v.SetDefault("external.openai.mode", "mock")
+	v.SetDefault("external.openai.base_url", "https://api.openai.com/v1")
+	v.SetDefault("external.openai.model", "gpt-3.5-turbo")
+	v.SetDefault("external.openai.timeout", "15s")
+	v.SetDefault("external.openai.max_tokens", 120)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err

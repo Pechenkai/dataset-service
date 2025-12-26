@@ -97,6 +97,8 @@ var conflictErrors = []error{
 
 var failedDependencyErrors = []error{
 	services.ErrNoSubscribers,
+	services.ErrExternalServiceUnavailable,
+	services.ErrExternalBadRequest,
 }
 
 func matchesAny(err error, targets []error) bool {

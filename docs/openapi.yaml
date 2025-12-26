@@ -519,6 +519,116 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/fun-fact:
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        description: Идентификатор датасета.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Datasets]
+      summary: Fetch random fun fact for dataset
+      description: |-
+        Возвращает "весёлый факт" для выбранного датасета, запрашивая внешний сервис CatFacts (`GET /fact`, https://catfact.ninja/).
+        Источник факта определяется конфигурацией `external.catfacts.mode` — `real` обращается к CatFacts, `mock` к внутреннему mock-серверу.
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Факт успешно получен от внешнего сервиса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetFactResponse'
+        "401":
+          description: Требуется авторизация для приватного датасета.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: У пользователя нет доступа к приватному датасету.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "424":
+          description: Внешний сервис недоступен либо вернул ошибку.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/datasets/{datasetId}/summary:
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        description: Идентификатор датасета.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Datasets]
+      summary: Сгенерировать краткую сводку датасета (LLM)
+      description: |-
+        Запрашивает внешний OpenAI Chat Completions для генерации 1–2 предложений о датасете.
+        Источник определяется конфигурацией `external.openai.mode` (`real` обращается к OpenAI API, `mock` — к внутреннему mock-сервису).
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Сводка успешно получена.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetSummaryResponse'
+        "401":
+          description: Требуется авторизация для приватного датасета.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Нет доступа к приватному датасету.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Датасет не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "424":
+          description: Внешний LLM недоступен или вернул ошибку.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v2/datasets/{datasetId}/versions:
     parameters:
       - in: path
@@ -2119,6 +2229,54 @@ components:
             $ref: '#/components/schemas/DatasetResponse'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
+    DatasetFactResponse:
+      type: object
+      required: [dataset_id, fact, length, source, mode, retrieved_at]
+      properties:
+        dataset_id:
+          type: integer
+          example: 12
+        fact:
+          type: string
+          example: Cats can jump up to six times their length.
+        length:
+          type: integer
+          description: Длина строки факта, приходит из внешнего сервиса.
+        source:
+          type: string
+          description: Базовый URL сервиса, к которому выполнен запрос (real или mock).
+        mode:
+          type: string
+          enum: [real, mock]
+          description: Активный режим интеграции.
+        retrieved_at:
+          type: string
+          format: date-time
+          description: Время получения факта.
+    DatasetSummaryResponse:
+      type: object
+      required: [dataset_id, summary, model, mode, source, created_at]
+      properties:
+        dataset_id:
+          type: integer
+          example: 12
+        summary:
+          type: string
+          example: Датасет включает размеченные тексты с тегами тематики.
+        model:
+          type: string
+          description: Имя модели OpenAI, вернувшей ответ.
+        mode:
+          type: string
+          enum: [real, mock]
+          description: Активный режим интеграции.
+        source:
+          type: string
+          description: Базовый URL сервиса LLM (mock или OpenAI API).
+        created_at:
+          type: string
+          format: date-time
+          description: Время генерации сводки.
     CreateDatasetRequest:
       type: object
       required: [name, category_id, file]

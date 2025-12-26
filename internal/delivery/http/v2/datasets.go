@@ -97,6 +97,71 @@ func (h *Handler) GetDataset(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (h *Handler) GetDatasetFunFact(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseIDParam(chi.URLParam(r, "datasetId"))
+	if err != nil {
+		return err
+	}
+
+	ds, err := h.datasets.GetDataset(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if err := ensureDatasetReadable(currentUser(r.Context()), ds.OwnerID, ds.IsPublic); err != nil {
+		return err
+	}
+	if h.facts == nil {
+		return fmt.Errorf("facts service is not configured")
+	}
+
+	fact, err := h.facts.GetDatasetFact(r.Context(), id)
+	if err != nil {
+		return err
+	}
+
+	writeJSON(w, http.StatusOK, DatasetFactResponse{
+		DatasetID:   fact.DatasetID,
+		Fact:        fact.Text,
+		Length:      fact.Length,
+		Source:      fact.Source,
+		Mode:        fact.Mode,
+		RetrievedAt: fact.RetrievedAt,
+	})
+	return nil
+}
+
+func (h *Handler) GetDatasetSummary(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseIDParam(chi.URLParam(r, "datasetId"))
+	if err != nil {
+		return err
+	}
+	ds, err := h.datasets.GetDataset(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if err := ensureDatasetReadable(currentUser(r.Context()), ds.OwnerID, ds.IsPublic); err != nil {
+		return err
+	}
+	if h.summaries == nil {
+		return fmt.Errorf("summary service is not configured")
+	}
+
+	sum, err := h.summaries.GenerateSummary(r.Context(), id)
+	if err != nil {
+		return err
+	}
+
+	writeJSON(w, http.StatusOK, DatasetSummaryResponse{
+		DatasetID: sum.DatasetID,
+		Summary:   sum.Text,
+		Model:     sum.Model,
+		Mode:      sum.Mode,
+		Source:    sum.Source,
+		CreatedAt: sum.CreatedAt,
+	})
+	return nil
+}
+
 func (h *Handler) latestVersion(ctx context.Context, datasetID uint64) (*entities.DatasetVersion, error) {
 	versions, err := h.datasets.ListVersions(ctx, datasetID)
 	if err != nil {

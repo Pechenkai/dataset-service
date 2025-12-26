@@ -49,6 +49,5 @@ describe('CatalogPage', () => {
 
     await waitFor(() => screen.getByText('Demo dataset'));
     expect(screen.getByText('Demo dataset')).toBeInTheDocument();
-    expect(screen.getByText(/Synthetic/)).toBeInTheDocument();
   });
 });

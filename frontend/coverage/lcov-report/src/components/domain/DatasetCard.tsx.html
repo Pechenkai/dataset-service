@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">90.9% </span>
+                <span class="strong">88.5% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>80/88</span>
+                <span class='fraction'>77/87</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">22.72% </span>
+                <span class="strong">18.18% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>5/22</span>
+                <span class='fraction'>4/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">80% </span>
+                <span class="strong">75% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/5</span>
+                <span class='fraction'>3/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">90.9% </span>
+                <span class="strong">88.5% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>80/88</span>
+                <span class='fraction'>77/87</span>
             </div>
         
             
@@ -150,8 +150,7 @@
 <a name='L85'></a><a href='#L85'>85</a>
 <a name='L86'></a><a href='#L86'>86</a>
 <a name='L87'></a><a href='#L87'>87</a>
-<a name='L88'></a><a href='#L88'>88</a>
-<a name='L89'></a><a href='#L89'>89</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L88'></a><a href='#L88'>88</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -167,12 +166,6 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -204,15 +197,20 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -248,19 +246,13 @@ import { Card } from '../ui/Card';
 import { RatingChip } from '../ui/RatingChip';
 import { StatTile } from '../ui/StatTile';
 import { TagList } from '../ui/TagList';
+import { formatSize } from '../../utils/format';
 &nbsp;
 type Props = {
     dataset: Dataset;
     category?: Category;
     onDownload?: (dataset: Dataset) =&gt; void;
 };
-&nbsp;
-const formatSize = (bytes?: number) =&gt; {
-    if (!<span class="branch-0 cbranch-no" title="branch not covered" >bytes || bytes &lt;= 0) r</span>eturn <span class="branch-0 cbranch-no" title="branch not covered" >'—';</span>
-<span class="cstat-no" title="statement not covered" >    const mb = bytes / 1024 / 1024;</span>
-<span class="cstat-no" title="statement not covered" >    if (mb &lt; 1024) return `${Math.round(mb)} MB`;</span>
-<span class="cstat-no" title="statement not covered" >    return `${(mb / 1024).toFixed(1)} GB`;</span>
-<span class="cstat-no" title="statement not covered" >};</span>
 &nbsp;
 const formatDate = (iso?: string) =&gt; (<span class="branch-0 cbranch-no" title="branch not covered" >iso ? iso.slice(0, 10) : '</span>—');
 &nbsp;
@@ -277,13 +269,17 @@ export const DatasetCard: React.FC&lt;Props&gt; = ({ dataset, category, onDownlo
 &nbsp;
     const updatedValue = formatDate(dataset.updated_at || dataset.<span class="branch-0 cbranch-no" title="branch not covered" >latest_version?.upload_date)</span>;
 &nbsp;
-    const sizeValue = formatSize(dataset.<span class="branch-0 cbranch-no" title="branch not covered" >metadata?.size ?? d</span>ataset.<span class="branch-0 cbranch-no" title="branch not covered" >latest_version?.metadata?.size)</span>;
+    const sizeValue = formatSize(
+        dataset.<span class="branch-0 cbranch-no" title="branch not covered" >metadata?.size ??</span>
+        dataset.<span class="branch-0 cbranch-no" title="branch not covered" >latest_version?.metadata?.size ??</span>
+        (dataset.<span class="branch-0 cbranch-no" title="branch not covered" >latest_version as any)?.size</span>
+    );
 &nbsp;
     return (
         &lt;Card
             className="ds-card"
             title={&lt;span className="ds-card__title"&gt;{dataset.name}&lt;/span&gt;}
-            subtitle={category ? category.<span class="branch-0 cbranch-no" title="branch not covered" >name : 'Без категории'}</span>
+            subtitle={<span class="branch-0 cbranch-no" title="branch not covered" >category ? category.name : '</span>Без категории'}
             toolbar={
                 &lt;Badge tone={dataset.is_public ? <span class="branch-0 cbranch-no" title="branch not covered" >'success' : 'warning'}&gt;</span>
                     {dataset.is_public ? <span class="branch-0 cbranch-no" title="branch not covered" >'Публичный' : 'Приватный'}</span>
@@ -295,34 +291,35 @@ export const DatasetCard: React.FC&lt;Props&gt; = ({ dataset, category, onDownlo
 <span class="cstat-no" title="statement not covered" >                        &lt;Button fullWidth onClick={<span class="fstat-no" title="function not covered" >() =&gt; onDownload(dataset)}&gt;</span></span>
 <span class="cstat-no" title="statement not covered" >                            Download</span>
 <span class="cstat-no" title="statement not covered" >                        &lt;/Button&gt;</span>
-                    ) : (
-                        &lt;Link to={`/datasets/${dataset.id}`} className="ui-button ui-button--primary ui-button--md ui-button--full"&gt;
-                            Download
-                        &lt;/Link&gt;
-                    )}
+                    ) : dataset.<span class="branch-0 cbranch-no" title="branch not covered" >latest_version?.<span class="branch-0 cbranch-no" title="branch not covered" >id ? (</span></span>
+<span class="cstat-no" title="statement not covered" >                        &lt;a</span>
+<span class="cstat-no" title="statement not covered" >                            href={`/api/v2/datasets/${dataset.id}/versions/${dataset.latest_version.id}/content`}</span>
+<span class="cstat-no" title="statement not covered" >                            className="ui-button ui-button--primary ui-button--md ui-button--full"</span>
+<span class="cstat-no" title="statement not covered" >                        &gt;</span>
+<span class="cstat-no" title="statement not covered" >                            Скачать</span>
+<span class="cstat-no" title="statement not covered" >                        &lt;/a&gt;</span>
+                    ) : null}
                 &lt;/div&gt;
             }
         &gt;
-            &lt;TagList tags={tags.map((t) =&gt; t)} /&gt;
-&nbsp;
-            &lt;div className="ds-card__rating"&gt;
-                &lt;RatingChip label={ratingLabel} /&gt;
-            &lt;/div&gt;
-&nbsp;
-            &lt;p className="ds-card__desc"&gt;
-                {dataset.<span class="branch-0 cbranch-no" title="branch not covered" >description || 'Описание пока пустое — самое время его добавить.'}</span>
-            &lt;/p&gt;
-&nbsp;
-            &lt;div className="ds-card__stats"&gt;
-                &lt;StatTile label="Size" value={sizeValue} /&gt;
-                &lt;StatTile label="Updated" value={updatedValue} /&gt;
-                &lt;StatTile label="Version" value={versionValue} /&gt;
-            &lt;/div&gt;
-&nbsp;
-            &lt;div className="ds-card__open"&gt;
-                &lt;Link className="ui-button ui-button--outline ui-button--md ui-button--full" to={`/datasets/${dataset.id}`}&gt;
-                    Открыть карточку
-                &lt;/Link&gt;
+            &lt;div className="ds-card__layout"&gt;
+                &lt;div className="ds-card__left"&gt;
+                    &lt;div className="ds-card__rating"&gt;
+                        &lt;RatingChip label={ratingLabel} /&gt;
+                    &lt;/div&gt;
+                    &lt;TagList tags={tags.map((t) =&gt; t)} /&gt;
+                    &lt;div className="ds-card__stats"&gt;
+                        &lt;StatTile label="Size" value={sizeValue} /&gt;
+                        &lt;StatTile label="Updated" value={updatedValue} /&gt;
+                        &lt;StatTile label="Version" value={versionValue} /&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+                &lt;div className="ds-card__descBox"&gt;
+                    &lt;div className="ds-card__descTitle"&gt;Описание&lt;/div&gt;
+                    &lt;div className="ds-card__desc"&gt;
+                        {dataset.<span class="branch-0 cbranch-no" title="branch not covered" >description || 'Описание пока пустое — самое время его добавить.'}</span>
+                    &lt;/div&gt;
+                &lt;/div&gt;
             &lt;/div&gt;
         &lt;/Card&gt;
     );
@@ -334,7 +331,7 @@ export const DatasetCard: React.FC&lt;Props&gt; = ({ dataset, category, onDownlo
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-19T11:40:26.415Z
+                at 2025-12-20T10:40:11.805Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

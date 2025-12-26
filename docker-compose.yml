@@ -133,6 +133,10 @@ services:
     image: ppo-app
     container_name: ppo_api_primary
     depends_on:
+      catfacts-mock:
+        condition: service_started
+      openai-mock:
+        condition: service_started
       db-primary:
         condition: service_healthy
       minio-init:
@@ -151,6 +155,11 @@ services:
       TECHUI_PORT: 8090
       CLI_API_BASE_URL: http://nginx/api/v2
       INSTANCE_TAG: main-writer
+      EXTERNAL_CATFACTS_MODE: mock
+      EXTERNAL_CATFACTS_MOCK_BASE_URL: http://catfacts-mock:9099
+      EXTERNAL_OPENAI_MODE: mock
+      EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
+      EXTERNAL_OPENAI_API_KEY: dummy
     expose:
       - "8080"
     ports:
@@ -177,6 +186,11 @@ services:
       TECHUI_HOST: 0.0.0.0
       TECHUI_PORT: 8090
       INSTANCE_TAG: main-ro-1
+      EXTERNAL_CATFACTS_MODE: mock
+      EXTERNAL_CATFACTS_MOCK_BASE_URL: http://catfacts-mock:9099
+      EXTERNAL_OPENAI_MODE: mock
+      EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
+      EXTERNAL_OPENAI_API_KEY: dummy
     expose:
       - "8080"
 
@@ -201,8 +215,40 @@ services:
       TECHUI_HOST: 0.0.0.0
       TECHUI_PORT: 8090
       INSTANCE_TAG: main-ro-2
+      EXTERNAL_CATFACTS_MODE: mock
+      EXTERNAL_CATFACTS_MOCK_BASE_URL: http://catfacts-mock:9099
+      EXTERNAL_OPENAI_MODE: mock
+      EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
+      EXTERNAL_OPENAI_API_KEY: dummy
     expose:
       - "8080"
+  catfacts-mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.mockcatfacts
+    image: ppo-catfacts-mock
+    container_name: ppo_catfacts_mock
+    ports:
+      - "9099:9099"
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:9099/fact" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  openai-mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.mockopenai
+    image: ppo-openai-mock
+    container_name: ppo_openai_mock
+    ports:
+      - "8088:8088"
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:8088/chat/completions" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api-mirror:
     image: ppo-app

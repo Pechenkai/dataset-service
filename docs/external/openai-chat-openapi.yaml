@@ -1,0 +1,74 @@
+openapi: 3.0.3
+info:
+  title: OpenAI Chat Completions (contract snapshot)
+  version: "1.0.0"
+  description: Минимальный контракт используемого вызова Chat Completions.
+servers:
+  - url: https://api.openai.com/v1
+paths:
+  /chat/completions:
+    post:
+      summary: Create chat completion
+      description: Принимает историю сообщений и возвращает ответ модели.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        "200":
+          description: Успешный ответ модели.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        "400":
+          description: Неверный запрос.
+        "401":
+          description: Неверный/отсутствующий API ключ.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ChatRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+          example: gpt-3.5-turbo
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [system, user, assistant]
+              content:
+                type: string
+        max_tokens:
+          type: integer
+          example: 120
+    ChatResponse:
+      type: object
+      properties:
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                type: object
+                properties:
+                  content:
+                    type: string

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { usePersistentState } from '../../hooks/usePersistentState';
 
 type Mode = 'login' | 'register';
 
@@ -17,17 +18,24 @@ export const AuthForm: React.FC<Props> = ({
   onSwitchMode,
   isSubmitting = false
 }) => {
-  const [email, setEmail] = useState('');
+  const [persisted, setPersisted] = usePersistentState('auth.form', {
+    email: '',
+    username: '',
+    country: ''
+  });
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [country, setCountry] = useState('');
   const [error, setError] = useState('');
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
-      await onSubmit({ email, password, username, country });
+      await onSubmit({
+        email: persisted.email,
+        password,
+        username: persisted.username,
+        country: persisted.country
+      });
     } catch {
       setError('Authentication failed');
     }
@@ -40,11 +48,27 @@ export const AuthForm: React.FC<Props> = ({
       <div className="auth-form__fields">
         {mode === 'register' && (
           <>
-            <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            <Input label="Country" value={country} onChange={(e) => setCountry(e.target.value)} required />
+            <Input
+              label="Username"
+              value={persisted.username}
+              onChange={(e) => setPersisted((s) => ({ ...s, username: e.target.value }))}
+              required
+            />
+            <Input
+              label="Country"
+              value={persisted.country}
+              onChange={(e) => setPersisted((s) => ({ ...s, country: e.target.value }))}
+              required
+            />
           </>
         )}
-        <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <Input
+          label="Email"
+          type="email"
+          value={persisted.email}
+          onChange={(e) => setPersisted((s) => ({ ...s, email: e.target.value }))}
+          required
+        />
         <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </div>
 
