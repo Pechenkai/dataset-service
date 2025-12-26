@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
 FROM golang:1.22-alpine AS builder
+ENV GOTOOLCHAIN=auto
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY cmd/mockcatfacts cmd/mockcatfacts
-COPY internal/integrations internal/integrations
+COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/mockcatfacts ./cmd/mockcatfacts
 
 FROM alpine:3.19

@@ -184,7 +184,7 @@ build-mockcatfacts: dirs
 
 .PHONY: build-mockopenai
 build-mockopenai: dirs
-	@echo "=> Building OpenAI mock service (black-box artifact)"
+	@echo "=> Building OpenAI mock service"
 	GO111MODULE=on $(GO) build -o $(BIN_DIR)/mockopenai ./cmd/mockopenai
 
 .PHONY: info
