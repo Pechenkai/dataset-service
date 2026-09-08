@@ -170,7 +170,9 @@ SPA запускается отдельно из каталога `frontend` к�
 
 ## Черновые экраны web-приложения
 
-![screen](./images/screen.jpg)
+![screen](./images/screen.png)
+![screen](./images/screen2.png)
+![screen](./images/screen3.png)
 
 ## Тестирование и Allure-отчет
 
