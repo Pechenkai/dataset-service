@@ -37,7 +37,7 @@ auth:
     max_attempts: 3
     block_duration: "1m"
     debug_secret: ""
-    delivery: "email"
+    delivery: "disabled"
 
 admin:
   username: "admin"
@@ -68,7 +68,7 @@ external:
     timeout: "4s"
   openai:
     mode: "mock"                    
-    base_url: "http://localhost:8088"
+    base_url: "http://localhost:18088"
     api_key: ""
     model: "gpt-3.5-turbo"
     timeout: "15s"

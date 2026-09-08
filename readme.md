@@ -6,6 +6,29 @@
 датасетов), предназначенных для машинного обучения и анализа данных. Сервис позволит пользователям загружать и скачивать
 датасеты, добавлять метаданные и оценивать понравившиеся наборы данных.
 
+## Быстрый запуск
+
+Для запуска полного окружения нужны Docker и Docker Compose. Из корня репозитория выполните:
+
+```bash
+docker compose up --build
+```
+
+После запуска основной шлюз доступен по адресу `http://localhost:18088`. Полезные страницы: `/api/v2` — Swagger UI v2,
+`/legacy/` — серверный интерфейс, `/admin/` — Adminer, `/monitoring/` — Grafana, `/status` — статус Nginx.
+PostgreSQL, MinIO, RabbitMQ, Prometheus и Grafana также имеют опубликованные порты, заданные в `docker-compose.yml`.
+Для остановки окружения используйте `docker compose down`; тома с данными при этом сохраняются.
+
+Для локальной разработки API требуются доступные PostgreSQL и MinIO с параметрами из `config.yaml`:
+
+```bash
+go run ./cmd/api
+```
+
+SPA запускается отдельно из каталога `frontend` командой `npm run dev`; подробности приведены в
+[`frontend/README.md`](frontend/README.md). Перед сборкой Docker-образа SPA нужно собрать командой `npm run build`,
+поскольку Nginx отдаёт каталог `static/app`, если он присутствует в контексте сборки.
+
 ## Описание предметной области
 
 Проект ориентирован на область работы с наборами данных (датасетами), используемыми в машинном обучении и аналитике
@@ -171,9 +194,9 @@ make test-dataset-allure
 make allure-report
 ```
 
-## Интеграция с внешним CatFacts
+## Интеграции с внешними сервисами
 
-- Сервис-«чёрный ящик» CatFacts (`GET /fact`, контракт `docs/external/catfacts-openapi.yaml`).
+- Сервис-«чёрный ящик» CatFacts использует `GET /fact`.
 - Новый эндпоинт: `GET /api/v2/datasets/{datasetId}/fun-fact` — запрашивает случайный факт у внешнего сервиса и возвращает его клиенту вместе с источником/режимом.
 - Конфигурация: секция `external.catfacts` в `config.yaml` (`mode` = `mock` или `real`, `real_base_url`, `mock_base_url`, `timeout`). Переключение режима доступно только через конфигурацию/переменные окружения.
 - Mock-сервер: `go run ./cmd/mockcatfacts -addr :9099` (базовый URL `http://localhost:9099`).
@@ -182,7 +205,8 @@ make allure-report
 - Запуск окружения для демонстрации: либо mock (`go run ./cmd/mockcatfacts &` + `EXTERNAL_CATFACTS_MODE=mock EXTERNAL_CATFACTS_MOCK_BASE_URL=http://localhost:9099 go run ./cmd/api`), либо реальный сервис (`EXTERNAL_CATFACTS_MODE=real go run ./cmd/api`).
 - Для артефактов сборки предусмотрен отдельный бинарник mock CatFacts: `make build-mockcatfacts` (лежит в `build/bin/mockcatfacts`), используется как “чёрный ящик” при интеграции.
 - Docker Compose: сервис `catfacts-mock` собирается из `Dockerfile.mockcatfacts` и автоматически подключён к `api`/`api-read*` (переменные `EXTERNAL_CATFACTS_MODE=mock`, `EXTERNAL_CATFACTS_MOCK_BASE_URL=http://catfacts-mock:9099` уже прописаны).
-- LLM (OpenAI): эндпоинт `GET /api/v2/datasets/{datasetId}/summary` запрашивает Chat Completions для краткой сводки датасета. Контракт внешнего API — `docs/external/openai-chat-openapi.yaml` (Chat Completions `POST /v1/chat/completions`). Конфиг: `external.openai` (`mode` mock/real, `base_url`, `api_key`, `model`, `max_tokens`, `timeout`). Mock-бинарь: `make build-mockopenai` (Dockerfile.mockopenai + сервис `openai-mock` в docker-compose). При запуске API с mock: `EXTERNAL_OPENAI_MODE=mock EXTERNAL_OPENAI_BASE_URL=http://localhost:8088 go run ./cmd/api`; для real: `EXTERNAL_OPENAI_MODE=real EXTERNAL_OPENAI_API_KEY=... go run ./cmd/api`.
+- LLM (OpenAI): эндпоинт `GET /api/v2/datasets/{datasetId}/summary` вызывает Chat Completions (`POST /chat/completions`) для краткой сводки датасета. Конфиг: `external.openai` (`mode` mock/real, `base_url`, `api_key`, `model`, `max_tokens`, `timeout`). Mock-бинарь: `make build-mockopenai` (Dockerfile.mockopenai + сервис `openai-mock` в Docker Compose). При локальном запуске mock слушает `:8088`: `go run ./cmd/mockopenai`; API следует запускать с `EXTERNAL_OPENAI_MODE=mock EXTERNAL_OPENAI_BASE_URL=http://localhost:8088`. Для реального сервиса нужны `EXTERNAL_OPENAI_MODE=real`, `EXTERNAL_OPENAI_BASE_URL=https://api.openai.com/v1` и `EXTERNAL_OPENAI_API_KEY`.
+- В Docker Compose контейнеры обращаются к mock-сервисам по внутренним адресам `catfacts-mock:9099` и `openai-mock:8088`. Их порты на хосте задаются переменными `CATFACTS_MOCK_PORT` (по умолчанию `9099`) и `OPENAI_MOCK_PORT` (по умолчанию `18089`).
 
 ### Настроенные маршруты шлюза
 

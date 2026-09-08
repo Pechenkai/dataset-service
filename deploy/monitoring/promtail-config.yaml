@@ -16,12 +16,10 @@ scrape_configs:
     pipeline_stages:
       - docker: {}
     relabel_configs:
-      - source_labels: [__meta_docker_container_name]
-        target_label: container
-        regex: "/(.*)"
-      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
-        target_label: service
       - source_labels: [__meta_docker_container_label_com_docker_compose_project]
         target_label: compose_project
-      - source_labels: [__meta_docker_container_label_com_docker_compose_container_number]
-        target_label: replica
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: service
+      - source_labels: [__meta_docker_container_name]
+        regex: "/(.*)"
+        target_label: container

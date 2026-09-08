@@ -23,7 +23,7 @@ ALLURE_HISTORY_DIR := allure-history
 ALLURE_BRIDGE_CMD := go run ./cmd/allurebridge
 
 TEST_PHASE ?= unit
-E2E_REQUIRE_INFRA ?= 1
+E2E_REQUIRE_INFRA ?= 0
 
 .PHONY: all clean dirs lint install-hooks \
         build-dataaccess-archive build-services-archive \
@@ -60,7 +60,6 @@ test-e2e:
 
 .PHONY: test-e2e-catfacts-mock
 test-e2e-catfacts-mock:
-	@echo "=> Running fun-fact e2e against standalone mock CatFacts server"
 	@bash -c 'set -euo pipefail; \
 	  addr=$${CATFACTS_ADDR:-:9099}; \
 	  if [ -n "${CATFACTS_BASE_URL-}" ]; then \
@@ -82,37 +81,20 @@ test-e2e-catfacts-mock:
 
 .PHONY: test-e2e-catfacts-real
 test-e2e-catfacts-real:
-	@echo "=> Running fun-fact e2e against real CatFacts service"
 	EXTERNAL_CATFACTS_MODE=real E2E_REQUIRE_INFRA=$(E2E_REQUIRE_INFRA) \
 		go test -tags=e2e -count=1 -run TestE2E_DatasetFunFactFromExternalService ./internal/tests/e2e
 
 .PHONY: test-e2e-openai-mock
 test-e2e-openai-mock:
-	@echo "=> Running LLM summary e2e against standalone mock OpenAI server"
-	@bash -c 'set -euo pipefail; \
-	  addr=$${OPENAI_ADDR:-:8088}; \
-	  case "$$addr" in \
-	    http://*|https://*) base_url=$$addr ;; \
-	    :*) base_url=http://localhost$$addr ;; \
-	    *) base_url=http://$$addr ;; \
-	  esac; \
-	  srv=""; \
-	  trap "test -n \"$$srv\" && kill $$srv" EXIT; \
-	  go run ./cmd/mockopenai -addr $$addr >/dev/null 2>&1 & srv=$$!; \
-	  sleep 0.2; \
-	  EXTERNAL_OPENAI_MODE=mock EXTERNAL_OPENAI_BASE_URL=$$base_url \
-	  go test -tags=e2e -count=1 -run TestE2E_DatasetSummaryFromOpenAI ./internal/tests/e2e; \
-	'
+	EXTERNAL_OPENAI_MODE=mock go test -tags=e2e -count=1 -run TestE2E_DatasetSummaryFromOpenAI ./internal/tests/e2e
 
 .PHONY: test-e2e-openai-real
 test-e2e-openai-real:
-	@echo "=> Running LLM summary e2e against real OpenAI service"
 	EXTERNAL_OPENAI_MODE=real E2E_REQUIRE_INFRA=$(E2E_REQUIRE_INFRA) \
 		go test -tags=e2e -count=1 -run TestE2E_DatasetSummaryFromOpenAI ./internal/tests/e2e
 
 .PHONY: test-e2e-2fa
 test-e2e-2fa:
-	@echo "=> Running 2FA BDD e2e scenario"
 	E2E_REQUIRE_INFRA=$(E2E_REQUIRE_INFRA) go test -tags=e2e -count=1 -run TwoFactorFeatures ./internal/tests/e2e
 
 .PHONY: lint

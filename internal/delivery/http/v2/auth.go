@@ -107,6 +107,43 @@ func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// DirectLogin выдаёт токен только по email+паролю, без 2FA.
+func (h *Handler) DirectLogin(w http.ResponseWriter, r *http.Request) error {
+	if h.tokens == nil {
+		return errTokenServiceDisabled
+	}
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	email := strings.TrimSpace(req.Email)
+	password := strings.TrimSpace(req.Password)
+	if email == "" || password == "" {
+		return &dto.BadRequestError{Message: "email and password are required"}
+	}
+	user, err := h.users.Authenticate(r.Context(), services.AuthenticateUserCmd{
+		Email:    email,
+		Password: password,
+	})
+	if err != nil {
+		return err
+	}
+	record, err := h.tokens.IssueToken(r.Context(), user.ID, h.tokenTTL)
+	if err != nil {
+		return err
+	}
+
+	writeJSON(w, http.StatusOK, AuthenticateResponse{
+		Token:     record.ID,
+		ExpiresAt: record.ExpiresAt,
+		User:      toUserResponse(user),
+	})
+	return nil
+}
+
 func (h *Handler) DebugChallengeCode(w http.ResponseWriter, r *http.Request) error {
 	if h.twofa == nil {
 		return errTwoFAServiceDisabled
