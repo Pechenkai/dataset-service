@@ -136,6 +136,7 @@ func RegisterRoutes(r chi.Router, basePath string, deps HandlerDeps) {
 
 		api.Post("/auth/2fa/challenge", wrap(deps.Logger, h.RequestTwoFA))
 		api.Get("/auth/2fa/challenges/{challengeId}/code", wrap(deps.Logger, h.DebugChallengeCode))
+		api.Post("/auth/login", wrap(deps.Logger, h.DirectLogin))
 		api.Post("/auth/tokens", wrap(deps.Logger, h.IssueToken))
 		protected.Post("/auth/tokens/revoke", wrap(deps.Logger, h.RevokeToken))
 	})

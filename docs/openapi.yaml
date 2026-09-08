@@ -1913,18 +1913,22 @@ paths:
   /api/v2/auth/tokens:
     post:
       tags: [Auth]
-      summary: Подтверждение 2FA и выдача токена
-      description: Подтверждает одноразовый код по ранее созданному челленджу и возвращает access token.
+      summary: Выдача токена
+      description: |
+        Возвращает access token одним из способов:
+
+        - по 2FA-челленджу (challenge_id + code);
+        - по email + password (например, для админа при отключённой 2FA).
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfirmTwoFARequest'
+              $ref: '#/components/schemas/IssueTokenRequest'
       responses:
         "200":
-          description: Код верный, токен выдан.
+          description: Токен выдан.
           content:
             application/json:
               schema:
@@ -2021,18 +2025,49 @@ paths:
                 $ref: '#/components/schemas/DebugCodeResponse'
         "401":
           description: Неверный debug secret.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErrorResponse'
+  /api/v2/auth/login:
+    post:
+      tags: [Auth]
+      summary: Прямая аутентификация без 2FA
+      description: Принимает email и пароль, возвращает access token без дополнительного шага 2FA.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DirectLoginRequest'
+      responses:
+        "200":
+          description: Токен выдан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticateResponse'
+        "400":
+          description: Неверные данные запроса.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "404":
-          description: Челлендж не найден.
+        "401":
+          description: Неверные учётные данные.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         "500":
           description: Внутренняя ошибка.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Челлендж не найден.
           content:
             application/json:
               schema:
@@ -2651,6 +2686,29 @@ components:
         code:
           type: string
           minLength: 4
+    DirectLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    IssueTokenRequest:
+      type: object
+      properties:
+        challenge_id:
+          type: string
+        code:
+          type: string
+          minLength: 4
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      description: "Либо challenge_id+code (2FA), либо email+password (прямая аутентификация, например для админа)"
     AuthenticateResponse:
       type: object
       required: [token, user]

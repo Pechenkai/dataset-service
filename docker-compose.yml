@@ -28,7 +28,6 @@ services:
     environment:
       POSTGRESQL_REPLICATION_MODE: slave
 
-      # ВАЖНО: использовать MASTER_*, а не PRIMARY_*
       POSTGRESQL_MASTER_HOST: db-primary
       POSTGRESQL_MASTER_PORT_NUMBER: 5432
 
@@ -160,6 +159,8 @@ services:
       EXTERNAL_OPENAI_MODE: mock
       EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
       EXTERNAL_OPENAI_API_KEY: dummy
+      SKIP_ADMIN_SEED: "1"
+      DISABLE_2FA: "1"
     expose:
       - "8080"
     ports:
@@ -191,6 +192,8 @@ services:
       EXTERNAL_OPENAI_MODE: mock
       EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
       EXTERNAL_OPENAI_API_KEY: dummy
+      SKIP_ADMIN_SEED: "1"
+      DISABLE_2FA: "1"
     expose:
       - "8080"
 
@@ -220,6 +223,7 @@ services:
       EXTERNAL_OPENAI_MODE: mock
       EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
       EXTERNAL_OPENAI_API_KEY: dummy
+      SKIP_ADMIN_SEED: "1"
     expose:
       - "8080"
   catfacts-mock:
@@ -229,7 +233,7 @@ services:
     image: ppo-catfacts-mock
     container_name: ppo_catfacts_mock
     ports:
-      - "9099:9099"
+      - "${CATFACTS_MOCK_PORT:-9099}:9099"
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:9099/fact" ]
       interval: 10s
@@ -243,7 +247,7 @@ services:
     image: ppo-openai-mock
     container_name: ppo_openai_mock
     ports:
-      - "8088:8088"
+      - "${OPENAI_MOCK_PORT:-18089}:8088"
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:8088/chat/completions" ]
       interval: 10s
@@ -296,6 +300,12 @@ services:
       TECHUI_HOST: 0.0.0.0
       TECHUI_PORT: 8090
       INSTANCE_TAG: mirror-ro-1
+      EXTERNAL_CATFACTS_MODE: mock
+      EXTERNAL_CATFACTS_MOCK_BASE_URL: http://catfacts-mock:9099
+      EXTERNAL_OPENAI_MODE: mock
+      EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
+      EXTERNAL_OPENAI_API_KEY: dummy
+      SKIP_ADMIN_SEED: "1"
     expose:
       - "8080"
 
@@ -320,6 +330,12 @@ services:
       TECHUI_HOST: 0.0.0.0
       TECHUI_PORT: 8090
       INSTANCE_TAG: mirror-ro-2
+      EXTERNAL_CATFACTS_MODE: mock
+      EXTERNAL_CATFACTS_MOCK_BASE_URL: http://catfacts-mock:9099
+      EXTERNAL_OPENAI_MODE: mock
+      EXTERNAL_OPENAI_BASE_URL: http://openai-mock:8088
+      EXTERNAL_OPENAI_API_KEY: dummy
+      SKIP_ADMIN_SEED: "1"
     expose:
       - "8080"
 
@@ -439,8 +455,6 @@ services:
       INSTANCE_TAG: data
     expose:
       - "8080"
-    ports:
-      - "8086:8080"
     deploy:
       replicas: 2
 
@@ -474,7 +488,7 @@ services:
       - legacy-ui-mirror
       - adminer
     ports:
-      - "8088:80"
+      - "18088:80"
 
   node-exporter:
     image: prom/node-exporter:v1.7.0
@@ -513,11 +527,13 @@ services:
       - ppo_loki_data:/loki
 
   promtail:
-    image: grafana/promtail:2.9.4
+    image: grafana/promtail:2.9.8
     container_name: ppo_promtail
     depends_on:
       - loki
     command: [ "-config.file=/etc/promtail/config.yml" ]
+    environment:
+      DOCKER_API_VERSION: "1.44"
     volumes:
       - ./deploy/monitoring/promtail-config.yaml:/etc/promtail/config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -536,6 +552,10 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/monitoring/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
     volumes:
       - ppo_grafana_data:/var/lib/grafana
       - ./deploy/monitoring/provisioning:/etc/grafana/provisioning

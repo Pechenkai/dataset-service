@@ -1,0 +1,118 @@
+openapi: 3.0.3
+info:
+  title: Duck Shop API
+  version: 1.0.0
+
+servers:
+  - url: /api
+
+paths:
+  /pickup-points:
+    get:
+      summary: Get pickup points
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            enum: [20, 50]
+            default: 20
+      responses:
+        "200":
+          description: Pickup points list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PickupPoint"
+
+  /orders:
+    post:
+      summary: Create order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order_id]
+                properties:
+                  order_id:
+                    type: string
+        "400":
+          description: Invalid input
+
+  /orders/{order_id}/confirm:
+    post:
+      summary: Confirm order
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmOrderRequest"
+      responses:
+        "200":
+          description: Order confirmed
+        "400":
+          description: Invalid code
+        "404":
+          description: Order not found
+
+components:
+  schemas:
+    PickupPoint:
+      type: object
+      required: [id, address, working_hours, delivery_days]
+      properties:
+        id:
+          type: string
+        address:
+          type: string
+        working_hours:
+          type: string
+        delivery_days:
+          type: integer
+
+    CreateOrderRequest:
+      type: object
+      required: [duck_id, pickup_point_id, email]
+      properties:
+        duck_id:
+          type: string
+        pickup_point_id:
+          type: string
+        email:
+          type: string
+          format: email
+
+    ConfirmOrderRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string

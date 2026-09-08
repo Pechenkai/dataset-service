@@ -98,6 +98,12 @@ func Build(ctx context.Context) (*App, error) {
 		DebugSecret:   cfg.Auth.TwoFA.DebugSecret,
 	}, nil, zapLogger)
 
+	var twofaService services.TwoFactorService = twofaSvc
+	if strings.EqualFold(os.Getenv("DISABLE_2FA"), "1") || strings.EqualFold(cfg.Auth.TwoFA.Delivery, "disabled") {
+		zapLogger.Warn("two-factor auth disabled by configuration")
+		twofaService = nil
+	}
+
 	if err := ensureAdminUser(ctx, userSvc, cfg.Admin, zapLogger); err != nil {
 		dbPool.Close()
 		closeLog()
@@ -116,7 +122,7 @@ func Build(ctx context.Context) (*App, error) {
 		reqSvc,
 		tokenSvc,
 		tokenTTL,
-		twofaSvc,
+		twofaService,
 		zapLogger,
 	)
 
@@ -166,6 +172,11 @@ func (a *App) Shutdown(ctx context.Context) error {
 }
 
 func ensureAdminUser(ctx context.Context, userSvc services.UserService, creds config.AdminAccount, logger *zap.Logger) error {
+	if skip := strings.EqualFold(os.Getenv("SKIP_ADMIN_SEED"), "1"); skip {
+		logger.Info("admin seeding skipped by env flag SKIP_ADMIN_SEED=1")
+		return nil
+	}
+
 	email := strings.TrimSpace(creds.Email)
 	password := strings.TrimSpace(creds.Password)
 	if email == "" || password == "" {
